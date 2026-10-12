@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+src-tauri/target/
+src-tauri/gen/
+dist-portable/
+.vscode/
+.zcode/
+.zwork/
+*.log
+*.tsbuildinfo
+.env
+.DS_Store
+Thumbs.db

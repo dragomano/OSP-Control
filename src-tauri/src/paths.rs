@@ -1,0 +1,162 @@
+//! Locating the installation, path/URL validation and small fs+time helpers shared by commands.
+
+use std::ffi::OsStr;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use crate::error::{spawn_failed, CommandError};
+
+fn candidate_paths() -> Vec<PathBuf> {
+    let mut paths = vec![
+        PathBuf::from(r"D:\OSPanel6"),
+        PathBuf::from(r"C:\OSPanel6"),
+        PathBuf::from(r"C:\OSPanel"),
+        PathBuf::from(r"D:\OSPanel"),
+    ];
+    if let Ok(program_data) = std::env::var("PROGRAMDATA") {
+        paths.push(PathBuf::from(program_data).join("OSPanel"));
+    }
+    paths
+}
+
+fn find_installation() -> Option<PathBuf> {
+    candidate_paths().into_iter().find(|path| {
+        path.join("bin").join("osp.bat").exists()
+            || path.join("home").exists()
+            || path.join("modules").exists()
+    })
+}
+
+pub(crate) fn now_iso() -> String {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| format!("unix:{}", duration.as_secs()))
+        .unwrap_or_else(|_| "unknown".into())
+}
+
+pub(crate) fn within_installation(canonical: &Path, custom_path: Option<&str>) -> bool {
+    custom_path
+        .map(PathBuf::from)
+        .into_iter()
+        .filter(|path| path.exists())
+        .chain(candidate_paths())
+        .filter_map(|root| fs::canonicalize(root).ok())
+        .any(|root| canonical.starts_with(&root))
+}
+
+// Shared explorer spawn for an already-verified path (whitelisted up the call stack).
+pub(crate) fn hidden_command<S: AsRef<OsStr>>(program: S) -> Command {
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command
+}
+
+pub(crate) fn explorer_open(target: &Path) -> Result<(), CommandError> {
+    Command::new("explorer").arg(target).spawn().map_err(spawn_failed)?;
+    Ok(())
+}
+
+pub(crate) fn is_valid_lang(code: &str) -> bool {
+    (2..=8).contains(&code.len())
+        && code.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        && code.chars().any(|c| c.is_ascii_alphabetic())
+}
+
+pub(crate) fn unix_now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+pub(crate) fn modified_secs(meta: &fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+pub(crate) fn dir_stats(path: &Path) -> (u64, u64) {
+    let mut size = 0;
+    let mut files = 0;
+
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let child = entry.path();
+            if child.is_dir() {
+                let (s, f) = dir_stats(&child);
+                size += s;
+                files += f;
+            } else if let Ok(meta) = entry.metadata() {
+                size += meta.len();
+                files += 1;
+            }
+        }
+    }
+
+    (size, files)
+}
+
+pub(crate) fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<u64> {
+    fs::create_dir_all(dst)?;
+
+    let mut copied = 0;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if from.is_dir() {
+            copied += copy_dir_recursive(&from, &to)?;
+        } else {
+            fs::copy(&from, &to)?;
+            copied += 1;
+        }
+    }
+
+    Ok(copied)
+}
+
+// A single path component (a module directory in modules/, a project folder in home/):
+// ASCII letters/digits, hyphen, underscore, dot; no ".." and no leading dot, so the path
+// cannot "escape". The limits differ: module names are short, domains may be longer.
+fn is_safe_component(value: &str, max_len: usize) -> bool {
+    (1..=max_len).contains(&value.len())
+        && !value.starts_with('.')
+        && !value.contains("..")
+        && value.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
+pub(crate) fn is_valid_module_name(name: &str) -> bool {
+    is_safe_component(name, 100)
+}
+
+pub(crate) fn resolve_installation(custom_path: Option<&str>) -> Result<PathBuf, CommandError> {
+    custom_path
+        .map(PathBuf::from)
+        .filter(|path| path.exists())
+        .or_else(find_installation)
+        .ok_or_else(|| CommandError::new("err.ospanelNotFound"))
+}
+
+// A domain is a directory name in home/: ASCII letters, digits, dot, hyphen, underscore only.
+pub(crate) fn is_valid_domain(domain: &str) -> bool {
+    is_safe_component(domain, 255)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn domain_validation_rejects_traversal() {
+        assert!(is_valid_domain("dune.loc"));
+        assert!(is_valid_domain("my-shop.test"));
+        assert!(!is_valid_domain("..\\Apache"));
+        assert!(!is_valid_domain(".hidden"));
+        assert!(!is_valid_domain(""));
+        assert!(!is_valid_domain("сайт.лок"));
+    }
+}

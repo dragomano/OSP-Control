@@ -1,0 +1,115 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  frontend-gate:
+    name: Quality gate — Frontend (Biome + Vitest + tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint & format check (Biome)
+        run: pnpm lint
+
+      - name: Frontend tests with coverage thresholds (Vitest)
+        run: pnpm coverage
+
+      - name: Typecheck & build (tsc + vite)
+        run: pnpm build
+
+  rust-gate:
+    name: Quality gate — Rust (cargo test)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: cargo test
+        run: cargo test
+        working-directory: src-tauri
+
+  build-windows:
+    name: Build Windows
+    needs: [frontend-gate, rust-gate]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the portable distribution (tsc + vite + tauri build + make-portable)
+        run: pnpm tauri:build
+
+      # The folder itself is enough to run the app; the zip is what the release attaches,
+      # with the folder inside it — Compress-Archive keeps the root entry.
+      - name: Zip the portable distribution
+        shell: pwsh
+        run: |
+          $folder = Get-ChildItem dist-portable -Directory | Select-Object -First 1
+          Compress-Archive -Path $folder.FullName -DestinationPath "dist-portable/$($folder.Name).zip"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: osp-control-${{ github.ref_name }}
+          path: dist-portable/*.zip
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: dist-portable/*.zip

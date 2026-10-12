@@ -1,0 +1,29 @@
+[package]
+name = "osp-control"
+# Crate version, not the app version: tauri.conf.json takes the app version
+# from ../package.json, and tests/version.test.ts keeps the two in lockstep.
+version = "0.1.0"
+description = "OSP Control — local control center for OSPanel"
+authors = ["Bugo"]
+edition = "2024"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+# Zip archives for backups (configurations, projects) — pure Rust, no external utilities.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_Foundation"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
