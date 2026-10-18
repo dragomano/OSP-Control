@@ -43,15 +43,103 @@ button {
   color: var(--text);
   display: flex;
 }
+/* Light theme palette: cool blue-grey surfaces. The accent is not declared here —
+   theme.ts writes --lt-accent* on the root so the fill follows the accent theme
+   (defaults live in the :root block below). */
 .app-shell.light {
-  --bg: #f4f6f7;
-  --panel: #fff;
-  --panel2: #f6f8f8;
-  --line: #e6e9ed;
-  --text: #20252b;
-  --muted: #727a84;
-  --dim: #8f969f;
-  --accent: var(--k-c07a2e);
+  --lt-bg: #ebeff2;
+  --lt-panel: #f7f9fb;
+  --lt-panel-2: #f0f3f6;
+  --lt-text: #1f262c;
+  --lt-muted: #636e78;
+  --lt-dim: #8b949d;
+
+  /* Derived once for the palette, so only the primitives above are hand-picked. */
+  --lt-hover: color-mix(in srgb, var(--lt-text) 6%, var(--lt-panel));
+  --lt-line: color-mix(in srgb, var(--lt-text) 13%, var(--lt-panel));
+  --lt-line-strong: color-mix(in srgb, var(--lt-text) 22%, var(--lt-panel));
+  --lt-text-soft: color-mix(in srgb, var(--lt-text) 72%, var(--lt-panel));
+  --lt-track: color-mix(in srgb, var(--lt-text) 20%, var(--lt-panel));
+  --lt-code-text: color-mix(in srgb, var(--lt-text) 80%, var(--lt-panel));
+  --lt-accent-hover: color-mix(in srgb, var(--lt-accent) 86%, #000);
+  --lt-accent-soft: color-mix(in srgb, var(--lt-accent) 12%, var(--lt-panel));
+  --lt-accent-border: color-mix(in srgb, var(--lt-accent) 32%, var(--lt-panel));
+  --lt-accent-glow: color-mix(in srgb, var(--lt-accent) 20%, transparent);
+  --lt-hero-from: color-mix(in srgb, var(--lt-accent) 7%, var(--lt-panel));
+  --lt-notice-bg: color-mix(in srgb, var(--lt-accent) 9%, var(--lt-panel));
+
+  --lt-ok-text: #3d7a4d;
+  --lt-info-text: #33648f;
+  --lt-plum-text: #6f57ad;
+  --lt-warn-text: #8f6418;
+  --lt-err-text: #97452f;
+  --lt-info-soft: color-mix(in srgb, var(--lt-info-text) 11%, var(--lt-panel));
+  --lt-plum-soft: color-mix(in srgb, var(--lt-plum-text) 11%, var(--lt-panel));
+  --lt-warn-soft: color-mix(in srgb, var(--lt-warn-text) 13%, var(--lt-panel));
+  --lt-err-soft: color-mix(in srgb, var(--lt-err-text) 11%, var(--lt-panel));
+  --lt-shadow: #10141a26;
+  --lt-overlay: color-mix(in srgb, var(--lt-bg) 76%, transparent);
+
+  --bg: var(--lt-bg);
+  --panel: var(--lt-panel);
+  --panel2: var(--lt-panel-2);
+  --line: var(--lt-line);
+  --text: var(--lt-text);
+  --muted: var(--lt-muted);
+  --dim: var(--lt-dim);
+  --accent: var(--lt-accent-text);
+
+  /* The light theme reaches for a handful of --k-* entries that were tuned as
+     dark-mode tints (chip backgrounds, accent text). Point them at the palette
+     so a light surface never gets a dark-mode brown. */
+  --k-231b1220: var(--lt-notice-bg);
+  --k-241d13: var(--lt-notice-bg);
+  --k-241d14: var(--lt-accent-soft);
+  --k-241608: var(--lt-on-accent);
+  --k-2a2118: var(--lt-accent-soft);
+  --k-2b1a08: var(--lt-on-accent);
+  --k-322b20: var(--lt-warn-soft);
+  --k-332a1c: var(--lt-accent-soft);
+  --k-332a1e: var(--lt-accent-soft);
+  --k-362a1c: var(--lt-accent-soft);
+  --k-3a2a17: var(--lt-accent-soft);
+  --k-3d2a14: var(--lt-accent-strong);
+  --k-4d3b26: var(--lt-accent-border);
+  --k-4d3a2428: var(--lt-accent-glow);
+  --k-8a5a1a: var(--lt-accent-strong);
+  --k-a06a24: var(--lt-accent-text);
+  --k-a38a5f: var(--lt-muted);
+  --k-b0762a: var(--lt-accent-text);
+  --k-c07a2e: var(--lt-accent-text);
+  --k-d89a5a31: var(--lt-accent-border);
+  --k-d9973f: var(--lt-accent-text);
+  --k-d9973f1a: var(--lt-accent-glow);
+  --k-d9973f1f: var(--lt-accent-glow);
+  --k-d9973f33: var(--lt-accent-soft);
+  --k-d9973f4b: var(--lt-accent-border);
+  --k-e0a558: var(--lt-accent-text);
+  --k-e8a95f: var(--lt-accent);
+  --k-e8b57e: var(--lt-accent-text);
+  --k-e8b877: var(--lt-accent-text);
+  --k-eadfc8: var(--lt-line);
+  --k-eda75f: var(--lt-accent-text);
+  --k-eda75f1f: var(--lt-accent-glow);
+  --k-eeb26a: var(--lt-accent-text);
+  --k-f0b263: var(--lt-accent-text);
+  --k-f0c08c: var(--lt-accent-text);
+  --k-f0cd96: var(--lt-accent-strong);
+  --k-f4bc78: var(--lt-accent-border);
+  --k-f5c084: var(--lt-accent-text);
+  --k-f6c184: var(--lt-accent-hover);
+  --k-f7d9ae: var(--lt-accent-soft);
+  --k-f7e3c433: var(--lt-accent-soft);
+  --k-f7ecdb: var(--lt-accent-soft);
+  --k-faf3e4: var(--lt-hero-from);
+  --k-faf3e6: var(--lt-notice-bg);
+  --k-ffe2c24f: var(--lt-accent-glow);
+  --k-ffe9d0: var(--lt-on-accent);
+  --k-fff3e0: var(--lt-panel);
+
   background: var(--bg);
 }
 .sidebar {
@@ -1734,6 +1822,14 @@ button {
   color: var(--muted);
 }
 :root {
+  /* Light theme accent defaults (the orange hue). applyAccentTheme() rewrites
+     these on the root with the hue of the chosen accent — the light theme reads
+     them instead of the --k-* literals below. */
+  --lt-accent: #7d5e36;
+  --lt-accent-text: #503b21;
+  --lt-accent-strong: #2c2011;
+  --lt-on-accent: #fbfaf8;
+
   --k-231b1220: #231b1220;
   --k-4d3a2428: #4d3a2428;
   --k-d89a5a1b: #d89a5a1b;
@@ -2011,104 +2107,35 @@ button {
   font-weight: 700;
 }
 
-/* Light theme */
-.light .sidebar,
-.light .topbar {
-  background: var(--bg);
-}
+/* Light theme: every color below is a palette token, so the light look lives in
+   one place (.app-shell.light) instead of a second set of literals here. The
+   selectors only restate what the dark theme gets from the rotated --k-*
+   palette. */
 .light .breadcrumbs b {
-  color: var(--text);
+  color: var(--lt-text);
 }
-.light .icon-button:hover {
-  background: #eceef0;
-  color: #20252b;
-}
-.light .brand-mark {
-  background: var(--k-f7ecdb);
-  color: var(--k-c07a2e);
-}
-.light .workspace-icon {
-  background: var(--k-f7ecdb);
-  color: var(--k-c07a2e);
-}
-.light .nav-item:hover {
-  background: #eceef0;
-  color: #30373e;
-}
-.light .nav-item.active {
-  background: var(--k-f7ecdb);
-  color: var(--k-8a5a1a);
-}
-.light .nav-item:where(.active) svg {
-  color: var(--k-c07a2e);
-}
-.light .primary-button {
-  background: var(--k-f0b263);
-  border-color: var(--k-e8a95f);
-  color: var(--k-2b1a08);
-}
-.light .primary-button:hover {
-  background: var(--k-e8a95f);
-}
-.light .secondary-button,
-.light .filter-button {
-  background: #fff;
-  color: #3a424c;
-}
-.light .filter-button.active {
-  border-color: var(--k-d89a5a31);
-  background: var(--k-f7e3c433);
-  color: var(--k-8a5a1a);
-}
-.light .filter-button.reset {
-  border-color: transparent;
-  background: transparent;
-  color: var(--muted);
-}
-.light .filter-button.reset:hover {
-  border-color: #c9ced4;
-  background: #f2f4f5;
-  color: var(--text);
-}
-.light .secondary-button:hover,
-.light .filter-button:hover {
-  border-color: #c9ced4;
-  background: #f2f4f5;
-}
-.light .hero-panel {
-  background:
-    radial-gradient(ellipse at 82% 48%, var(--k-f7e3c433) 0, transparent 47%),
-    linear-gradient(112deg, var(--k-faf3e4), #f4f7f5 62%, #f4f7f5);
-  border-color: var(--k-eadfc8);
-}
-.light .hero-panel h2 {
-  color: #222a25;
-}
-.light .hero-panel :where(h2) span {
-  color: var(--k-b0762a);
-}
-.light .hero-panel p {
-  color: #7a7266;
-}
-.light .hero-kicker {
-  color: var(--k-a06a24);
-}
-.light .hero-button {
-  background: var(--k-e8a95f);
-  color: var(--k-241608);
-}
-.light .ghost-button {
-  border-color: #cfd4cd;
-  color: #4a524c;
-}
-.light .hero-orb {
-  opacity: 0.75;
-}
-.light .orb-center {
-  background: radial-gradient(circle at 38% 30%, var(--k-f7d9ae), var(--k-d9973f) 55%, var(--k-8a5a1a));
-  box-shadow:
-    0 0 45px var(--k-d9973f33),
-    inset 0 0 14px var(--k-ffe2c24f);
+.light .brand span,
+.light .workspace-switcher span,
+.light .metric-label,
+.light .service-detail,
+.light .activity-copy span,
+.light .config-content span,
+.light .notice span,
+.light .hero-panel p,
+.light .tip-panel p,
+.light .log-tabs,
+.light .log-tab,
+.light .settings-nav button,
+.light .nav-item,
+.light .nav-label,
+.light .eyebrow,
+.light .icon-button,
+.light .project-name span,
+.light .table-sub,
+.light .service-footer,
+.light .ssl-toggle,
+.light .search-field {
+  color: var(--lt-muted);
 }
 .light .metric-card,
 .light .service-card,
@@ -2116,330 +2143,313 @@ button {
 .light .project-table,
 .light .service-list,
 .light .settings-card,
-.light .config-card {
-  background: #fff;
+.light .config-card,
+.light .editor-preview,
+.light .log-panel,
+.light .theme-card,
+.light .backup-row,
+.light .toast,
+.light .menu-popover,
+.light .search-field,
+.light .filter-chip,
+.light .secondary-button,
+.light .filter-button {
+  background: var(--lt-panel);
 }
-.light .metric-icon.green {
-  background: var(--k-f7ecdb);
-  color: var(--k-c07a2e);
+.light .nav-badge {
+  background: var(--lt-panel-2);
+  color: var(--lt-muted);
 }
-.light .metric-icon.orange {
-  background: var(--k-f7ecdb);
-  color: var(--k-c07a2e);
+.light .nav-item:hover,
+.light .icon-button:hover,
+.light .icon-button.active,
+.light .secondary-button:hover,
+.light .filter-button:hover,
+.light .filter-button.reset:hover,
+.light .config-item:hover,
+.light .menu-item:hover,
+.light .toast .toast-action:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+.light .secondary-button,
+.light .filter-button {
+  color: var(--lt-text-soft);
+}
+/* States: the rules above would otherwise flatten the selected variants, which
+   the dark theme paints through the --k-* palette. */
+.light .secondary-button.on,
+.light .filter-button.active,
+.light .ssl-toggle.on {
+  border-color: var(--lt-accent-border);
+  color: var(--lt-accent-text);
+}
+.light .filter-button.active {
+  background: var(--lt-accent-soft);
+  color: var(--lt-accent-strong);
+}
+.light .nav-item.active {
+  color: var(--lt-accent-strong);
+}
+.light .nav-item:where(.active) svg {
+  color: var(--lt-accent-text);
+}
+.light .menu-item.danger {
+  color: var(--lt-err-text);
+}
+.light .secondary-button:hover,
+.light .filter-button:hover,
+.light .filter-button.reset:hover,
+.light .config-item:hover,
+.light .menu-item:hover,
+.light .config-card:hover {
+  border-color: var(--lt-line-strong);
+}
+.light .filter-button.reset,
+.light .menu-item:disabled:hover {
+  background: transparent;
+}
+.light .primary-button,
+.light .hero-button {
+  background: var(--lt-accent);
+  color: var(--lt-on-accent);
+}
+.light .primary-button {
+  border-color: var(--lt-accent-border);
+}
+.light .primary-button:hover {
+  background: var(--lt-accent-hover);
+}
+.light .hero-panel {
+  background:
+    radial-gradient(ellipse at 82% 48%, var(--lt-accent-glow) 0, transparent 47%),
+    linear-gradient(112deg, var(--lt-hero-from), var(--lt-panel) 62%, var(--lt-panel));
+  border-color: var(--lt-line);
+}
+.light .hero-panel h2,
+.light .tip-panel h3,
+.light .log-tabs > b,
+.light .log-tab.active,
+.light .settings-nav button:hover {
+  color: var(--lt-text);
+}
+.light .hero-orb {
+  opacity: 0.55;
+}
+.light .orb-ring {
+  border-color: var(--lt-accent-border);
+}
+.light .orb-center {
+  background: radial-gradient(
+    circle at 38% 30%,
+    var(--lt-accent-soft),
+    var(--lt-accent-text) 55%,
+    var(--lt-accent-strong)
+  );
+  box-shadow:
+    0 0 45px var(--lt-accent-glow),
+    inset 0 0 14px var(--lt-accent-glow);
 }
 .light .metric-icon.blue {
-  background: #e4eef8;
-  color: #2f6bb0;
+  background: var(--lt-info-soft);
+  color: var(--lt-info-text);
 }
-.light .metric-icon.purple {
-  background: #efeaf9;
-  color: #7a5fc0;
+.light .metric-icon.green,
+.light .metric-icon.orange {
+  background: var(--lt-accent-soft);
+  color: var(--lt-accent-text);
 }
 .light .metric-trend.green {
-  color: var(--k-b0762a);
+  color: var(--lt-accent-text);
 }
-.light .section-heading h3,
-.light .panel-heading h3,
-.light .service-title h4,
-.light .metric-value {
-  color: var(--text);
+.light .metric-icon.purple,
+.light .config-icon {
+  background: var(--lt-plum-soft);
+  color: var(--lt-plum-text);
+}
+.light .metric-trend.blue {
+  color: var(--lt-info-text);
+}
+.light .metric-trend.purple {
+  color: var(--lt-plum-text);
 }
 .light .text-button {
-  color: var(--k-b0762a);
+  color: var(--lt-accent-text);
 }
 .light .text-button:hover {
-  color: var(--k-8a5a1a);
+  color: var(--lt-accent-strong);
 }
+.light .ghost-button {
+  border-color: var(--lt-line-strong);
+  color: var(--lt-text-soft);
+}
+.light .notice {
+  background: var(--lt-notice-bg);
+  border-color: var(--lt-line);
+  color: var(--lt-accent-text);
+}
+.light .notice b {
+  color: var(--lt-accent-strong);
+}
+.light .service-state,
+.light .menu-item {
+  color: var(--lt-text-soft);
+}
+.light .activity-row,
+.light .setting-block {
+  border-color: var(--lt-line);
+}
+.light .activity-icon,
 .light .service-icon,
 .light .service-row-icon,
 .light .project-avatar {
-  background: var(--k-f7ecdb);
-  color: var(--k-c07a2e);
-}
-.light .notice {
-  background: var(--k-faf3e6);
-  border-color: var(--k-eadfc8);
-  color: #c08a3e;
-}
-.light .notice b {
-  color: var(--k-8a5a1a);
-}
-.light .notice span {
-  color: #8a8175;
-}
-.light .service-row,
-.light .project-row {
-  border-color: var(--line);
-}
-.light .service-state {
-  color: #5a626c;
-}
-.light .activity-row {
-  border-color: #e8ebee;
-}
-.light .activity-icon {
-  background: var(--k-f7ecdb);
-  color: var(--k-c07a2e);
+  background: var(--lt-accent-soft);
+  color: var(--lt-accent-text);
 }
 .light .activity-icon.warning {
-  background: #f7ecd8;
-  color: #a0722a;
+  background: var(--lt-warn-soft);
+  color: var(--lt-warn-text);
 }
-.light .activity-icon.error {
-  background: #f8eae6;
-  color: #8a4a34;
+.light .activity-icon.error,
+.light .log-line.error {
+  background: var(--lt-err-soft);
+  color: var(--lt-err-text);
 }
 .light .activity-status {
-  color: var(--k-b0762a);
+  color: var(--lt-accent-text);
 }
 .light .activity-status.warning {
-  color: #a0722a;
+  color: var(--lt-warn-text);
 }
 .light .activity-status.error {
-  color: #8a4a34;
+  color: var(--lt-err-text);
 }
 .light .tip-panel {
-  background: linear-gradient(135deg, var(--k-faf3e4), #fff);
-  border-color: var(--k-eadfc8);
+  background: linear-gradient(135deg, var(--lt-hero-from), var(--lt-panel));
+  border-color: var(--lt-line);
 }
-.light .tip-icon {
-  color: #c08a3e;
-}
-.light .tip-panel h3 {
-  color: #222a25;
-}
-.light .tip-panel p {
-  color: #7a7266;
+.light .tip-icon,
+.light .theme-card svg {
+  color: var(--lt-accent-text);
 }
 .light .tip-glow {
-  background: var(--k-d9973f1f);
+  background: var(--lt-accent-glow);
 }
 .light .ssl-badge {
-  background: var(--k-f7ecdb);
-  color: var(--k-a06a24);
-}
-.light .search-field {
-  background: #fff;
-}
-.light .table-head {
-  background: #f5f7f6;
-  color: #68717b;
-}
-.light .config-icon {
-  background: #efeaf9;
-  color: #7a5fc0;
-}
-.light .editor-preview {
-  background: #fff;
-}
-.light .editor-top {
-  color: #3a424c;
-}
-.light .editor-preview pre {
-  color: #3a424c;
-}
-.light .comment {
-  color: #98a1ab;
-}
-.light .tag {
-  color: #3d8a4a;
-}
-.light .key {
-  color: #2f6bb0;
-}
-.light .value {
-  color: #b06a2a;
+  background: var(--lt-accent-soft);
+  color: var(--lt-accent-text);
 }
 .light .unsaved {
-  color: var(--k-b0762a);
+  color: var(--lt-accent-text);
 }
-.light .log-panel {
-  background: #fff;
+.light .table-head {
+  background: var(--lt-panel-2);
+  color: var(--lt-muted);
 }
-.light .log-tabs {
-  color: #7a828c;
-}
-.light .log-tabs > b {
-  color: #2c333b;
-  border-color: var(--k-d9973f);
-}
-.light .log-tabs em {
-  background: #eceef1;
-  color: #5a626c;
-}
-.light .log-tabs em.orange {
-  color: #a0722a;
-}
-.light .log-line {
-  color: #3a424c;
-}
-.light .log-line > span {
-  color: #8a929c;
-}
-.light .log-line.warning {
-  background: var(--k-faf3e6);
-  color: #8a6a2f;
-}
-.light .setting-block {
-  border-color: var(--line);
+.light .editor-top,
+.light .editor-preview pre,
+.light .log-line,
+.light .hljs,
+.light .path-field input {
+  color: var(--lt-code-text);
 }
 .light .path-field input {
-  background: #f6f8f8;
-  color: #3a424c;
-  border-color: var(--line);
+  background: var(--lt-panel-2);
 }
 .light .path-field input:focus {
-  border-color: var(--k-c07a2e);
+  border-color: var(--lt-accent-text);
 }
-.light .toast {
-  background: #fff;
-  border-color: var(--k-eadfc8);
-  color: #6a5232;
-}
-.light .toast button {
-  color: var(--k-a38a5f);
-}
-.light .toast .toast-action {
-  border-color: var(--k-eadfc8);
-}
-.light .toast .toast-action:hover {
-  background: var(--k-eadfc8);
-}
-.light .mini-toggle,
-.light .large-toggle {
-  background: #d5d9dd;
-}
-.light .mini-toggle span,
-.light .large-toggle span {
-  background: #fff;
-}
-.light .mini-toggle.on,
-.light .large-toggle.on {
-  background: var(--k-c07a2e);
-}
-.light .mini-toggle.on span,
-.light .large-toggle.on span {
-  background: var(--k-fff3e0);
-}
-.light .menu-popover {
-  background: #fff;
-  box-shadow: 0 14px 38px #00000022;
-}
-.light .menu-item {
-  color: #3a424c;
-}
-.light .menu-item:hover {
-  background: #f2f4f5;
-  color: #20252b;
-}
-.light .menu-item:disabled {
-  opacity: 0.45;
-  cursor: default;
-  color: #9aa1ab;
-}
-.light .menu-item:disabled:hover {
-  background: transparent;
-  color: #9aa1ab;
-}
-.light .icon-button.active {
-  background: #eceef0;
-  color: #20252b;
-}
-.light .log-tab {
-  color: #7a828c;
-}
-.light .log-tab.active {
-  color: #2c333b;
-  border-color: var(--k-d9973f);
-}
-.light .log-tabs em {
-  background: #eceef1;
-  color: #5a626c;
-}
-.light .log-tabs em.orange {
-  color: #a0722a;
-}
-.light .log-line.error {
-  background: #f8eae6;
-  color: #8a4a34;
-}
-.light .secondary-button.on {
-  border-color: var(--k-c07a2e);
-  color: var(--k-b0762a);
-}
-.light .settings-nav button {
-  color: #68717b;
-}
-.light .settings-nav button:hover {
-  color: #30373e;
-}
-.light .settings-nav button.selected {
-  background: var(--k-f7ecdb);
-  color: var(--k-8a5a1a);
-}
-.light .theme-card {
-  background: #fff;
-}
-.light .theme-card.selected {
-  background: var(--k-f7ecdb);
-  border-color: var(--k-c07a2e);
-}
-.light .theme-card svg {
-  color: #c08a3e;
-}
-.light .backup-row {
-  background: #fff;
-}
-.light .range-field b {
-  color: var(--text);
-}
-.light .config-card:hover {
-  border-color: #c9ced4;
-}
-.light .config-card.selected {
-  border-color: #c07a2e;
-}
-.light .config-item:hover {
-  background: #f2f4f5;
-}
-.light .config-item.selected {
-  background: #f7ecdb;
-}
-.light .config-item.selected svg {
-  color: #c07a2e;
-}
-.light .hljs {
-  color: #3a424c;
-}
+.light .comment,
+.light .config-content small,
+.light .service-footer i,
+.light .muted,
+.light .search-field input::placeholder,
+.light .log-line > span,
 .light .hljs-comment,
-.light .hljs-quote {
-  color: #98a1ab;
+.light .hljs-quote,
+.light .menu-item:disabled {
+  color: var(--lt-dim);
 }
+.light .tag,
 .light .hljs-section,
 .light .hljs-name,
 .light .hljs-keyword,
 .light .hljs-built_in,
 .light .hljs-type,
 .light .hljs-title {
-  color: #3d8a4a;
+  color: var(--lt-ok-text);
 }
+.light .key,
 .light .hljs-attr,
 .light .hljs-variable,
 .light .hljs-template-variable,
 .light .hljs-meta,
 .light .hljs-bullet {
-  color: #2f6bb0;
+  color: var(--lt-info-text);
 }
+.light .value,
 .light .hljs-string,
 .light .hljs-symbol,
-.light .hljs-regexp {
-  color: #b06a2a;
-}
+.light .hljs-regexp,
 .light .hljs-number,
 .light .hljs-literal {
-  color: #a06a24;
+  color: var(--lt-accent-text);
 }
-
+.light .log-tabs em {
+  background: var(--lt-panel-2);
+  color: var(--lt-text-soft);
+}
+.light .log-tabs em.orange {
+  background: var(--lt-warn-soft);
+  color: var(--lt-warn-text);
+}
+.light .log-line.warning {
+  background: var(--lt-notice-bg);
+  color: var(--lt-warn-text);
+}
+.light .mini-toggle,
+.light .large-toggle {
+  background: var(--lt-track);
+}
+.light .mini-toggle.on,
+.light .large-toggle.on {
+  background: var(--lt-accent-text);
+}
+.light .mini-toggle span,
+.light .large-toggle span {
+  background: var(--lt-panel);
+}
+.light .toast {
+  border-color: var(--lt-line);
+  color: var(--lt-accent-strong);
+}
+.light .toast button {
+  color: var(--lt-muted);
+}
+.light .toast .toast-action {
+  border-color: var(--lt-accent-border);
+  color: var(--lt-accent-text);
+}
+.light .menu-popover {
+  box-shadow: 0 14px 38px var(--lt-shadow);
+}
+.light .menu-item:disabled {
+  color: var(--lt-dim);
+}
+.light .settings-nav button.selected,
+.light .theme-card.selected,
+.light .config-item.selected {
+  background: var(--lt-accent-soft);
+}
+.light .settings-nav button.selected,
+.light .theme-card.selected {
+  color: var(--lt-accent-strong);
+}
+.light .config-card.selected,
+.light .config-item.selected svg {
+  border-color: var(--lt-accent-text);
+  color: var(--lt-accent-text);
+}
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -2691,4 +2701,15 @@ button {
 }
 .sidebar.collapsed .nav-settings {
   margin-top: 30px;
+}
+
+/* Light theme for the overlays: these rules have to follow their base rules. */
+.light .module-select {
+  color: var(--lt-muted);
+}
+.light .modal-overlay {
+  background: var(--lt-overlay);
+}
+.light .modal-window {
+  box-shadow: 0 24px 60px var(--lt-shadow);
 }

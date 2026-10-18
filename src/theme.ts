@@ -99,6 +99,10 @@ function hslToHex(h: number, s: number, l: number): string {
   return `${f(0)}${f(8)}${f(4)}`;
 }
 
+function hslHex(h: number, s: number, l: number): string {
+  return `#${hslToHex(h, s, l)}`;
+}
+
 function rotateHex(literal: string, delta: number): string {
   const alpha = literal.length === 9 ? literal.slice(7) : null;
   const [h, s, l] = hexToHsl(literal.slice(1, 7));
@@ -119,6 +123,13 @@ export const ACCENT_THEMES: AccentTheme[] = [
   { id: 'pink', delta: -85 },
 ];
 
+// Light theme accent. The hue still comes from the accent theme, but the fill is
+// deeper and less saturated than the dark palette: the same bright orange that
+// reads as a glow on a dark surface becomes a glare on a light one. Lightness is
+// kept clear of the 37..45% band, where neither a near-black nor a near-white
+// label clears 4.5:1 on every accent hue.
+const LIGHT_ACCENT = { hue: 34, saturation: 0.4, lightness: 0.35 };
+
 export type FontOption = { id: string; stack: string };
 export const FONT_OPTIONS: FontOption[] = [
   { id: 'dm-sans', stack: "'DM Sans',system-ui,sans-serif" },
@@ -136,6 +147,22 @@ export function applyAccentTheme(id: string) {
   for (const literal of ACCENT_LITERALS) {
     root.style.setProperty(`--k-${literal.slice(1).toLowerCase()}`, rotateHex(literal, theme.delta));
   }
+
+  // The light theme paints its accent from --lt-*, not from the --k-* literals:
+  // same hue, calmer fill (see LIGHT_ACCENT). The defaults for these live in the
+  // :root block of styles.css; setting them here keeps the rotation working.
+  const hue = (LIGHT_ACCENT.hue + theme.delta + 360) % 360;
+  root.style.setProperty('--lt-accent', hslHex(hue, LIGHT_ACCENT.saturation, LIGHT_ACCENT.lightness));
+  root.style.setProperty(
+    '--lt-accent-text',
+    hslHex(hue, Math.min(LIGHT_ACCENT.saturation * 1.05, 1), LIGHT_ACCENT.lightness - 0.13),
+  );
+  root.style.setProperty(
+    '--lt-accent-strong',
+    hslHex(hue, Math.min(LIGHT_ACCENT.saturation * 1.12, 1), LIGHT_ACCENT.lightness - 0.23),
+  );
+  // A fill this deep always takes a light label.
+  root.style.setProperty('--lt-on-accent', hslHex(hue, 0.3, 0.98));
 }
 
 export function applyFont(id: string) {

@@ -65,6 +65,21 @@ describe('applyAccentTheme / applyFont / applyUiScale', () => {
     expect(document.documentElement.style.getPropertyValue('--k-eda75f')).toBe(accentSwatch(0, '#eda75f'));
   });
 
+  it('applyAccentTheme retunes the light theme accent, hue included', () => {
+    applyAccentTheme('orange');
+    const orange = document.documentElement.style.getPropertyValue('--lt-accent');
+    applyAccentTheme('blue');
+    const blue = document.documentElement.style.getPropertyValue('--lt-accent');
+
+    expect(orange).toMatch(/^#[0-9a-f]{6}$/);
+    expect(blue).toMatch(/^#[0-9a-f]{6}$/);
+    expect(blue).not.toBe(orange);
+
+    for (const token of ['--lt-accent', '--lt-accent-text', '--lt-accent-strong', '--lt-on-accent']) {
+      expect(document.documentElement.style.getPropertyValue(token)).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
   it('applyFont sets --font-ui; an unknown id falls back to the first font', () => {
     applyFont('segoe');
     expect(document.documentElement.style.getPropertyValue('--font-ui')).toBe(FONT_OPTIONS[1].stack);
@@ -105,5 +120,33 @@ describe('parity: --k-* between theme.ts and styles.css', () => {
   it('every used var(--k-*) is rotated by the theme', () => {
     const unrotated = [...uses].filter((name) => !literalNames.includes(name));
     expect(unrotated).toEqual([]);
+  });
+});
+
+describe('parity: light theme tokens between theme.ts and styles.css', () => {
+  const accentTokens = ['--lt-accent', '--lt-accent-text', '--lt-accent-strong', '--lt-on-accent'];
+  const paletteTokens = ['--lt-bg', '--lt-panel', '--lt-panel-2', '--lt-text', '--lt-muted', '--lt-dim'];
+
+  it('the :root block declares defaults for every accent token', () => {
+    for (const token of accentTokens) {
+      const match = css.match(new RegExp(`${token}\\s*:\\s*#[0-9a-f]{6}\\s*;`));
+      expect(match, token).not.toBeNull();
+    }
+  });
+
+  it('the light shell declares the palette primitives', () => {
+    const shell = css.match(/\.app-shell\.light\s*\{([\s\S]*?)\n\}/);
+    expect(shell).not.toBeNull();
+
+    for (const token of paletteTokens) {
+      expect(shell?.[1], token).toContain(`${token}: #`);
+    }
+  });
+
+  it('every var(--lt-*) used in styles.css is declared somewhere', () => {
+    const declared = new Set([...css.matchAll(/(--lt-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    const used = new Set([...css.matchAll(/var\((--lt-[a-z0-9-]+)/g)].map((m) => m[1]));
+    const missing = [...used].filter((token) => !declared.has(token));
+    expect(missing).toEqual([]);
   });
 });

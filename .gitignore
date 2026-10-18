@@ -4,6 +4,7 @@ coverage/
 src-tauri/target/
 src-tauri/gen/
 dist-portable/
+demo/
 .vscode/
 .zcode/
 .zwork/

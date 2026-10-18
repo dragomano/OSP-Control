@@ -101,7 +101,7 @@ function App() {
   const systemLight = useSystemPrefersLight();
   // Effective theme: the explicit choice, or the system setting for the 'system' mode.
   const isLight = themeMode === 'light' || (themeMode === 'system' && systemLight);
-  const [accent, setAccent] = useState(() => localStorage.getItem('ospanel.accent') ?? 'green');
+  const [accent, setAccent] = useState(() => localStorage.getItem('ospanel.accent') ?? 'blue');
   const [font, setFont] = useState(() => localStorage.getItem('ospanel.font') ?? 'dm-sans');
   const [scale, setScale] = useState(() => Number(localStorage.getItem('ospanel.scale') ?? 100));
   const [lang, setLang] = useState(() => initialLang());
