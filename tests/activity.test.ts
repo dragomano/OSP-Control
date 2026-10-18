@@ -31,7 +31,7 @@ const ERROR_BLOCK = [
 ];
 
 describe('buildActivityRows', () => {
-  it('keeps a block marked ПРЕДУПРЕЖДЕНИЕ on the warning level', () => {
+  it('keeps a block with the warning marker on the warning level', () => {
     const rows = buildActivityRows(WARNING_BLOCK, ruAliases);
 
     expect(rows).toHaveLength(1);
@@ -39,7 +39,7 @@ describe('buildActivityRows', () => {
     expect(rows[0].time).toBe('2026-10-07 00:05:20');
   });
 
-  it('keeps a block marked ОШИБКА on the error level', () => {
+  it('keeps a block with the error marker on the error level', () => {
     const rows = buildActivityRows(ERROR_BLOCK, ruAliases);
 
     expect(rows).toHaveLength(1);

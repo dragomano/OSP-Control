@@ -16,7 +16,7 @@ vi.mock('../src/ospanel', async (importOriginal) => {
   };
 });
 
-describe('Кнопка «Автообновление» на странице журналов', () => {
+describe('Logs page autorefresh toggle', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('ospanel.lang', 'ru');
@@ -34,7 +34,7 @@ describe('Кнопка «Автообновление» на странице ж
     return screen.findByRole('button', { name: 'Автообновление' });
   };
 
-  it('перечитывает хвост журнала раз в 5 секунд, пока включён', async () => {
+  it('rereads the log tail every 5 seconds while enabled', async () => {
     const toggle = await openLogs();
     // The first read happens by itself when the tab opens: autorefresh is still off.
     expect(logPageReads.length).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ describe('Кнопка «Автообновление» на странице ж
     expect(logPageReads.length).toBeGreaterThan(beforeTick);
   });
 
-  it('останавливает опрос, когда кнопка выключена обратно', async () => {
+  it('stops polling when the toggle is switched back off', async () => {
     const toggle = await openLogs();
 
     vi.useFakeTimers();
