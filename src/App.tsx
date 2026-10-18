@@ -78,6 +78,13 @@ export { buildActivityRows } from './components/tables/Logs';
 const initialLang = (): string =>
   localStorage.getItem('ospanel.lang') ?? preferredLang(EMBEDDED_LANGS) ?? BASE_LANG;
 
+// Hotkeys like "/" must not fire while the user is typing into a text field.
+const isTypingTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLInputElement ||
+  target instanceof HTMLTextAreaElement ||
+  target instanceof HTMLSelectElement ||
+  (target instanceof HTMLElement && target.isContentEditable);
+
 function App() {
   const [page, setPage] = useState<Page>('overview');
   const [services, setServices] = useState<Service[]>([]);
@@ -684,6 +691,18 @@ function App() {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setSearchOpen((open) => !open);
+        return;
+      }
+      // Slash opens the palette too, but must not steal keystrokes typed into text fields.
+      if (
+        event.key === '/' &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !isTypingTarget(event.target)
+      ) {
+        event.preventDefault();
+        setSearchOpen(true);
       }
     };
     window.addEventListener('keydown', onKey);
