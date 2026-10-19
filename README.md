@@ -92,6 +92,12 @@ When a file is loaded the app validates it and lists the found issues in a toast
 
 Every Rust command validates its input: action whitelists, path canonicalization with a check that the path belongs to the OSPanel directory, automatic backups before configuration restores. Nothing from user input is executed directly.
 
+## Code signing
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+Status: application to SignPath Foundation is pending; current releases are not yet signed. See the [code signing policy](CODE_SIGNING_POLICY.md) for details.
+
 ## Additional resources
 
 - https://v2.tauri.app/

@@ -91,6 +91,12 @@ pnpm test             # Vitest (jsdom)
 
 Все команды Rust валидируют вход: белый список действий, канонизация путей с проверкой принадлежности каталогу OSPanel, резервные копии перед восстановлением конфигураций. Ничего из пользовательского ввода не исполняется напрямую.
 
+## Подпись кода
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+Статус: заявка в SignPath Foundation на рассмотрении; текущие релизы пока не подписаны. Подробности в [политике подписи кода](CODE_SIGNING_POLICY.md).
+
 ## Дополнительные ресурсы
 
 - https://v2.tauri.app/
