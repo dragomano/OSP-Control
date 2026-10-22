@@ -103,7 +103,7 @@ Status: application to SignPath Foundation is pending; current releases are not 
 - https://v2.tauri.app/
 - https://react.dev/
 - https://github.com/OSPanel/OpenServerPanel/wiki
-- https://vite-docs.ru
+- https://vite.dev
 - https://biomejs.dev/
 
 ## License
