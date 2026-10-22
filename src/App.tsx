@@ -71,6 +71,7 @@ import {
   saveProjectSettings,
   waitForPanelReady,
 } from './ospanel';
+import { PhpUpdatesProvider } from './phpUpdates';
 import { applyAccentTheme, applyFont, applyUiScale, type ThemeMode, useSystemPrefersLight } from './theme';
 
 export { buildActivityRows } from './components/tables/Logs';
@@ -151,6 +152,12 @@ function App() {
   const logRequestRef = useRef(0);
   const inFlightServicesRef = useRef(new Set<string>());
   const panelRestartRef = useRef(false);
+  const updateBusyRef = useRef(false);
+  const autostartBusyRef = useRef(false);
+  const [autostartBusy, setAutostartBusy] = useState(false);
+  const onUpdateBusy = useCallback((busy: boolean) => {
+    updateBusyRef.current = busy;
+  }, []);
   // Busy state for the UI: the names of services with an unfinished command, and the panel
   // restart. Both are mirrors of the refs above — the refs guard against a synchronous repeat
   // (two clicks before the next render), the state drives the disabled controls.
@@ -263,7 +270,13 @@ function App() {
   // answers again — the native command returns as soon as the new process is spawned, and a
   // service command sent in that window would be lost.
   const restartPanelNow = async (toastKey: string, errorKey: string): Promise<boolean> => {
-    if (panelRestartRef.current) return false;
+    if (
+      panelRestartRef.current ||
+      updateBusyRef.current ||
+      autostartBusyRef.current ||
+      inFlightServicesRef.current.size > 0
+    )
+      return false;
     panelRestartRef.current = true;
     setPanelRestarting(true);
     try {
@@ -623,7 +636,7 @@ function App() {
   ): Promise<boolean> => {
     // The panel is restarting: its API is unreachable, so the command would fail — and the
     // busy state already tells the user why the controls are disabled.
-    if (panelRestartRef.current) return false;
+    if (panelRestartRef.current || updateBusyRef.current || autostartBusyRef.current) return false;
     if (inFlightServicesRef.current.has(service.name)) return false;
 
     inFlightServicesRef.current.add(service.name);
@@ -662,7 +675,9 @@ function App() {
   const runProjectAutostart = useCallback(async () => {
     // A running panel restart is the same kind of operation: starting modules through osp.bat
     // in parallel would race it.
-    if (panelRestartRef.current) return;
+    if (panelRestartRef.current || updateBusyRef.current || autostartBusyRef.current) return;
+    autostartBusyRef.current = true;
+    setAutostartBusy(true);
     try {
       const report = await autostartFromProjects();
       if (report.started.length > 0) {
@@ -673,6 +688,9 @@ function App() {
       }
     } catch (error) {
       notify(errorText(t, error, 'settings.projectAutostartFailed'));
+    } finally {
+      autostartBusyRef.current = false;
+      setAutostartBusy(false);
     }
   }, [notify, t, loadSnapshot]);
 
@@ -738,253 +756,259 @@ function App() {
 
   return (
     <I18nContext.Provider value={{ lang, t, plural }}>
-      <div className={`app-shell ${isLight ? 'light' : ''}`}>
-        <aside className={`sidebar ${sidebarNarrow ? 'collapsed' : ''}`}>
-          <div className="brand">
-            <button
-              type="button"
-              className="brand-mark"
-              onClick={toggleSidebar}
-              aria-label={sidebarNarrow ? t('nav.expand') : t('nav.collapse')}
-              title={sidebarNarrow ? t('nav.expand') : t('nav.collapse')}
+      <PhpUpdatesProvider
+        refresh={loadSnapshot}
+        blocked={panelRestarting || autostartBusy || pendingServices.size > 0}
+        onBusy={onUpdateBusy}
+      >
+        <div className={`app-shell ${isLight ? 'light' : ''}`}>
+          <aside className={`sidebar ${sidebarNarrow ? 'collapsed' : ''}`}>
+            <div className="brand">
+              <button
+                type="button"
+                className="brand-mark"
+                onClick={toggleSidebar}
+                aria-label={sidebarNarrow ? t('nav.expand') : t('nav.collapse')}
+                title={sidebarNarrow ? t('nav.expand') : t('nav.collapse')}
+              >
+                <Leaf size={18} strokeWidth={2.5} />
+              </button>
+              <div>
+                <strong>{APP_NAME}</strong>
+                <span className="brand-version">v{appVersion}</span>
+              </div>
+            </div>
+            <div
+              className="workspace-switcher"
+              title={sidebarNarrow ? `${t('nav.machine')} · ${panelLabel}` : undefined}
             >
-              <Leaf size={18} strokeWidth={2.5} />
-            </button>
-            <div>
-              <strong>{APP_NAME}</strong>
-              <span className="brand-version">v{appVersion}</span>
-            </div>
-          </div>
-          <div
-            className="workspace-switcher"
-            title={sidebarNarrow ? `${t('nav.machine')} · ${panelLabel}` : undefined}
-          >
-            <div className="workspace-icon">O</div>
-            <div>
-              <b>{t('nav.machine')}</b>
-              <span>{panelLabel}</span>
-            </div>
-            {snapshot?.detected ? (
-              <button
-                type="button"
-                className="icon-button workspace-open"
-                aria-label={t('nav.openFolder')}
-                title={t('nav.openFolder')}
-                onClick={() => void openPanelDir()}
-              >
-                <FolderOpen size={16} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="icon-button workspace-open"
-                aria-label={t('nav.openSettings')}
-                title={t('nav.openSettings')}
-                onClick={() => navigateTo('settings', 'connection')}
-              >
-                <Settings2 size={16} />
-              </button>
-            )}
-          </div>
-          <nav className="navigation">
-            <div className="nav-label">{t('nav.workspace')}</div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
+              <div className="workspace-icon">O</div>
+              <div>
+                <b>{t('nav.machine')}</b>
+                <span>{panelLabel}</span>
+              </div>
+              {snapshot?.detected ? (
                 <button
                   type="button"
-                  key={item.id}
-                  className={`nav-item ${page === item.id ? 'active' : ''}`}
-                  onClick={() => setPage(item.id)}
-                  aria-label={t(`nav.${item.id}`)}
-                  title={sidebarNarrow ? t(`nav.${item.id}`) : undefined}
+                  className="icon-button workspace-open"
+                  aria-label={t('nav.openFolder')}
+                  title={t('nav.openFolder')}
+                  onClick={() => void openPanelDir()}
                 >
-                  <Icon size={17} />
-                  <span>{t(`nav.${item.id}`)}</span>
-                  {item.id === 'logs' && logErrors > 0 && (
-                    <span className="nav-badge" title={t('nav.logsErrors', { n: logErrors })}>
-                      {logErrors}
-                    </span>
-                  )}
-                  {item.id === 'projects' && (
-                    <span className="nav-badge" title={t('nav.projectsActive', { n: projects.length })}>
-                      {projects.length}
-                    </span>
-                  )}
-                  {item.id === 'services' && (
-                    <span className="nav-badge" title={t('nav.servicesRunning', { n: runningCount })}>
-                      {runningCount}
-                    </span>
-                  )}
+                  <FolderOpen size={16} />
                 </button>
-              );
-            })}
-            <div className="nav-label second">{t('nav.system')}</div>
-            <button
-              type="button"
-              className={`nav-item nav-settings ${page === 'settings' ? 'active' : ''}`}
-              onClick={() => setPage('settings')}
-              aria-label={t('nav.settings')}
-              title={sidebarNarrow ? t('nav.settings') : undefined}
-            >
-              <Settings2 size={17} />
-              <span>{t('nav.settings')}</span>
-            </button>
-            <button
-              type="button"
-              className={`nav-item nav-backups ${page === 'backups' ? 'active' : ''}`}
-              onClick={() => setPage('backups')}
-              aria-label={t('nav.backups')}
-              title={sidebarNarrow ? t('nav.backups') : undefined}
-            >
-              <Copy size={17} />
-              <span>{t('nav.backups')}</span>
-            </button>
-          </nav>
-        </aside>
-        <main className="main-content">
-          <header className="topbar">
-            <div className="breadcrumbs">
-              <span>{APP_NAME}</span>
-              <ChevronRight size={14} />
-              <b>{title}</b>
+              ) : (
+                <button
+                  type="button"
+                  className="icon-button workspace-open"
+                  aria-label={t('nav.openSettings')}
+                  title={t('nav.openSettings')}
+                  onClick={() => navigateTo('settings', 'connection')}
+                >
+                  <Settings2 size={16} />
+                </button>
+              )}
             </div>
-            <div className="top-actions">
+            <nav className="navigation">
+              <div className="nav-label">{t('nav.workspace')}</div>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`nav-item ${page === item.id ? 'active' : ''}`}
+                    onClick={() => setPage(item.id)}
+                    aria-label={t(`nav.${item.id}`)}
+                    title={sidebarNarrow ? t(`nav.${item.id}`) : undefined}
+                  >
+                    <Icon size={17} />
+                    <span>{t(`nav.${item.id}`)}</span>
+                    {item.id === 'logs' && logErrors > 0 && (
+                      <span className="nav-badge" title={t('nav.logsErrors', { n: logErrors })}>
+                        {logErrors}
+                      </span>
+                    )}
+                    {item.id === 'projects' && (
+                      <span className="nav-badge" title={t('nav.projectsActive', { n: projects.length })}>
+                        {projects.length}
+                      </span>
+                    )}
+                    {item.id === 'services' && (
+                      <span className="nav-badge" title={t('nav.servicesRunning', { n: runningCount })}>
+                        {runningCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              <div className="nav-label second">{t('nav.system')}</div>
               <button
                 type="button"
-                className="icon-button"
-                onClick={() => setSearchOpen(true)}
-                aria-label={t('search.open')}
-                title={t('search.open')}
+                className={`nav-item nav-settings ${page === 'settings' ? 'active' : ''}`}
+                onClick={() => setPage('settings')}
+                aria-label={t('nav.settings')}
+                title={sidebarNarrow ? t('nav.settings') : undefined}
               >
-                <Search size={17} />
+                <Settings2 size={17} />
+                <span>{t('nav.settings')}</span>
               </button>
               <button
                 type="button"
-                className="icon-button"
-                onClick={() => changeTheme(isLight ? 'dark' : 'light')}
-                aria-label={t('common.toggleTheme')}
+                className={`nav-item nav-backups ${page === 'backups' ? 'active' : ''}`}
+                onClick={() => setPage('backups')}
+                aria-label={t('nav.backups')}
+                title={sidebarNarrow ? t('nav.backups') : undefined}
               >
-                {isLight ? <Sun size={17} /> : <Moon size={17} />}
+                <Copy size={17} />
+                <span>{t('nav.backups')}</span>
+              </button>
+            </nav>
+          </aside>
+          <main className="main-content">
+            <header className="topbar">
+              <div className="breadcrumbs">
+                <span>{APP_NAME}</span>
+                <ChevronRight size={14} />
+                <b>{title}</b>
+              </div>
+              <div className="top-actions">
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => setSearchOpen(true)}
+                  aria-label={t('search.open')}
+                  title={t('search.open')}
+                >
+                  <Search size={17} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => changeTheme(isLight ? 'dark' : 'light')}
+                  aria-label={t('common.toggleTheme')}
+                >
+                  {isLight ? <Sun size={17} /> : <Moon size={17} />}
+                </button>
+              </div>
+            </header>
+            <div className="content-wrap">
+              {page === 'overview' && (
+                <Overview
+                  runningCount={runningCount}
+                  services={services}
+                  userName={userNameDisplay}
+                  metrics={metrics}
+                  activityLines={activityLines}
+                  onNavigate={navigateTo}
+                  onToggle={toggleService}
+                  onAction={runServiceAction}
+                  notify={notify}
+                  onSync={loadSnapshot}
+                  panelRestarting={panelRestarting || autostartBusy}
+                  pendingServices={pendingServices}
+                />
+              )}
+              {page === 'services' && (
+                <Services
+                  services={services}
+                  onToggle={toggleService}
+                  onAction={runServiceAction}
+                  notify={notify}
+                  onSync={loadSnapshot}
+                  onRestartAll={restartAllServices}
+                  panelRestarting={panelRestarting}
+                  pendingServices={pendingServices}
+                />
+              )}
+              {page === 'projects' && (
+                <Projects
+                  projects={filteredProjects}
+                  allProjects={projects}
+                  query={query}
+                  setQuery={setQuery}
+                  notify={notify}
+                  onProjectCreated={addProject}
+                  onProjectDeleted={(domain) => void removeProject(domain)}
+                  onToggleSsl={(domain, next) => void toggleProjectSsl(domain, next)}
+                  onRestartPanel={() => void restartPanel()}
+                />
+              )}
+              {page === 'configs' && <Configs notify={notify} />}
+              {page === 'logs' && (
+                <Logs
+                  notify={notify}
+                  sources={logSources}
+                  source={logSource}
+                  onSourceChange={setLogSource}
+                  lines={logLines}
+                  auto={logAuto}
+                  onAutoChange={setLogAuto}
+                />
+              )}
+              {page === 'settings' && (
+                <Settings
+                  notify={notify}
+                  installationPath={snapshot?.source === 'tauri' ? snapshot.path : null}
+                  onPathSaved={(path) => {
+                    localStorage.setItem('ospanel.path', path);
+                    void loadSnapshot();
+                  }}
+                  tab={settingsTab}
+                  onTabChange={setSettingsTab}
+                  onProjectAutostartChange={(enabled) => {
+                    if (enabled && isDesktopApp()) void runProjectAutostart();
+                  }}
+                  themeMode={themeMode}
+                  setTheme={changeTheme}
+                  accent={accent}
+                  font={font}
+                  onAccentChange={(id: string) => {
+                    setAccent(id);
+                    localStorage.setItem('ospanel.accent', id);
+                  }}
+                  onFontChange={(id: string) => {
+                    setFont(id);
+                    localStorage.setItem('ospanel.font', id);
+                  }}
+                  scale={scale}
+                  onScaleChange={(value: number) => {
+                    setScale(value);
+                    localStorage.setItem('ospanel.scale', String(value));
+                  }}
+                  lang={lang}
+                  onLangChange={changeLang}
+                  locales={locales}
+                  onReloadLocales={reloadLocales}
+                />
+              )}
+              {page === 'backups' && <Backups notify={notify} services={services} projects={projects} />}
+            </div>
+          </main>
+          {toast && (
+            <div className="toast">
+              <ShieldCheck size={17} />
+              <span>{toast.message}</span>
+              {toastAction && (
+                <button
+                  type="button"
+                  className="toast-action"
+                  onClick={() => {
+                    setToast(null);
+                    toastAction.run();
+                  }}
+                >
+                  {toastAction.label}
+                </button>
+              )}
+              <button type="button" onClick={() => setToast(null)} aria-label={t('common.close')}>
+                <X size={14} />
               </button>
             </div>
-          </header>
-          <div className="content-wrap">
-            {page === 'overview' && (
-              <Overview
-                runningCount={runningCount}
-                services={services}
-                userName={userNameDisplay}
-                metrics={metrics}
-                activityLines={activityLines}
-                onNavigate={navigateTo}
-                onToggle={toggleService}
-                onAction={runServiceAction}
-                notify={notify}
-                onSync={loadSnapshot}
-                panelRestarting={panelRestarting}
-                pendingServices={pendingServices}
-              />
-            )}
-            {page === 'services' && (
-              <Services
-                services={services}
-                onToggle={toggleService}
-                onAction={runServiceAction}
-                notify={notify}
-                onSync={loadSnapshot}
-                onRestartAll={restartAllServices}
-                panelRestarting={panelRestarting}
-                pendingServices={pendingServices}
-              />
-            )}
-            {page === 'projects' && (
-              <Projects
-                projects={filteredProjects}
-                allProjects={projects}
-                query={query}
-                setQuery={setQuery}
-                notify={notify}
-                onProjectCreated={addProject}
-                onProjectDeleted={(domain) => void removeProject(domain)}
-                onToggleSsl={(domain, next) => void toggleProjectSsl(domain, next)}
-                onRestartPanel={() => void restartPanel()}
-              />
-            )}
-            {page === 'configs' && <Configs notify={notify} />}
-            {page === 'logs' && (
-              <Logs
-                notify={notify}
-                sources={logSources}
-                source={logSource}
-                onSourceChange={setLogSource}
-                lines={logLines}
-                auto={logAuto}
-                onAutoChange={setLogAuto}
-              />
-            )}
-            {page === 'settings' && (
-              <Settings
-                notify={notify}
-                installationPath={snapshot?.source === 'tauri' ? snapshot.path : null}
-                onPathSaved={(path) => {
-                  localStorage.setItem('ospanel.path', path);
-                  void loadSnapshot();
-                }}
-                tab={settingsTab}
-                onTabChange={setSettingsTab}
-                onProjectAutostartChange={(enabled) => {
-                  if (enabled && isDesktopApp()) void runProjectAutostart();
-                }}
-                themeMode={themeMode}
-                setTheme={changeTheme}
-                accent={accent}
-                font={font}
-                onAccentChange={(id: string) => {
-                  setAccent(id);
-                  localStorage.setItem('ospanel.accent', id);
-                }}
-                onFontChange={(id: string) => {
-                  setFont(id);
-                  localStorage.setItem('ospanel.font', id);
-                }}
-                scale={scale}
-                onScaleChange={(value: number) => {
-                  setScale(value);
-                  localStorage.setItem('ospanel.scale', String(value));
-                }}
-                lang={lang}
-                onLangChange={changeLang}
-                locales={locales}
-                onReloadLocales={reloadLocales}
-              />
-            )}
-            {page === 'backups' && <Backups notify={notify} services={services} projects={projects} />}
-          </div>
-        </main>
-        {toast && (
-          <div className="toast">
-            <ShieldCheck size={17} />
-            <span>{toast.message}</span>
-            {toastAction && (
-              <button
-                type="button"
-                className="toast-action"
-                onClick={() => {
-                  setToast(null);
-                  toastAction.run();
-                }}
-              >
-                {toastAction.label}
-              </button>
-            )}
-            <button type="button" onClick={() => setToast(null)} aria-label={t('common.close')}>
-              <X size={14} />
-            </button>
-          </div>
-        )}
-        <QuickSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={navigateTo} />
-      </div>
+          )}
+          <QuickSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={navigateTo} />
+        </div>
+      </PhpUpdatesProvider>
     </I18nContext.Provider>
   );
 }

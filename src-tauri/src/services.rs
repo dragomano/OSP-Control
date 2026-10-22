@@ -286,6 +286,7 @@ pub fn service_action(
     action: String,
     custom_path: Option<String>,
 ) -> Result<Service, CommandError> {
+    let _guard = crate::php_updates::mutation()?;
     // One match serves both as validation and as the osp.bat argument.
     let cmd = match action.as_str() {
         "start" => "on",
@@ -337,6 +338,7 @@ pub fn service_action(
 // button and avoids one shell/API round-trip per module.
 #[tauri::command]
 pub fn restart_ospanel(custom_path: Option<String>) -> Result<(), CommandError> {
+    let _guard = crate::php_updates::mutation()?;
     let root = resolve_installation(custom_path.as_deref())?;
     let osp_bat = root.join("bin").join("osp.bat");
     let panel_exe = root.join("bin").join("ospanel.exe");

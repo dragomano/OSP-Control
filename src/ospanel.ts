@@ -238,6 +238,31 @@ export async function refreshService(
   return invoke<OsPanelService>('service_action', { name, action, ...customPathArgs() });
 }
 
+export type PhpUpdate = {
+  name: string;
+  installed: string;
+  available: string | null;
+  error: string | null;
+  errorParams?: Record<string, string>;
+  recovery: boolean;
+};
+export async function checkPhpUpdates(): Promise<PhpUpdate[]> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  return invoke('check_php_updates', customPathArgs());
+}
+export async function installPhpUpdate(
+  name: string,
+  expected: string,
+  customPath: string | null,
+): Promise<string> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  return invoke('install_php_update', { name, expected, customPath });
+}
+export async function recoverPhpUpdate(name: string, customPath: string | null): Promise<string> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  return invoke('recover_php_update', { name, customPath });
+}
+
 export async function fetchOverviewMetrics(): Promise<OverviewMetrics> {
   if (!isTauri()) {
     const running = mockSnapshot.services.filter((item) => item.status === 'running').length;

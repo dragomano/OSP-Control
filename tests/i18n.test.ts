@@ -309,6 +309,32 @@ describe('localeIssues', () => {
 });
 
 describe('errorText', () => {
+  it('translates a nested command failure with its original details without mutating the error', () => {
+    const translate = makeTranslator(
+      {
+        'err.update': 'Update failed: {cause}',
+        'err.network': 'Download failed: {detail}',
+        fallback: 'Operation failed',
+      },
+      {},
+    );
+    const params = { cause: 'err.network', detail: 'Connection timed out' };
+    const error = Object.assign(new Error('err.update'), { params });
+    expect(errorText(translate, error, 'fallback')).toBe(
+      'Update failed: Download failed: Connection timed out',
+    );
+    expect(error.params.cause).toBe('err.network');
+  });
+
+  it('uses the localized fallback for unknown nested failure codes', () => {
+    const translate = makeTranslator(
+      { 'err.update': 'Update failed: {cause}', fallback: 'Operation failed' },
+      {},
+    );
+    const error = Object.assign(new Error('err.update'), { params: { cause: 'err.unknown' } });
+    expect(errorText(translate, error, 'fallback')).toBe('Update failed: Operation failed');
+  });
+
   it('translates an err.* code and substitutes params', () => {
     const err = Object.assign(new Error('err.pathInvalid'), { params: { path: 'C:\\x' } });
     expect(errorText(t, err, 'fallback.key')).toBe('Неверный путь: C:\\x');

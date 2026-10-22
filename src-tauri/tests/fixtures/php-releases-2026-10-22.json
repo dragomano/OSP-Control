@@ -1,0 +1,65 @@
+{
+  "7.4": {
+    "version": "7.4.33",
+    "nts-vc15-x64": {
+      "zip": {
+        "path": "php-7.4.33-nts-Win32-vc15-x64.zip",
+        "sha256": "14ae3250d4447c8ccfc4c45a70d90adfbcd61e728d85f0be56a7ddf8f9c8aace"
+      }
+    }
+  },
+  "8.0": {
+    "version": "8.0.30",
+    "nts-vs16-x64": {
+      "zip": {
+        "path": "php-8.0.30-nts-Win32-vs16-x64.zip",
+        "sha256": "dfb70498ffa2c617f2f655a155564697e3c9cca41709938fd1a5997d1d5b0785"
+      }
+    }
+  },
+  "8.1": {
+    "version": "8.1.34",
+    "nts-vs16-x64": {
+      "zip": {
+        "path": "php-8.1.34-nts-Win32-vs16-x64.zip",
+        "sha256": "9cfe246cb144076c16f5913a3ef88a474c3dd7e60f0f0c8bb95faf68674016cc"
+      }
+    }
+  },
+  "8.2": {
+    "version": "8.2.35",
+    "nts-vs16-x64": {
+      "zip": {
+        "path": "php-8.2.35-nts-Win32-vs16-x64.zip",
+        "sha256": "798ffa4b9ce22a820d57048e9695df7245bf917ed067917f256942a10918a8cc"
+      }
+    }
+  },
+  "8.3": {
+    "version": "8.3.36",
+    "nts-vs16-x64": {
+      "zip": {
+        "path": "php-8.3.36-nts-Win32-vs16-x64.zip",
+        "sha256": "3c9242622c7402b47c38d2ec2ed779cef3a290fd6f2bde6c35f9c482699e7900"
+      }
+    }
+  },
+  "8.4": {
+    "version": "8.4.27",
+    "nts-vs17-x64": {
+      "zip": {
+        "path": "php-8.4.27-nts-Win32-vs17-x64.zip",
+        "sha256": "93bd8a815a52156606fb906d0573437908c61f96e2cc52c03a51e36a41bf5236"
+      }
+    }
+  },
+  "8.5": {
+    "version": "8.5.12",
+    "nts-vs17-x64": {
+      "zip": {
+        "path": "php-8.5.12-nts-Win32-vs17-x64.zip",
+        "sha256": "2ab242af38d76bdf417cde5ec048b1bcd76a5a40f39a3d15d5f046f38571c477"
+      }
+    }
+  }
+}

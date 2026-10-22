@@ -9,6 +9,7 @@ import {
   setAutostart,
   setCloseToTray,
 } from '../../ospanel';
+import { usePhpUpdates } from '../../phpUpdates';
 import { ACCENT_THEMES, accentSwatch, FONT_OPTIONS, type ThemeMode } from '../../theme';
 import type { Notify, SettingsTab } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
@@ -60,6 +61,12 @@ export function Settings({
   onReloadLocales: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const updates = usePhpUpdates();
+  const busyRef = useRef(updates.busy);
+  busyRef.current = updates.busy;
+  const [checkUpdates, setCheckUpdates] = useState(
+    () => localStorage.getItem('ospanel.checkServiceUpdates') === '1',
+  );
   const [osPath, setOsPath] = useState(() => localStorage.getItem('ospanel.path') ?? installationPath ?? '');
   const [autostart, setAutostartState] = useState(false);
   const [closeToTray, setCloseToTrayState] = useState(false);
@@ -93,6 +100,8 @@ export function Settings({
 
   // One place for the four steps every accepted path goes through.
   const applyPath = (path: string, toastKey: string) => {
+    if (busyRef.current) return;
+    updates.reset();
     pathEditedRef.current = true;
     savedPathRef.current = path;
     setOsPath(path);
@@ -200,6 +209,7 @@ export function Settings({
               <div className="path-field">
                 <input
                   value={osPath}
+                  disabled={updates.busy}
                   onChange={(event) => {
                     pathEditedRef.current = true;
                     setOsPath(event.target.value);
@@ -216,7 +226,12 @@ export function Settings({
                   placeholder={t('settings.pathPlaceholder')}
                   aria-label={t('settings.connectionTitle')}
                 />
-                <button type="button" className="secondary-button" onClick={choosePath}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={updates.busy}
+                  onClick={choosePath}
+                >
                   <FolderOpen size={14} />
                   {t('settings.chooseFolder')}
                 </button>
@@ -249,6 +264,24 @@ export function Settings({
                   className={`large-toggle ${projectAutostart ? 'on' : ''}`}
                   onClick={toggleProjectAutostart}
                   aria-label={t('settings.projectAutostartTitle')}
+                >
+                  <span />
+                </button>
+              </div>
+              <div className="setting-block">
+                <div>
+                  <h3>{t('updates.startup')}</h3>
+                  <p>{t('updates.description')}</p>
+                </div>
+                <button
+                  type="button"
+                  className={`large-toggle ${checkUpdates ? 'on' : ''}`}
+                  onClick={() => {
+                    const next = !checkUpdates;
+                    setCheckUpdates(next);
+                    localStorage.setItem('ospanel.checkServiceUpdates', next ? '1' : '0');
+                  }}
+                  aria-label={t('updates.startup')}
                 >
                   <span />
                 </button>

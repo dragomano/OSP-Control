@@ -5,6 +5,7 @@ src-tauri/target/
 src-tauri/gen/
 dist-portable/
 demo/
+.sharrowkin/
 .vscode/
 .zcode/
 .zwork/

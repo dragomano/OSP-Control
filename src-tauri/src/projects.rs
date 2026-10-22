@@ -488,6 +488,7 @@ fn find_module_for_engine<'a>(engine: &str, services: &'a [Service]) -> Option<&
 
 #[tauri::command]
 pub fn autostart_from_projects(custom_path: Option<String>) -> Result<AutostartReport, CommandError> {
+    let _guard = crate::php_updates::mutation()?;
     let root = resolve_installation(custom_path.as_deref())?;
     let osp_bat = root.join("bin").join("osp.bat");
     if !osp_bat.exists() {

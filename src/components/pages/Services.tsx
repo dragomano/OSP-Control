@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useI18n } from '../../i18n';
+import { PhpUpdateAction, PhpUpdateToolbar, usePhpUpdates } from '../../phpUpdates';
 import {
   type Notify,
   SERVICE_GROUPS,
@@ -38,12 +39,14 @@ export function Services({
   pendingServices?: ReadonlySet<string>;
 }) {
   const { t } = useI18n();
+  const updates = usePhpUpdates();
   const [filter, setFilter] = useState<'all' | ServiceGroupId>('all');
   const [syncing, setSyncing] = useState(false);
   const [restartingAll, setRestartingAll] = useState(false);
   const [collapsed, setCollapsed] = useState<Partial<Record<ServiceGroupId, boolean>>>({});
   // A service is busy either because its own command is running or because the panel restarts.
-  const isBusy = (name: string) => panelRestarting || Boolean(pendingServices?.has(name));
+  const isBusy = (name: string) =>
+    panelRestarting || Boolean(updates.active[name]) || Boolean(pendingServices?.has(name));
   // Indices are positions in the overall services array: onToggle/onAction work with them.
   const items = services.map((service, index) => ({ service, index }));
   // Groups with at least one service: the declared sections plus the leftovers in "other".
@@ -77,7 +80,7 @@ export function Services({
           <button
             type="button"
             className="primary-button"
-            disabled={restartingAll || panelRestarting}
+            disabled={restartingAll || panelRestarting || updates.busy}
             onClick={() => {
               setRestartingAll(true);
               void onRestartAll().finally(() => setRestartingAll(false));
@@ -88,6 +91,7 @@ export function Services({
           </button>
         }
       />
+      <PhpUpdateToolbar />
       <div className="notice">
         <ShieldCheck size={18} />
         <div>
@@ -156,7 +160,7 @@ export function Services({
                   {group.items.map(({ service, index }) => {
                     const toggle = stopStartAction(service, t);
                     const busy = isBusy(service.name);
-                    const toggleDisabled = toggle.disabled || busy;
+                    const toggleDisabled = toggle.disabled || busy || updates.busy;
 
                     return (
                       <div
@@ -173,7 +177,7 @@ export function Services({
                             <span>{t(service.detail)}</span>
                           </div>
                           <div className="service-meta">
-                            <b>{service.version}</b>
+                            <b>{updates.versions[service.name] ?? service.version}</b>
                             <span>{service.port}</span>
                           </div>
                           <div className="service-state">
@@ -202,9 +206,15 @@ export function Services({
                               <toggle.icon size={14} className={busy ? 'spin' : undefined} />
                               {busy && !panelRestarting ? t('services.pendingAction') : toggle.label}
                             </button>
-                            <RowMenu entries={serviceMenuEntries(service, onAction, t, notify, busy)} />
+                            <RowMenu
+                              entries={serviceMenuEntries(service, onAction, t, notify, busy || updates.busy)}
+                            />
                           </div>
                         </div>
+                        <PhpUpdateAction
+                          name={service.name}
+                          disabled={panelRestarting || Boolean(pendingServices?.has(service.name))}
+                        />
                       </div>
                     );
                   })}

@@ -8,6 +8,10 @@ mod locales;
 mod panel_api;
 mod paths;
 mod projects;
+mod php_files;
+mod php_health;
+mod php_releases;
+mod php_updates;
 mod services;
 mod shell;
 
@@ -55,6 +59,9 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            php_updates::check_php_updates,
+            php_updates::install_php_update,
+            php_updates::recover_php_update,
             services::discover_ospanel,
             services::panel_online,
             services::overview_metrics,

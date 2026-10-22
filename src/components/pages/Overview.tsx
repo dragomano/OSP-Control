@@ -14,6 +14,7 @@ import {
 import { useState } from 'react';
 import { localeTag, useI18n } from '../../i18n';
 import type { OverviewMetrics } from '../../ospanel';
+import { PhpUpdateToolbar } from '../../phpUpdates';
 import { formatRam, type Notify, type Page, type Service, type SettingsTab } from '../shared';
 import { buildActivityRows, logAliasesFromTranslator } from '../tables/Logs';
 import { ActivityRow } from '../widgets/ActivityRow';
@@ -89,6 +90,7 @@ export function Overview({
           </button>
         }
       />
+      <PhpUpdateToolbar />
       <section className="hero-panel">
         <div className="hero-copy">
           <div className="hero-kicker">

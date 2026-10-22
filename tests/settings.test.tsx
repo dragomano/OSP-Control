@@ -188,6 +188,29 @@ describe('Settings autostart tab', () => {
     expect(props.notify).toHaveBeenCalledWith('Project module autostart enabled');
   });
 
+  it('places service update checks after project module autostart', () => {
+    const connection = renderSettings();
+    expect(
+      screen.queryByRole('checkbox', { name: 'Check for service updates when the application starts' }),
+    ).toBeNull();
+    connection.view.unmount();
+
+    openTab();
+    const updateToggle = screen.getByRole('button', {
+      name: 'Check for service updates when the application starts',
+    });
+    const projectToggle = screen.getByRole('button', { name: 'Start modules per project' });
+
+    expect(updateToggle).toHaveClass('large-toggle');
+    expect(updateToggle).not.toHaveClass('on');
+    expect(
+      projectToggle.compareDocumentPosition(updateToggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(updateToggle);
+    expect(updateToggle).toHaveClass('on');
+    expect(localStorage.getItem('ospanel.checkServiceUpdates')).toBe('1');
+  });
+
   it('toggles close-to-tray and resyncs the tray after a language change', async () => {
     const { props, view } = openTab();
     const toggle = screen.getByRole('button', { name: 'Close to system tray' });

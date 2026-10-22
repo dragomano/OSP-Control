@@ -299,7 +299,12 @@ export function localeIssues(own: Dict, base: Dict, lang: string): LocaleIssues 
 export function errorText(t: Translator, error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return t(fallback);
 
-  const params = (error as Error & { params?: Record<string, string> }).params;
+  let params = (error as Error & { params?: Record<string, string> }).params;
+  if (params?.cause?.startsWith('err.')) {
+    const { cause, ...causeParams } = params;
+    const causeError = Object.assign(new Error(cause), { params: causeParams });
+    params = { ...params, cause: errorText(t, causeError, fallback) };
+  }
   const translated = t(error.message, params);
 
   return translated === error.message ? t(fallback) : translated;

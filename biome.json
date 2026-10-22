@@ -1,7 +1,15 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!dist", "!dist-portable", "!coverage", "!src-tauri", "!tsconfig.tsbuildinfo"]
+    "includes": [
+      "**",
+      "!dist",
+      "!dist-portable",
+      "!coverage",
+      "!.sharrowkin",
+      "!src-tauri",
+      "!tsconfig.tsbuildinfo"
+    ]
   },
   "formatter": {
     "enabled": true,
