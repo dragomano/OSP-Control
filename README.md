@@ -13,18 +13,21 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 ## Features
 
 ### Overview
+
 - Time-of-day greeting with the Windows user name.
 - Environment metrics: active services, project count, RAM usage of module worker processes, open ports and conflicts.
 - Quick overview of module states and a recent-activity feed from the panel logs.
 - A sync button to refresh from the panel.
 
 ### Services
+
 - List of local environment modules grouped by category: web servers, languages and runtimes, databases, cache and queues, DNS, mail, tools and other.
 - Start / stop / restart a single module, or restart all running modules at once.
 - Group filter, service name copying, state indicators (running / stopped / needs attention).
 - Data comes from the panel's HTTP API (`/getmodules`), not from localized text tables.
 
 ### Projects
+
 - Project list with search and SSL / PHP version filters.
 - Creating a new project (domain, HTTP engine, PHP version, Node), deleting a project.
 - Opening in a browser, opening the project folder, copying the domain and path.
@@ -33,20 +36,24 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 - Module autostart based on projects and panel restart from the UI.
 
 ### Configurations
+
 - Viewing module configs with syntax highlighting (highlight.js).
 - Search, module filter, opening the file and its folder, copying the content.
 - Automatic configuration backup before edits.
 
 ### Logs
+
 - Panel and domain logs with auto-refresh.
 - "All / errors / warnings" tabs, content search, line copying.
 
 ### Backups
+
 - Configuration copies, database dumps (MySQL, MariaDB, PostgreSQL) and project zip archives (node_modules and vendor excluded).
 - Creating, restoring and deleting copies; the current state is backed up automatically before a restore.
 - Opening the backups folder.
 
 ### Settings
+
 - OSPanel installation path with a folder picker.
 - App autostart with Windows and module autostart from projects.
 - Minimize to system tray on close, notifications.
@@ -54,6 +61,7 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 - Language selection, hot reload of translations.
 
 ### General
+
 - Quick search across sections and options (command palette).
 - System tray icon (show window / exit).
 - Localization: Russian, English, Ukrainian, Belarusian, Spanish.
@@ -78,7 +86,6 @@ pnpm test             # Vitest (jsdom)
 Translations live in `src-tauri/resources/locales/*.json` and are embedded into the binary. The portable build ships a copy in `locales/` next to the exe: edit the files there and the changes are picked up when the window regains focus, or via the "Reload translations" button in the settings.
 
 A new language is a single `<code>.json` file (for example `de.json` or `pt_BR.json`) in `locales/` next to the exe; in a dev build — `src-tauri/target/debug/locales/`. The code is 2–8 characters: Latin letters, digits, `-` and `_`. The language appears in the settings on its own — no rebuild needed. File format:
-
 - a flat JSON object "key — non-empty string", no nesting;
 - `lang.name` — the language name in itself ("Deutsch"); without it the language will not appear in the settings list;
 - `lang.code` — the code matching the file name; no other `lang.*` keys are allowed;

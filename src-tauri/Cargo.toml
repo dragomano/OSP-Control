@@ -2,7 +2,7 @@
 name = "osp-control"
 # Crate version, not the app version: tauri.conf.json takes the app version
 # from ../package.json, and tests/version.test.ts keeps the two in lockstep.
-version = "0.1.0"
+version = "0.2.0"
 description = "OSP Control — local control center for OSPanel"
 authors = ["Bugo"]
 edition = "2024"

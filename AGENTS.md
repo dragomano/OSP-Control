@@ -16,7 +16,6 @@ Tauri 2 + React 19 + TypeScript (no Tailwind, custom CSS) — desktop control pa
 ## Mandatory verification after changes
 
 After every change to project files, run the commands one by one in this order and fix all reported errors until the result is clean:
-
 1. `pnpm lint`
 2. `pnpm fix`
 3. `pnpm format`
