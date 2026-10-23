@@ -276,10 +276,96 @@ describe('App (browser mode: adapter serves mocks)', () => {
       expect(screen.queryByRole('dialog', { name: 'Быстрый поиск' })).not.toBeInTheDocument();
     });
 
-    it('toggles the theme from the topbar and persists it', () => {
-      render(<App />);
-      fireEvent.click(screen.getByRole('button', { name: 'Переключить тему' }));
-      expect(localStorage.getItem('ospanel.theme')).toBe('light');
+    describe('theme selection', () => {
+      const labels = { system: 'Системная', dark: 'Тёмная', light: 'Светлая' } as const;
+      let systemChange: ((event: MediaQueryListEvent) => void) | undefined;
+
+      beforeEach(() => {
+        systemChange = undefined;
+        const original = window.matchMedia.bind(window);
+        vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+          const media = original(query);
+          if (query !== '(prefers-color-scheme: light)') return media;
+          return {
+            ...media,
+            matches: true,
+            addEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+              systemChange = listener as (event: MediaQueryListEvent) => void;
+            },
+          };
+        });
+      });
+
+      afterEach(() => vi.restoreAllMocks());
+
+      const shell = () => document.querySelector('.app-shell');
+      const chooseTheme = (mode: keyof typeof labels) => {
+        fireEvent.click(screen.getByRole('button', { name: 'Переключить тему' }));
+        for (const label of Object.values(labels)) {
+          expect(screen.getByRole('menuitem', { name: label })).toBeInTheDocument();
+        }
+        fireEvent.click(screen.getByRole('menuitem', { name: labels[mode] }));
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+        expect(localStorage.getItem('ospanel.theme')).toBe(mode);
+      };
+      const changeSystem = (matches: boolean) => {
+        expect(systemChange).toBeDefined();
+        act(() => systemChange?.({ matches } as MediaQueryListEvent));
+      };
+
+      it('defaults to the system theme on first launch and follows OS changes', () => {
+        render(<App />);
+        expect(screen.getByRole('button', { name: 'Переключить тему' })).toHaveAttribute(
+          'title',
+          labels.system,
+        );
+        expect(shell()).toHaveClass('light');
+        changeSystem(false);
+        expect(shell()).not.toHaveClass('light');
+        changeSystem(true);
+        expect(shell()).toHaveClass('light');
+      });
+
+      it.each(['system', 'dark', 'light'] as const)('restores the saved %s mode', (mode) => {
+        localStorage.setItem('ospanel.theme', mode);
+        render(<App />);
+        expect(screen.getByRole('button', { name: 'Переключить тему' })).toHaveAttribute(
+          'title',
+          labels[mode],
+        );
+        expect(shell()?.classList.contains('light')).toBe(mode !== 'dark');
+      });
+
+      it('selects and persists all three modes from the topbar', () => {
+        render(<App />);
+        chooseTheme('dark');
+        expect(shell()).not.toHaveClass('light');
+        changeSystem(false);
+        changeSystem(true);
+        expect(shell()).not.toHaveClass('light');
+        chooseTheme('light');
+        changeSystem(false);
+        expect(shell()).toHaveClass('light');
+        chooseTheme('system');
+        expect(shell()).not.toHaveClass('light');
+        changeSystem(true);
+        expect(shell()).toHaveClass('light');
+      });
+
+      it('keeps the topbar and appearance settings synchronized', async () => {
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Внешний вид' }));
+        expect(screen.getByRole('button', { name: labels.system })).toHaveClass('selected');
+        chooseTheme('dark');
+        expect(screen.getByRole('button', { name: labels.dark })).toHaveClass('selected');
+        fireEvent.click(screen.getByRole('button', { name: labels.system }));
+        expect(localStorage.getItem('ospanel.theme')).toBe('system');
+        expect(screen.getByRole('button', { name: 'Переключить тему' })).toHaveAttribute(
+          'title',
+          labels.system,
+        );
+      });
     });
 
     it('collapses the sidebar and persists it', () => {

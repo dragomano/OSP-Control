@@ -3,6 +3,7 @@ import {
   Copy,
   FolderOpen,
   Leaf,
+  Monitor,
   Moon,
   Search,
   Settings2,
@@ -31,6 +32,7 @@ import {
 import { Backups } from './components/tables/Backups';
 import { Configs } from './components/tables/Configs';
 import { buildActivityRows, Logs, logAliasesFromTranslator } from './components/tables/Logs';
+import { RowMenu } from './components/widgets/RowMenu';
 import {
   BASE_LANG,
   type Dict,
@@ -882,14 +884,38 @@ function App() {
                 >
                   <Search size={17} />
                 </button>
-                <button
-                  type="button"
-                  className="icon-button"
-                  onClick={() => changeTheme(isLight ? 'dark' : 'light')}
-                  aria-label={t('common.toggleTheme')}
-                >
-                  {isLight ? <Sun size={17} /> : <Moon size={17} />}
-                </button>
+                <RowMenu
+                  trigger={({ onToggle, open }) => (
+                    <button
+                      type="button"
+                      className={`icon-button ${open ? 'active' : ''}`}
+                      onClick={onToggle}
+                      aria-label={t('common.toggleTheme')}
+                      title={t(
+                        `settings.theme${themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light'}`,
+                      )}
+                      aria-haspopup="menu"
+                      aria-expanded={open}
+                    >
+                      {themeMode === 'system' ? (
+                        <Monitor size={17} />
+                      ) : themeMode === 'light' ? (
+                        <Sun size={17} />
+                      ) : (
+                        <Moon size={17} />
+                      )}
+                    </button>
+                  )}
+                  entries={[
+                    {
+                      label: t('settings.themeSystem'),
+                      icon: Monitor,
+                      onSelect: () => changeTheme('system'),
+                    },
+                    { label: t('settings.themeDark'), icon: Moon, onSelect: () => changeTheme('dark') },
+                    { label: t('settings.themeLight'), icon: Sun, onSelect: () => changeTheme('light') },
+                  ]}
+                />
               </div>
             </header>
             <div className="content-wrap">
