@@ -1,6 +1,7 @@
 import { ChevronRight, FolderOpen, Monitor, Moon, RefreshCw, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { errorText, type LocaleInfo, useI18n } from '../../i18n';
+import { useModuleUpdates } from '../../moduleUpdates';
 import {
   autostartEnabled,
   closeToTrayEnabled,
@@ -9,7 +10,6 @@ import {
   setAutostart,
   setCloseToTray,
 } from '../../ospanel';
-import { usePhpUpdates } from '../../phpUpdates';
 import { ACCENT_THEMES, accentSwatch, FONT_OPTIONS, type ThemeMode } from '../../theme';
 import type { Notify, SettingsTab } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
@@ -61,7 +61,7 @@ export function Settings({
   onReloadLocales: () => Promise<void>;
 }) {
   const { t } = useI18n();
-  const updates = usePhpUpdates();
+  const updates = useModuleUpdates();
   const busyRef = useRef(updates.busy);
   busyRef.current = updates.busy;
   const [checkUpdates, setCheckUpdates] = useState(

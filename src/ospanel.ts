@@ -238,29 +238,30 @@ export async function refreshService(
   return invoke<OsPanelService>('service_action', { name, action, ...customPathArgs() });
 }
 
-export type PhpUpdate = {
+export type ModuleUpdate = {
   name: string;
   installed: string;
   available: string | null;
+  expected: string | null;
   error: string | null;
   errorParams?: Record<string, string>;
   recovery: boolean;
 };
-export async function checkPhpUpdates(): Promise<PhpUpdate[]> {
+export async function checkModuleUpdates(force = true): Promise<ModuleUpdate[]> {
   if (!isTauri()) throw new Error('err.desktopOnly');
-  return invoke('check_php_updates', customPathArgs());
+  return invoke('check_module_updates', { ...customPathArgs(), force });
 }
-export async function installPhpUpdate(
+export async function installModuleUpdate(
   name: string,
   expected: string,
   customPath: string | null,
 ): Promise<string> {
   if (!isTauri()) throw new Error('err.desktopOnly');
-  return invoke('install_php_update', { name, expected, customPath });
+  return invoke('install_module_update', { name, expected, customPath });
 }
-export async function recoverPhpUpdate(name: string, customPath: string | null): Promise<string> {
+export async function recoverModuleUpdate(name: string, customPath: string | null): Promise<string> {
   if (!isTauri()) throw new Error('err.desktopOnly');
-  return invoke('recover_php_update', { name, customPath });
+  return invoke('recover_module_update', { name, customPath });
 }
 
 export async function fetchOverviewMetrics(): Promise<OverviewMetrics> {

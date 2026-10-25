@@ -1,0 +1,79 @@
+{
+  "checkedAt": "2026-10-25",
+  "nginx": [
+    {
+      "tag_name": "release-1.29.6",
+      "draft": false,
+      "prerelease": false,
+      "assets": [
+        {
+          "id": 373302003,
+          "name": "nginx-1.29.6.zip",
+          "size": 33923339,
+          "digest": "sha256:40525482b568ed0d3d0d064a6f3266b99c61d9b0a59fd5651ef302fb367d54bd",
+          "browser_download_url": "https://github.com/OSPanel/nginx/releases/download/release-1.29.6/nginx-1.29.6.zip"
+        }
+      ]
+    },
+    {
+      "tag_name": "release-1.29.5",
+      "draft": false,
+      "prerelease": false,
+      "assets": [
+        {
+          "id": 364789559,
+          "name": "nginx-1.29.5.zip",
+          "size": 33844811,
+          "digest": "sha256:f79b48b3177e92cf4cf2c1caf64056c8caaca20de85fcf0cc6a65248896cef04",
+          "browser_download_url": "https://github.com/OSPanel/nginx/releases/download/release-1.29.5/nginx-1.29.5.zip"
+        }
+      ]
+    },
+    {
+      "tag_name": "release-1.29.4",
+      "draft": false,
+      "prerelease": false,
+      "assets": [
+        {
+          "id": 348784341,
+          "name": "nginx-1.29.4.zip",
+          "size": 34009362,
+          "digest": "sha256:a5b7463c649c051209ec0f3ec1412f81d5cea7030dc2e9fb9cdd830620017c94",
+          "browser_download_url": "https://github.com/OSPanel/nginx/releases/download/release-1.29.4/nginx-1.29.4.zip"
+        }
+      ]
+    }
+  ],
+  "caddy": [
+    {
+      "tag_name": "v2.11.1",
+      "draft": false,
+      "prerelease": false,
+      "assets": [
+        {
+          "id": 375628252,
+          "name": "caddy-v2.11.1-windows-amd64.zip",
+          "size": 49451301,
+          "digest": "sha256:484f068643e7bcb2ee93f30b7ab677ded5875ac82fdcb9e4f475c8610a4d166e",
+          "browser_download_url": "https://github.com/OSPanel/caddy/releases/download/v2.11.1/caddy-v2.11.1-windows-amd64.zip"
+        }
+      ]
+    },
+    {
+      "tag_name": "v2.10.2",
+      "draft": false,
+      "prerelease": false,
+      "assets": [
+        {
+          "id": 343212974,
+          "name": "caddy-v2.10.2-windows-amd64.zip",
+          "size": 46986942,
+          "digest": "sha256:6e155d4d1dd333b35673136204e63025df97b710fc4d14f2ccb992def3b17255",
+          "browser_download_url": "https://github.com/OSPanel/caddy/releases/download/v2.10.2/caddy-v2.10.2-windows-amd64.zip"
+        }
+      ]
+    }
+  ],
+  "apacheHtml": "<a href=\"/download/VS18/binaries/httpd-2.4.69-261002-Win64-VS18.zip\">httpd-2.4.69-261002-Win64-VS18.zip</a>\n<a href=\"/download/VS18/binaries/httpd-2.4.69-261002-win32-vs18.zip\">httpd-2.4.69-261002-win32-vs18.zip</a>",
+  "apacheChecksums": "Checksums created with GPGHash by SmartJuwel\r\n\r\nSHA1-Checksum for: httpd-2.4.69-261002-Win64-VS18.zip:\r\nB7372A7DE3E05FD0D11C4E72FF80A11AF0EF4FA5\r\n\r\nSHA224-Checksum for: httpd-2.4.69-261002-Win64-VS18.zip:\r\nD11FEDED507E52CF8A347E13D94F97A32A4CCD79F2DD9AEC37051688\r\n\r\nSHA256-Checksum for: httpd-2.4.69-261002-Win64-VS18.zip:\r\n77D715D0D9CEE731E2251E7DDC2090A7A8E6D41FEDEF2E9827CD918593C5A652\r\n\r\nSHA384-Checksum for: httpd-2.4.69-261002-Win64-VS18.zip:\r\n058EA53A8E8081BA72BE57CC67B9B5654B718ABA534EC6B0AF9A417B65C06711CDBAE7FB677A0FF9A7DD9CEDF1644541\r\n\r\nSHA512-Checksum for: httpd-2.4.69-261002-Win64-VS18.zip:\r\n2FAD746A77CBB02966543926E6C1C6C433369E3123ED85B3EE7E8AB994CEAEBE6B584BB2B766E5F46A396105D34024B659DF1DA1C6C5DA07A9197744BAB3FAF4\r\n\r\n\r\nCreation date: 24.10.2026 with GnuPG Version: 1.4.18\r\n\r\n\r\n© 2003-2026 by SmartJuwel\r\n"
+}

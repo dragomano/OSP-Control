@@ -1,5 +1,5 @@
 import { useI18n } from '../../i18n';
-import { PhpUpdateAction, usePhpUpdates } from '../../phpUpdates';
+import { ModuleUpdateAction, useModuleUpdates } from '../../moduleUpdates';
 import { type Notify, type Service, serviceMenuEntries, stopStartAction } from '../shared';
 import { RowMenu } from './RowMenu';
 import { StatusDot } from './StatusDot';
@@ -20,7 +20,7 @@ export function ServiceCard({
   busyLabel?: string;
 }) {
   const { t } = useI18n();
-  const updates = usePhpUpdates();
+  const updates = useModuleUpdates();
   const externallyBusy = busy;
   busy = busy || Boolean(updates.active[service.name]);
   const Icon = service.icon;
@@ -58,7 +58,7 @@ export function ServiceCard({
           <span />
         </button>
       </div>
-      <PhpUpdateAction name={service.name} disabled={externallyBusy} />
+      <ModuleUpdateAction name={service.name} disabled={externallyBusy} />
     </div>
   );
 }

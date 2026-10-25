@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useI18n } from '../../i18n';
-import { PhpUpdateAction, PhpUpdateToolbar, usePhpUpdates } from '../../phpUpdates';
+import { ModuleUpdateAction, ModuleUpdateToolbar, useModuleUpdates } from '../../moduleUpdates';
 import {
   type Notify,
   SERVICE_GROUPS,
@@ -39,7 +39,7 @@ export function Services({
   pendingServices?: ReadonlySet<string>;
 }) {
   const { t } = useI18n();
-  const updates = usePhpUpdates();
+  const updates = useModuleUpdates();
   const [filter, setFilter] = useState<'all' | ServiceGroupId>('all');
   const [syncing, setSyncing] = useState(false);
   const [restartingAll, setRestartingAll] = useState(false);
@@ -91,7 +91,7 @@ export function Services({
           </button>
         }
       />
-      <PhpUpdateToolbar />
+      <ModuleUpdateToolbar />
       <div className="notice">
         <ShieldCheck size={18} />
         <div>
@@ -211,7 +211,7 @@ export function Services({
                             />
                           </div>
                         </div>
-                        <PhpUpdateAction
+                        <ModuleUpdateAction
                           name={service.name}
                           disabled={panelRestarting || Boolean(pendingServices?.has(service.name))}
                         />

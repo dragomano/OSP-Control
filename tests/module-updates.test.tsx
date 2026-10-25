@@ -6,8 +6,13 @@ import { Services } from '../src/components/pages/Services';
 import type { Service } from '../src/components/shared';
 import { ServiceCard } from '../src/components/widgets/ServiceCard';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
-import type { PhpUpdate } from '../src/ospanel';
-import { PhpUpdateAction, PhpUpdatesProvider, PhpUpdateToolbar, usePhpUpdates } from '../src/phpUpdates';
+import {
+  ModuleUpdateAction,
+  ModuleUpdatesProvider,
+  ModuleUpdateToolbar,
+  useModuleUpdates,
+} from '../src/moduleUpdates';
+import type { ModuleUpdate } from '../src/ospanel';
 
 const mocks = vi.hoisted(() => ({
   check: vi.fn(),
@@ -18,21 +23,28 @@ const mocks = vi.hoisted(() => ({
   unlisten: vi.fn(),
 }));
 vi.mock('../src/ospanel', () => ({
-  checkPhpUpdates: mocks.check,
-  installPhpUpdate: mocks.install,
-  recoverPhpUpdate: mocks.recover,
+  checkModuleUpdates: mocks.check,
+  installModuleUpdate: mocks.install,
+  recoverModuleUpdate: mocks.recover,
   isDesktopApp: mocks.desktop,
 }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: mocks.listen }));
 const t = makeTranslator(embeddedDict('en'), embeddedDict('en'));
-const update: PhpUpdate = {
+const update: ModuleUpdate = {
   name: 'PHP-8.4',
   installed: '8.4.9',
   available: '8.4.10',
+  expected: '8.4.10',
   error: null,
   recovery: false,
 };
-const otherUpdate: PhpUpdate = { ...update, name: 'PHP-8.3', installed: '8.3.20', available: '8.3.21' };
+const otherUpdate: ModuleUpdate = {
+  ...update,
+  name: 'PHP-8.3',
+  installed: '8.3.20',
+  available: '8.3.21',
+  expected: '8.3.21',
+};
 const services: Service[] = [update, otherUpdate].map(({ name, installed }) => ({
   name,
   version: installed,
@@ -56,7 +68,7 @@ function serviceViews(layout: 'list' | 'cards') {
     />
   ) : (
     <>
-      <PhpUpdateToolbar />
+      <ModuleUpdateToolbar />
       {services.map((service) => (
         <ServiceCard
           key={service.name}
@@ -70,7 +82,7 @@ function serviceViews(layout: 'list' | 'cards') {
   );
 }
 function Reset() {
-  const { reset } = usePhpUpdates();
+  const { reset } = useModuleUpdates();
   return (
     <button type="button" onClick={reset}>
       Reset path
@@ -81,17 +93,17 @@ function setup(
   blocked = false,
   content: ReactNode = (
     <>
-      <PhpUpdateToolbar />
-      <PhpUpdateAction name="PHP-8.4" />
+      <ModuleUpdateToolbar />
+      <ModuleUpdateAction name="PHP-8.4" />
     </>
   ),
 ) {
   return render(
     <I18nContext.Provider value={{ lang: 'en', t, plural: makePlural(t, 'en', embeddedDict('en')) }}>
-      <PhpUpdatesProvider refresh={refresh} blocked={blocked} onBusy={onBusy}>
+      <ModuleUpdatesProvider refresh={refresh} blocked={blocked} onBusy={onBusy}>
         {content}
         <Reset />
-      </PhpUpdatesProvider>
+      </ModuleUpdatesProvider>
     </I18nContext.Provider>,
   );
 }
@@ -113,7 +125,7 @@ it('does not automatically check or install without the startup preference', () 
   expect(mocks.install).not.toHaveBeenCalled();
   expect(screen.queryByText('Up to date')).not.toBeInTheDocument();
 });
-it.each([null, 'err.phpUnsupported', 'err.phpCatalog'])(
+it.each([null, 'err.phpUnsupported'])(
   'does not render an update strip without an available version (error: %s)',
   async (error) => {
     mocks.check.mockResolvedValue([{ ...update, available: null, error }]);
@@ -122,7 +134,7 @@ it.each([null, 'err.phpUnsupported', 'err.phpCatalog'])(
       fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
     });
     expect(mocks.check).toHaveBeenCalledOnce();
-    expect(container.querySelector('.php-update-action')).toBeNull();
+    expect(container.querySelector('.module-update-action')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Update' })).not.toBeInTheDocument();
   },
 );
@@ -139,11 +151,11 @@ it.each(['list', 'cards'] as const)(
     const { container } = setup(false, serviceViews(layout));
     fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
     const message = await screen.findByText('Update available: 8.4.10');
-    const strip = message.closest('.php-update-action');
+    const strip = message.closest('.module-update-action');
     const service = screen.getByText('PHP-8.4').closest(layout === 'list' ? '.service-row' : '.service-card');
     expect(strip?.parentElement).toBe(service);
     expect(service?.lastElementChild).toBe(strip);
-    expect(container.querySelectorAll('.php-update-action')).toHaveLength(1);
+    expect(container.querySelectorAll('.module-update-action')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Update' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Update' }));
     expect(screen.getByText('Preparing update…')).toBeInTheDocument();
@@ -192,9 +204,9 @@ it('prevents duplicate installation of the same module', async () => {
   expect(await screen.findByText('PHP-8.4 updated and verified')).toBeInTheDocument();
 });
 it('discards an old check result after the installation path is reset', async () => {
-  let finish!: (value: PhpUpdate[]) => void;
+  let finish!: (value: ModuleUpdate[]) => void;
   mocks.check.mockReturnValue(
-    new Promise<PhpUpdate[]>((resolve) => {
+    new Promise<ModuleUpdate[]>((resolve) => {
       finish = resolve;
     }),
   );
@@ -225,7 +237,7 @@ it('reports check failures without claiming the module is current', async () => 
   expect(await screen.findByText('The official PHP catalog is invalid')).toBeInTheDocument();
   expect(screen.queryByText('Up to date')).not.toBeInTheDocument();
 });
-it('reports module lookup failures once in the toolbar with the original error details', async () => {
+it('reports lookup failures beside the affected module with the original error details', async () => {
   mocks.check.mockResolvedValue(
     ['PHP-8.4', 'PHP-8.3'].map((name) => ({
       ...update,
@@ -238,9 +250,9 @@ it('reports module lookup failures once in the toolbar with the original error d
   const { container } = setup();
   fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
   const message = await screen.findByText(t('err.phpNetwork', { detail: 'Connection timed out' }));
-  expect(message.closest('.php-update-toolbar')).not.toBeNull();
+  expect(message.closest('.module-update-action')).not.toBeNull();
   expect(screen.getAllByText(t('err.phpNetwork', { detail: 'Connection timed out' }))).toHaveLength(1);
-  expect(container.querySelector('.php-update-action')).toBeNull();
+  expect(container.querySelectorAll('.module-update-action')).toHaveLength(1);
 });
 
 it('refreshes the stopped module status and refreshes again after a failed installation', async () => {
@@ -263,11 +275,11 @@ it('refreshes the stopped module status and refreshes again after a failed insta
   act(() => progress({ payload: { name: 'PHP-8.4', phase: 'backup' } }));
   await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
   const params = { cause: 'err.ioFailed', detail: 'File is locked' };
-  await act(async () => rejectInstall(Object.assign(new Error('err.phpFailed'), { params })));
+  await act(async () => rejectInstall(Object.assign(new Error('err.updateFailed'), { params })));
   await waitFor(() => expect(onBusy).toHaveBeenLastCalledWith(false));
   expect(refresh).toHaveBeenCalledTimes(2);
   expect(mocks.unlisten).toHaveBeenCalledOnce();
-  expect(screen.getByText(t('err.phpFailed', { cause: t('err.ioFailed', params) }))).toBeInTheDocument();
+  expect(screen.getByText(t('err.updateFailed', { cause: t('err.ioFailed', params) }))).toBeInTheDocument();
 });
 
 it.each(['list', 'cards'] as const)(
@@ -354,7 +366,7 @@ it('keeps a failed module recoverable without disturbing another update', async 
   setup(false, serviceViews('list'));
   fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
   for (const button of await screen.findAllByRole('button', { name: 'Update' })) fireEvent.click(button);
-  await act(async () => rejectFirst(new Error('err.phpRollback')));
+  await act(async () => rejectFirst(new Error('err.updateRollback')));
   expect(screen.getByRole('button', { name: 'Recover module' })).toBeEnabled();
   expect(screen.getByText('Preparing update…')).toBeInTheDocument();
   expect(onBusy).toHaveBeenCalledExactlyOnceWith(true);
@@ -367,4 +379,131 @@ it('keeps a failed module recoverable without disturbing another update', async 
   expect(screen.getByText('PHP-8.3 updated and verified')).toBeInTheDocument();
   expect(screen.getByText('PHP-8.4 recovered')).toBeInTheDocument();
   expect(onBusy.mock.calls).toEqual([[true], [false]]);
+});
+
+it.each(['Apache', 'Nginx', 'Caddy'])(
+  'installs %s using its opaque release identity instead of the display version',
+  async (name) => {
+    mocks.check.mockResolvedValue([
+      { ...update, name, available: '2.4.69 (261002, VS18)', expected: 'asset:sha256' },
+    ]);
+    mocks.install.mockResolvedValue('2.4.69');
+    setup(
+      false,
+      <>
+        <ModuleUpdateToolbar />
+        <ModuleUpdateAction name={name} />
+      </>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    await waitFor(() => expect(mocks.install).toHaveBeenCalledExactlyOnceWith(name, 'asset:sha256', null));
+    expect(
+      await screen.findByText(`${name} updated and verified${name === 'Caddy' ? ' (2.4.69)' : ''}`),
+    ).toBeInTheDocument();
+  },
+);
+
+it('keeps web server updates serial while independent PHP updates remain available', async () => {
+  let finish!: (version: string) => void;
+  mocks.install.mockReturnValue(
+    new Promise<string>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  mocks.check.mockResolvedValue(['Apache', 'Nginx', 'PHP-8.4'].map((name) => ({ ...update, name })));
+  setup(
+    false,
+    <>
+      <ModuleUpdateToolbar />
+      {['Apache', 'Nginx', 'PHP-8.4'].map((name) => (
+        <div key={name} data-testid={name}>
+          <ModuleUpdateAction name={name} />
+        </div>
+      ))}
+    </>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
+  await screen.findAllByRole('button', { name: 'Update' });
+  fireEvent.click(within(screen.getByTestId('Apache')).getByRole('button', { name: 'Update' }));
+  expect(within(screen.getByTestId('Nginx')).getByRole('button', { name: 'Update' })).toBeDisabled();
+  expect(within(screen.getByTestId('PHP-8.4')).getByRole('button', { name: 'Update' })).toBeEnabled();
+  await act(async () => finish('2.4.69'));
+  expect(within(screen.getByTestId('Nginx')).getByRole('button', { name: 'Update' })).toBeEnabled();
+});
+
+it('shows source failures independently and keeps recovery available when a source is offline', async () => {
+  mocks.check.mockResolvedValue([
+    {
+      ...update,
+      name: 'Apache',
+      available: null,
+      expected: null,
+      error: 'err.updateNetwork',
+      errorParams: { detail: 'Offline' },
+      recovery: true,
+    },
+    { ...update, name: 'Nginx' },
+  ]);
+  setup(
+    false,
+    <>
+      <ModuleUpdateToolbar />
+      <ModuleUpdateAction name="Apache" />
+      <ModuleUpdateAction name="Nginx" />
+    </>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
+  expect(await screen.findByRole('button', { name: 'Recover module' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Update' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Recover module' }));
+  await waitFor(() => expect(mocks.recover).toHaveBeenCalledExactlyOnceWith('Apache', null));
+});
+
+it('distinguishes startup caching from an explicit release check', async () => {
+  localStorage.setItem('ospanel.checkServiceUpdates', '1');
+  mocks.desktop.mockReturnValue(true);
+  setup();
+  await waitFor(() => expect(mocks.check).toHaveBeenCalledWith(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
+  await waitFor(() => expect(mocks.check).toHaveBeenLastCalledWith(true));
+});
+
+it('shows a verified Caddy patch correction and records the actual installed version', async () => {
+  let finish!: (version: string) => void;
+  let progress!: (event: {
+    payload: { name: string; phase: string; actualVersion?: string; declaredVersion?: string };
+  }) => void;
+  mocks.desktop.mockReturnValue(true);
+  mocks.listen.mockImplementation(async (_event, callback) => {
+    progress = callback;
+    return mocks.unlisten;
+  });
+  mocks.check.mockResolvedValue([
+    { ...update, name: 'Caddy', installed: '2.10.2', available: '2.11.1', expected: 'verified-asset-hash' },
+  ]);
+  mocks.install.mockReturnValue(
+    new Promise<string>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  setup(
+    false,
+    <>
+      <ModuleUpdateToolbar />
+      <ModuleUpdateAction name="Caddy" />
+    </>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Update' }));
+  await waitFor(() => expect(mocks.install).toHaveBeenCalledWith('Caddy', 'verified-asset-hash', null));
+  act(() =>
+    progress({
+      payload: { name: 'Caddy', phase: 'preparing', actualVersion: '2.11.2', declaredVersion: '2.11.1' },
+    }),
+  );
+  expect(screen.getByText(/Archive label: 2\.11\.1; verified binary version: 2\.11\.2/)).toBeInTheDocument();
+  await act(async () => finish('2.11.2'));
+  expect(await screen.findByText('Caddy updated and verified (2.11.2)')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Update' })).not.toBeInTheDocument();
 });

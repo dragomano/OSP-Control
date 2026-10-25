@@ -46,6 +46,28 @@ describe('makeTranslator', () => {
   });
 });
 
+it('translates update and rollback failures with their independent details', () => {
+  const translate = makeTranslator(
+    {
+      'err.updateRollback': 'Update: {cause}; recovery: {rollbackCause}',
+      'err.updateConfig': 'Config: {detail}',
+      'err.updateProbe': 'CLI: {detail}',
+    },
+    {},
+  );
+  const error = Object.assign(new Error('err.updateRollback'), {
+    params: {
+      cause: 'err.updateConfig',
+      detail: 'invalid path',
+      rollbackCause: 'err.updateProbe',
+      'rollback.detail': 'already stopped',
+    },
+  });
+  expect(errorText(translate, error, 'fallback')).toBe(
+    'Update: Config: invalid path; recovery: CLI: already stopped',
+  );
+});
+
 describe('pluralSuffix', () => {
   it('follows the Russian CLDR rules for one/few/many', () => {
     for (const count of [1, 21, 31, 101]) expect(pluralSuffix('ru', count)).toBe('one');

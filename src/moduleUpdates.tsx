@@ -1,19 +1,25 @@
 import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { errorText, useI18n } from './i18n';
-import { checkPhpUpdates, installPhpUpdate, isDesktopApp, type PhpUpdate, recoverPhpUpdate } from './ospanel';
+import {
+  checkModuleUpdates,
+  installModuleUpdate,
+  isDesktopApp,
+  type ModuleUpdate,
+  recoverModuleUpdate,
+} from './ospanel';
 
 let events: Promise<typeof import('@tauri-apps/api/event')> | undefined;
 
 type UpdateContext = {
-  updates: PhpUpdate[];
+  updates: ModuleUpdate[];
   checking: boolean;
   busy: boolean;
   active: Record<string, string>;
   versions: Record<string, string>;
   results: Record<string, string>;
   message: string;
-  check: () => Promise<void>;
+  check: (force?: boolean) => Promise<void>;
   install: (name: string, recover?: boolean) => Promise<void>;
   reset: () => void;
 };
@@ -29,9 +35,9 @@ const Context = createContext<UpdateContext>({
   install: async () => {},
   reset: () => {},
 });
-export const usePhpUpdates = () => useContext(Context);
+export const useModuleUpdates = () => useContext(Context);
 
-export function PhpUpdatesProvider({
+export function ModuleUpdatesProvider({
   children,
   refresh,
   blocked,
@@ -43,7 +49,7 @@ export function PhpUpdatesProvider({
   onBusy: (busy: boolean) => void;
 }) {
   const { t } = useI18n();
-  const [updates, setUpdates] = useState<PhpUpdate[]>([]);
+  const [updates, setUpdates] = useState<ModuleUpdate[]>([]);
   const [checking, setChecking] = useState(false);
   const [active, setActive] = useState<Record<string, string>>({});
   const [versions, setVersions] = useState<Record<string, string>>({});
@@ -60,41 +66,45 @@ export function PhpUpdatesProvider({
     setResults({});
     setMessage('');
   }, []);
-  const check = useCallback(async () => {
-    if (checkLock.current || locks.current.size > 0) return;
-    checkLock.current = true;
-    setChecking(true);
-    setMessage('');
-    setResults({});
-    const request = ++generation.current;
-    try {
-      const result = await checkPhpUpdates();
-      if (request === generation.current) {
-        setUpdates(result);
-        const failure = result.find((item) => item.error && item.error !== 'err.phpUnsupported');
-        if (failure?.error) {
-          const error = Object.assign(new Error(failure.error), { params: failure.errorParams });
-          setMessage(errorText(t, error, 'updates.failed'));
+  const check = useCallback(
+    async (force = true) => {
+      if (checkLock.current || locks.current.size > 0) return;
+      checkLock.current = true;
+      setChecking(true);
+      setMessage('');
+      setResults({});
+      const request = ++generation.current;
+      try {
+        const result = await checkModuleUpdates(force);
+        if (request === generation.current) {
+          setUpdates(result);
         }
+      } catch (error) {
+        if (request === generation.current) setMessage(errorText(t, error, 'updates.failed'));
+      } finally {
+        checkLock.current = false;
+        setChecking(false);
       }
-    } catch (error) {
-      if (request === generation.current) setMessage(errorText(t, error, 'updates.failed'));
-    } finally {
-      checkLock.current = false;
-      setChecking(false);
-    }
-  }, [t]);
+    },
+    [t],
+  );
   // biome-ignore lint/correctness/useExhaustiveDependencies: startup check runs once per mount
   useEffect(() => {
     if (localStorage.getItem('ospanel.checkServiceUpdates') !== '1' || !isDesktopApp()) return;
-    void check();
+    void check(false);
   }, []);
   const blockedRef = useRef(blocked);
   blockedRef.current = blocked;
   const install = async (name: string, recover = false) => {
     if (locks.current.has(name) || blockedRef.current || checkLock.current) return;
     const update = updates.find((item) => item.name === name);
-    if (!update || (recover ? !update.recovery : !update.available || update.recovery)) return;
+    const web = ['Apache', 'Nginx', 'Caddy'];
+    if (web.includes(name) && [...locks.current].some((name) => web.includes(name))) return;
+    if (
+      !update ||
+      (recover ? !update.recovery : !update.available || !update.expected || update.error || update.recovery)
+    )
+      return;
     locks.current.add(name);
     if (locks.current.size === 1) onBusy(true);
     setActive((current) => ({ ...current, [name]: 'preparing' }));
@@ -105,16 +115,34 @@ export function PhpUpdatesProvider({
       if (isDesktopApp()) {
         events ??= import('@tauri-apps/api/event');
         const { listen } = await events;
-        unlisten = await listen<{ name: string; phase: string }>('php-update-progress', ({ payload }) => {
+        unlisten = await listen<{
+          name: string;
+          phase: string;
+          actualVersion?: string;
+          declaredVersion?: string;
+        }>('module-update-progress', ({ payload }) => {
           if (payload.name === name) {
             setActive((current) => ({ ...current, [name]: payload.phase }));
+            if (payload.actualVersion && payload.declaredVersion) {
+              const version = payload.actualVersion;
+              setUpdates((current) =>
+                current.map((item) => (item.name === name ? { ...item, available: version } : item)),
+              );
+              setResults((current) => ({
+                ...current,
+                [name]: t('updates.versionAdjusted', {
+                  declared: payload.declaredVersion ?? '',
+                  actual: version,
+                }),
+              }));
+            }
             if (['backup', 'verify', 'rollback'].includes(payload.phase)) void refresh().catch(() => {});
           }
         });
       }
       const version = recover
-        ? await recoverPhpUpdate(name, path)
-        : await installPhpUpdate(name, update.available ?? '', path);
+        ? await recoverModuleUpdate(name, path)
+        : await installModuleUpdate(name, update.expected ?? '', path);
       // The panel API can cache module.ini. Keep the verified version until the path changes.
       setVersions((current) => ({ ...current, [name]: version }));
       setUpdates((current) =>
@@ -124,6 +152,7 @@ export function PhpUpdatesProvider({
                 ...item,
                 installed: version,
                 available: recover && version !== item.available ? item.available : null,
+                expected: recover && version !== item.available ? item.expected : null,
                 error: null,
                 errorParams: undefined,
                 recovery: false,
@@ -133,11 +162,14 @@ export function PhpUpdatesProvider({
       );
       setResults((current) => ({
         ...current,
-        [name]: t(recover ? 'updates.recovered' : 'updates.done', { name }),
+        [name]: t(recover ? 'updates.recovered' : name === 'Caddy' ? 'updates.doneVersion' : 'updates.done', {
+          name,
+          version,
+        }),
       }));
     } catch (error) {
       setResults((current) => ({ ...current, [name]: errorText(t, error, 'updates.failed') }));
-      if (error instanceof Error && ['err.phpRollback', 'err.phpRecovery'].includes(error.message)) {
+      if (error instanceof Error && ['err.updateRollback', 'err.updateRecovery'].includes(error.message)) {
         setUpdates((current) =>
           current.map((item) => (item.name === name ? { ...item, recovery: true } : item)),
         );
@@ -174,24 +206,33 @@ export function PhpUpdatesProvider({
   );
 }
 
-export function PhpUpdateAction({ name, disabled = false }: { name: string; disabled?: boolean }) {
+export function ModuleUpdateAction({ name, disabled = false }: { name: string; disabled?: boolean }) {
   const { t } = useI18n();
-  const { updates, active, results, checking, install } = usePhpUpdates();
+  const { updates, active, results, checking, install } = useModuleUpdates();
   const update = updates.find((item) => item.name === name);
   const phase = active[name];
   const result = results[name];
-  if (!update || (!phase && !result && !update.recovery && (update.error || !update.available))) return null;
+  const failure =
+    update?.error && update.error !== 'err.phpUnsupported'
+      ? errorText(t, Object.assign(new Error(update.error), { params: update.errorParams }), 'updates.failed')
+      : '';
+  const web = ['Apache', 'Nginx', 'Caddy'];
+  const webBusy = web.includes(name) && Object.keys(active).some((name) => web.includes(name));
+  if (!update || (!phase && !result && !update.recovery && !failure && !update.available)) return null;
   return (
-    <div className="php-update-action">
+    <div className="module-update-action">
       {phase ? (
-        <span role="status">{t(`updates.phase.${phase}`)}</span>
+        <span role="status">
+          {t(`updates.phase.${phase}`)}
+          {result ? ` ${result}` : ''}
+        </span>
       ) : update.recovery ? (
         <>
           <span role={result ? 'status' : undefined}>{result || t('updates.interrupted')}</span>
           <button
             type="button"
             className="secondary-button"
-            disabled={disabled || checking}
+            disabled={disabled || checking || webBusy}
             onClick={() => void install(name, true)}
           >
             {t('updates.recover')}
@@ -205,24 +246,24 @@ export function PhpUpdateAction({ name, disabled = false }: { name: string; disa
           <button
             type="button"
             className="secondary-button"
-            disabled={disabled || checking}
+            disabled={disabled || checking || webBusy || !update.expected}
             onClick={() => void install(name)}
           >
             {t('updates.install')}
           </button>
         </>
       ) : (
-        <span role="status">{result}</span>
+        <span role="status">{result || failure}</span>
       )}
     </div>
   );
 }
 
-export function PhpUpdateToolbar() {
+export function ModuleUpdateToolbar() {
   const { t } = useI18n();
-  const { check, checking, busy, message } = usePhpUpdates();
+  const { check, checking, busy, message } = useModuleUpdates();
   return (
-    <div className="notice php-update-toolbar">
+    <div className="notice module-update-toolbar">
       <div>
         <b>{t('updates.title')}</b>
         <span>{t('updates.description')}</span>

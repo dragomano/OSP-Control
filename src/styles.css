@@ -1,5 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
-.php-update-action {
+.module-update-action {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -11,20 +11,20 @@
   font-size: 12px;
   color: var(--text);
 }
-.php-update-action > span {
+.module-update-action > span {
   flex: 1 1 160px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.php-update-toolbar {
+.module-update-toolbar {
   margin-bottom: 20px;
 }
-.service-card > .php-update-action {
+.service-card > .module-update-action {
   margin: 12px -14px -12px;
   padding: 10px 14px;
   border-radius: 0 0 8px 8px;
 }
-.service-row > .php-update-action {
+.service-row > .module-update-action {
   clear: both;
   margin: 14px -16px -14px;
 }
@@ -55,7 +55,7 @@ button {
   color: inherit;
   cursor: pointer;
 }
-.php-update-action > button {
+.module-update-action > button {
   flex-shrink: 0;
   margin-left: auto;
 }

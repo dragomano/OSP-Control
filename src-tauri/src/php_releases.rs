@@ -1,5 +1,5 @@
 //! Official Windows PHP release metadata and installed binary identification.
-use std::{fs, io::Read, path::Path, time::{Duration, Instant}};
+use std::{io::Read, path::Path, time::{Duration, Instant}};
 use serde::{Deserialize, Serialize};
 use crate::{error::CommandError, paths::hidden_command};
 
@@ -104,25 +104,10 @@ pub(crate) fn select(json: &serde_json::Value, family: &str, build: &Build) -> R
     if file!=expected || hash.len()!=64 || !hash.bytes().all(|c|c.is_ascii_hexdigit()) { return Err(invalid()); }
     Ok(Some(Release{ version: latest.into(), file:file.into(), sha256:hash.to_ascii_lowercase() }))
 }
-pub(crate) fn download(release: &Release, target: &Path) -> Result<(), CommandError> {
-    use sha2::{Digest, Sha256};
-    let response = client()?.get(format!("{BASE}{}", release.file)).send().map_err(network)?.error_for_status().map_err(network)?;
-    let mut input = response.take(160_000_001);
-    let mut output = fs::OpenOptions::new().write(true).create_new(true).open(target)?;
-    let size = std::io::copy(&mut input, &mut output)?;
-    output.sync_all()?;
-    if size>160_000_000 { return Err(invalid()); }
-    let mut digest = Sha256::new();
-    let mut file = fs::File::open(target)?;
-    let mut buf = [0;65536];
-    loop { let n=file.read(&mut buf)?; if n==0 {break;} digest.update(&buf[..n]); }
-    if format!("{:x}",digest.finalize())!=release.sha256 { return Err(CommandError::new("err.phpChecksum")); }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     #[test]
     fn identifies_observed_php_7_and_8_nts_builds() {
         for (payload, expected_version, expected_toolchain) in [

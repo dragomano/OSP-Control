@@ -11,7 +11,7 @@ import {
   Sun,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { version as appVersion } from '../package.json';
 import { APP_NAME } from './brand';
 import { QuickSearch } from './components/dialogs/QuickSearch';
@@ -30,7 +30,6 @@ import {
   type ToastAction,
 } from './components/shared';
 import { Backups } from './components/tables/Backups';
-import { Configs } from './components/tables/Configs';
 import { buildActivityRows, Logs, logAliasesFromTranslator } from './components/tables/Logs';
 import { RowMenu } from './components/widgets/RowMenu';
 import {
@@ -49,6 +48,7 @@ import {
   makeTranslator,
   preferredLang,
 } from './i18n';
+import { ModuleUpdatesProvider } from './moduleUpdates';
 import {
   askConfirm,
   autostartFromProjects,
@@ -73,10 +73,14 @@ import {
   saveProjectSettings,
   waitForPanelReady,
 } from './ospanel';
-import { PhpUpdatesProvider } from './phpUpdates';
 import { applyAccentTheme, applyFont, applyUiScale, type ThemeMode, useSystemPrefersLight } from './theme';
 
 export { buildActivityRows } from './components/tables/Logs';
+
+// Load the configuration page and its syntax highlighter only when the page is opened.
+const Configs = lazy(() =>
+  import('./components/tables/Configs').then((module) => ({ default: module.Configs })),
+);
 
 const initialLang = (): string =>
   localStorage.getItem('ospanel.lang') ?? preferredLang(EMBEDDED_LANGS) ?? BASE_LANG;
@@ -758,7 +762,7 @@ function App() {
 
   return (
     <I18nContext.Provider value={{ lang, t, plural }}>
-      <PhpUpdatesProvider
+      <ModuleUpdatesProvider
         refresh={loadSnapshot}
         blocked={panelRestarting || autostartBusy || pendingServices.size > 0}
         onBusy={onUpdateBusy}
@@ -960,7 +964,17 @@ function App() {
                   onRestartPanel={() => void restartPanel()}
                 />
               )}
-              {page === 'configs' && <Configs notify={notify} />}
+              {page === 'configs' && (
+                <Suspense
+                  fallback={
+                    <div className="notice" role="status">
+                      {t('common.loading')}
+                    </div>
+                  }
+                >
+                  <Configs notify={notify} />
+                </Suspense>
+              )}
               {page === 'logs' && (
                 <Logs
                   notify={notify}
@@ -1034,7 +1048,7 @@ function App() {
           )}
           <QuickSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={navigateTo} />
         </div>
-      </PhpUpdatesProvider>
+      </ModuleUpdatesProvider>
     </I18nContext.Provider>
   );
 }

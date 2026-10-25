@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::error::{spawn_failed, CommandError};
+use crate::error::{CommandError, spawn_failed};
 
 fn candidate_paths() -> Vec<PathBuf> {
     let mut paths = vec![
@@ -54,6 +54,37 @@ pub(crate) fn hidden_command<S: AsRef<OsStr>>(program: S) -> Command {
         command.creation_flags(0x0800_0000);
     }
     command
+}
+
+// Keep canonical paths for filesystem checks. External CLIs may interpret verbatim paths as relative.
+pub(crate) fn external_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        let mut components = path.components();
+        let prefix = match components.next() {
+            Some(Component::Prefix(prefix)) => prefix.kind(),
+            _ => return path.to_path_buf(),
+        };
+        let mut result = match prefix {
+            Prefix::VerbatimDisk(drive) => PathBuf::from(format!("{}:\\", drive as char)),
+            Prefix::VerbatimUNC(server, share) => {
+                let mut path = PathBuf::from(r"\\");
+                path.push(server);
+                path.push(share);
+                path
+            }
+            _ => return path.to_path_buf(),
+        };
+        for component in components {
+            if component != Component::RootDir {
+                result.push(component.as_os_str());
+            }
+        }
+        result
+    }
+    #[cfg(not(windows))]
+    path.to_path_buf()
 }
 
 pub(crate) fn explorer_open(target: &Path) -> Result<(), CommandError> {
@@ -149,6 +180,23 @@ pub(crate) fn is_valid_domain(domain: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(windows)]
+    fn external_program_paths_preserve_drive_unc_and_unicode_names_without_verbatim_prefixes() {
+        for (source, expected) in [
+            (r"\\?\D:\Panel Folder\modules\Nginx", r"D:\Panel Folder\modules\Nginx"),
+            (r"\\?\UNC\server\share\Panel Folder\Apache", r"\\server\share\Panel Folder\Apache"),
+            (r"D:\Panel Folder\modules\Caddy", r"D:\Panel Folder\modules\Caddy"),
+        ] {
+            assert_eq!(external_path(Path::new(source)), PathBuf::from(expected));
+        }
+        let name = format!("Panel {}", char::from_u32(0x0416).unwrap());
+        assert_eq!(
+            external_path(Path::new(&format!(r"\\?\D:\{name}"))),
+            PathBuf::from(format!(r"D:\{name}"))
+        );
+    }
 
     #[test]
     fn domain_validation_rejects_traversal() {

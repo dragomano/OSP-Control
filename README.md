@@ -25,6 +25,9 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 - Start / stop / restart a single module, or restart all running modules at once.
 - Group filter, service name copying, state indicators (running / stopped / needs attention).
 - Data comes from the panel's HTTP API (`/getmodules`), not from localized text tables.
+- Manual updates for PHP (same branch), Apache 2.4, Nginx (same branch) and Caddy 2, with optional update checks at startup.
+- Release archives are verified with SHA-256 and binary version checks. Updates preserve settings, create a full module backup and support rollback and interrupted-operation recovery. Stopped web servers remain stopped.
+- If a Caddy archive is mislabeled, a verified newer stable patch from the same minor branch can be installed; the actual binary version is recorded and displayed.
 
 ### Projects
 

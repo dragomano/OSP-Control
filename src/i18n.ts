@@ -300,6 +300,15 @@ export function errorText(t: Translator, error: unknown, fallback: string): stri
   if (!(error instanceof Error)) return t(fallback);
 
   let params = (error as Error & { params?: Record<string, string> }).params;
+  if (params?.rollbackCause?.startsWith('err.')) {
+    const rollbackParams = Object.fromEntries(
+      Object.entries(params)
+        .filter(([key]) => key.startsWith('rollback.'))
+        .map(([key, value]) => [key.slice('rollback.'.length), value]),
+    );
+    const rollbackError = Object.assign(new Error(params.rollbackCause), { params: rollbackParams });
+    params = { ...params, rollbackCause: errorText(t, rollbackError, fallback) };
+  }
   if (params?.cause?.startsWith('err.')) {
     const { cause, ...causeParams } = params;
     const causeError = Object.assign(new Error(cause), { params: causeParams });

@@ -5,15 +5,16 @@ mod backups;
 mod db;
 mod error;
 mod locales;
+mod module_health;
+mod module_releases;
+mod module_updates;
 mod panel_api;
 mod paths;
-mod projects;
-mod php_files;
-mod php_health;
 mod php_releases;
-mod php_updates;
+mod projects;
 mod services;
 mod shell;
+mod update_files;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -59,9 +60,9 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            php_updates::check_php_updates,
-            php_updates::install_php_update,
-            php_updates::recover_php_update,
+            module_updates::check_module_updates,
+            module_updates::install_module_update,
+            module_updates::recover_module_update,
             services::discover_ospanel,
             services::panel_online,
             services::overview_metrics,
