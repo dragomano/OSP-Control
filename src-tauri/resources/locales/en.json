@@ -59,6 +59,8 @@
   "svc.detail.attention": "Needs attention",
   "svc.detail.module": "OSPanel module",
   "overview.greeting": "Good afternoon, {name}",
+  "overview.greetingMorning": "Good morning, {name}",
+  "overview.greetingEvening": "Good evening, {name}",
   "overview.subtitle": "Everything you need for comfortable development — in one place.",
   "overview.sync": "Sync",
   "overview.heroKicker": "Environment is ready",

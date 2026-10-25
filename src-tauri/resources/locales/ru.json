@@ -36,6 +36,8 @@
   "common.stopped": "Остановлен",
   "common.unknown": "Неизвестно",
   "overview.greeting": "Добрый день, {name}",
+  "overview.greetingMorning": "Доброе утро, {name}",
+  "overview.greetingEvening": "Добрый вечер, {name}",
   "overview.subtitle": "Всё необходимое для комфортной разработки — в одном месте.",
   "overview.sync": "Синхронизировать",
   "overview.heroKicker": "Рабочее окружение готово",

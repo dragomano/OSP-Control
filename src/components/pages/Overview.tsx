@@ -11,7 +11,7 @@ import {
   Sparkles,
   Wifi,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { localeTag, useI18n } from '../../i18n';
 import { ModuleUpdateToolbar } from '../../moduleUpdates';
 import type { OverviewMetrics } from '../../ospanel';
@@ -52,7 +52,27 @@ export function Overview({
   const { lang, t } = useI18n();
   const logAliases = logAliasesFromTranslator(t);
   const [syncing, setSyncing] = useState(false);
-  const rawDate = new Date().toLocaleDateString(localeTag(lang), {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const updateTime = () => setNow(new Date());
+    const timer = window.setInterval(updateTime, 60_000);
+    window.addEventListener('focus', updateTime);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', updateTime);
+    };
+  }, []);
+
+  const hour = now.getHours();
+  const greetingKey =
+    hour >= 5 && hour < 12
+      ? 'overview.greetingMorning'
+      : hour >= 12 && hour < 18
+        ? 'overview.greeting'
+        : 'overview.greetingEvening';
+  const rawDate = now.toLocaleDateString(localeTag(lang), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -69,7 +89,7 @@ export function Overview({
     <>
       <PageHeader
         eyebrow={eyebrow}
-        heading={t('overview.greeting', { name: userName })}
+        heading={t(greetingKey, { name: userName })}
         description={t('overview.subtitle')}
         action={
           <button

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Globe2 } from 'lucide-react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Overview } from '../src/components/pages/Overview';
@@ -66,9 +66,14 @@ const overviewProps = (overrides: Partial<OverviewProps> = {}): OverviewProps =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 9, 25, 14));
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('Overview header', () => {
   it('greets the user and shows today as the eyebrow', () => {
@@ -83,6 +88,45 @@ describe('Overview header', () => {
     renderOverview({ userName: '' });
     expect(screen.queryByText('Good afternoon, Toster')).not.toBeInTheDocument();
     expect(screen.getByText('Good afternoon,')).toBeInTheDocument();
+  });
+
+  it.each([
+    [0, 0, 'Good evening'],
+    [4, 59, 'Good evening'],
+    [5, 0, 'Good morning'],
+    [11, 59, 'Good morning'],
+    [12, 0, 'Good afternoon'],
+    [17, 59, 'Good afternoon'],
+    [18, 0, 'Good evening'],
+    [23, 59, 'Good evening'],
+  ])('uses local time at %i:%i for the greeting', (hour, minute, greeting) => {
+    vi.setSystemTime(new Date(2026, 9, 25, hour, minute));
+    renderOverview();
+    expect(screen.getByRole('heading', { name: `${greeting}, Toster` })).toBeInTheDocument();
+  });
+
+  it('updates the greeting while the overview stays open', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 25, 11, 59));
+    const { view } = renderOverview();
+    expect(screen.getByRole('heading', { name: 'Good morning, Toster' })).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(screen.getByRole('heading', { name: 'Good afternoon, Toster' })).toBeInTheDocument();
+
+    view.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('refreshes the greeting and date when the window regains focus', () => {
+    vi.setSystemTime(new Date(2026, 9, 25, 23, 59));
+    renderOverview();
+
+    vi.setSystemTime(new Date(2026, 9, 26, 8));
+    fireEvent.focus(window);
+
+    expect(screen.getByRole('heading', { name: 'Good morning, Toster' })).toBeInTheDocument();
+    expect(screen.getByText('Monday, October 26, 2026', { selector: '.eyebrow' })).toBeInTheDocument();
   });
 
   it('syncs once at a time and notifies on success only', async () => {

@@ -59,6 +59,8 @@
   "svc.detail.attention": "Requiere atención",
   "svc.detail.module": "Módulo de OSPanel",
   "overview.greeting": "Buenas tardes, {name}",
+  "overview.greetingMorning": "Buenos días, {name}",
+  "overview.greetingEvening": "Buenas noches, {name}",
   "overview.subtitle": "Todo lo necesario para desarrollar con comodidad, en un solo lugar.",
   "overview.sync": "Sincronizar",
   "overview.heroKicker": "El entorno está listo",

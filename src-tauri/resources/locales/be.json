@@ -59,6 +59,8 @@
   "svc.detail.attention": "Патрэбуе ўвагі",
   "svc.detail.module": "Модуль OSPanel",
   "overview.greeting": "Добры дзень, {name}",
+  "overview.greetingMorning": "Добрай раніцы, {name}",
+  "overview.greetingEvening": "Добры вечар, {name}",
   "overview.subtitle": "Усё неабходнае для зручнай распрацоўкі — у адным месцы.",
   "overview.sync": "Сінхранізаваць",
   "overview.heroKicker": "Працоўнае асяроддзе гатова",
