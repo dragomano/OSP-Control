@@ -30,8 +30,9 @@
 }
 :root {
   font-family: var(--font-ui);
-  color: #e6e9ee;
-  background: #0c0e12;
+  color: #e0e4e8;
+  background: #16191e;
+  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -45,7 +46,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #0c0e12;
+  background: #16191e;
 }
 button,
 input {
@@ -60,13 +61,13 @@ button {
   margin-left: auto;
 }
 .app-shell {
-  --bg: #0c0e12;
-  --panel: #12151b;
-  --panel2: #171a21;
-  --line: #242831;
-  --text: #e6e9ee;
-  --muted: #858c99;
-  --dim: #5f6672;
+  --bg: #16191e;
+  --panel: #1d2228;
+  --panel2: #252b32;
+  --line: #363d46;
+  --text: #e0e4e8;
+  --muted: #a1aab4;
+  --dim: #86919e;
   --accent: var(--k-eda75f);
   /* Fixed-height frame: the sidebar is pinned to the window,
      only the page content scrolls. */
@@ -76,20 +77,21 @@ button {
   color: var(--text);
   display: flex;
 }
-/* Light theme palette: cool blue-grey surfaces. The accent is not declared here —
+/* Herd light palette: white surfaces and a flat grey sidebar. The accent is not declared here —
    theme.ts writes --lt-accent* on the root so the fill follows the accent theme
    (defaults live in the :root block below). */
 .app-shell.light {
-  --lt-bg: #ebeff2;
-  --lt-panel: #f7f9fb;
-  --lt-panel-2: #f0f3f6;
-  --lt-text: #1f262c;
-  --lt-muted: #636e78;
-  --lt-dim: #8b949d;
+  --lt-bg: #f9fafb;
+  --lt-panel: #ffffff;
+  --lt-panel-2: #f5f6f8;
+  --lt-text: #202222;
+  --lt-muted: #62666a;
+  --lt-dim: #858d99;
+  --lt-sidebar: #edeef0;
 
   /* Derived once for the palette, so only the primitives above are hand-picked. */
   --lt-hover: color-mix(in srgb, var(--lt-text) 6%, var(--lt-panel));
-  --lt-line: color-mix(in srgb, var(--lt-text) 13%, var(--lt-panel));
+  --lt-line: #e5e7eb;
   --lt-line-strong: color-mix(in srgb, var(--lt-text) 22%, var(--lt-panel));
   --lt-text-soft: color-mix(in srgb, var(--lt-text) 72%, var(--lt-panel));
   --lt-track: color-mix(in srgb, var(--lt-text) 20%, var(--lt-panel));
@@ -110,7 +112,7 @@ button {
   --lt-plum-soft: color-mix(in srgb, var(--lt-plum-text) 11%, var(--lt-panel));
   --lt-warn-soft: color-mix(in srgb, var(--lt-warn-text) 13%, var(--lt-panel));
   --lt-err-soft: color-mix(in srgb, var(--lt-err-text) 11%, var(--lt-panel));
-  --lt-shadow: #10141a26;
+  --lt-shadow: #2024280a;
   --lt-overlay: color-mix(in srgb, var(--lt-bg) 76%, transparent);
 
   --bg: var(--lt-bg);
@@ -2745,4 +2747,408 @@ button {
 }
 .light .modal-window {
   box-shadow: 0 24px 60px var(--lt-shadow);
+}
+
+/* Textured slate: dark surfaces and restrained accents. Scoped to the shell
+   so light mode and system theme changes use the same component markup. */
+.app-shell:not(.light) {
+  --dark-sidebar-top: #22272e;
+  --dark-sidebar-bottom: #191d23;
+  --dark-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='.11'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cpath fill='white' filter='url(%23n)' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
+
+  color-scheme: dark;
+  --dark-accent: color-mix(in srgb, var(--k-eda75f) 78%, var(--text));
+  --dark-soft: color-mix(in srgb, var(--k-eda75f) 9%, var(--panel));
+  --dark-accent-line: color-mix(in srgb, var(--k-eda75f) 30%, var(--line));
+  --dark-hover: color-mix(in srgb, var(--text) 7%, var(--panel));
+  --dark-shadow: #00000040;
+  background: var(--bg);
+
+  --accent: var(--dark-accent);
+  --k-2a2118: var(--dark-soft);
+  --k-241d13: var(--dark-soft);
+  --k-241d14: var(--dark-soft);
+  --k-332a1c: var(--dark-soft);
+  --k-332a1e: var(--dark-soft);
+  --k-362a1c: var(--dark-soft);
+  --k-3a2a17: var(--dark-soft);
+  --k-3a2f22: var(--dark-accent-line);
+  --k-4a3a22: var(--dark-accent-line);
+  background-image: var(--dark-grain);
+
+  .sidebar {
+    background:
+      var(--dark-grain), linear-gradient(165deg, var(--dark-sidebar-top), var(--dark-sidebar-bottom) 80%);
+  }
+
+  :is(
+      .metric-card,
+      .service-card,
+      .activity-panel,
+      .project-table,
+      .service-list,
+      .settings-card,
+      .config-card,
+      .editor-preview,
+      .log-panel,
+      .theme-card,
+      .backup-row,
+      .modal-window,
+      .quick-search,
+      .configs-list,
+      .tip-panel
+    ) {
+    background: var(--dark-grain), linear-gradient(135deg, var(--panel2), var(--panel));
+    border-color: var(--line);
+    box-shadow: 0 3px 12px var(--dark-shadow);
+  }
+
+  :is(
+      .breadcrumbs b,
+      .hero-panel h2,
+      .tip-panel h3,
+      .log-tabs > b,
+      .log-tab.active,
+      .settings-nav button:hover
+    ) {
+    color: var(--text);
+  }
+
+  :is(
+      .nav-item,
+      .nav-label,
+      .eyebrow,
+      .brand span,
+      .workspace-switcher span,
+      .metric-label,
+      .service-detail,
+      .service-state,
+      .service-footer,
+      .activity-copy span,
+      .config-content span,
+      .notice span,
+      .hero-panel p,
+      .tip-panel p,
+      .log-tabs,
+      .log-tab,
+      .settings-nav button,
+      .icon-button,
+      .project-name span,
+      .table-sub,
+      .ssl-toggle,
+      .search-field,
+      .setting-block p,
+      .menu-item,
+      .editor-top
+    ) {
+    color: var(--muted);
+  }
+
+  :is(
+      .nav-item,
+      .secondary-button,
+      .filter-button,
+      .icon-button,
+      .menu-item,
+      .config-item,
+      .config-card
+    ):hover {
+    background: var(--dark-hover);
+    border-color: var(--dim);
+    color: var(--text);
+  }
+
+  :is(
+      .nav-item.active,
+      .settings-nav button.selected,
+      .theme-card.selected,
+      .config-item.selected,
+      .quick-search-item.active
+    ) {
+    color: var(--dark-accent);
+    background: var(--dark-soft);
+  }
+
+  .nav-item.active {
+    box-shadow: inset 0 0 0 1px var(--dark-accent-line);
+  }
+  .nav-item.active svg {
+    color: var(--dark-accent);
+  }
+
+  :is(.nav-badge, .log-tabs em) {
+    background: var(--panel2);
+    color: var(--muted);
+  }
+  :is(
+      .secondary-button,
+      .filter-button,
+      .search-field,
+      .path-field input,
+      .table-head,
+      .editor-top,
+      .filter-chip,
+      .menu-popover
+    ) {
+    background: var(--panel2);
+    border-color: var(--line);
+  }
+  :is(.secondary-button, .filter-button, .search-field input, .path-field input) {
+    color: var(--text);
+  }
+  :is(.secondary-button.on, .filter-button.active, .ssl-toggle.on, .config-card.selected) {
+    border-color: var(--dark-accent-line);
+    color: var(--dark-accent);
+  }
+
+  :is(.primary-button, .hero-button) {
+    background: var(--dark-accent);
+    box-shadow: 0 2px 6px var(--dark-shadow);
+  }
+  :is(.primary-button, .hero-button):hover {
+    background: var(--k-f6c184);
+  }
+  :is(
+      .text-button,
+      .hero-kicker,
+      .hero-kicker svg,
+      .hero-panel h2 span,
+      .activity-status,
+      .theme-card svg,
+      .unsaved
+    ) {
+    color: var(--dark-accent);
+  }
+  .ghost-button {
+    color: var(--text);
+    border-color: var(--line);
+  }
+
+  .hero-panel {
+    border-color: var(--line);
+    background:
+      var(--dark-grain),
+      radial-gradient(
+        ellipse at 82% 48%,
+        color-mix(in srgb, var(--k-eda75f) 8%, transparent),
+        transparent 65%
+      ),
+      linear-gradient(120deg, var(--panel2), var(--panel));
+  }
+  .hero-orb {
+    opacity: 0.8;
+  }
+  .orb-ring {
+    border-color: var(--dark-accent-line);
+    box-shadow: none;
+  }
+  .orb-center {
+    box-shadow: 0 0 35px color-mix(in srgb, var(--k-eda75f) 12%, transparent);
+  }
+  .tip-panel {
+    background: var(--dark-grain), linear-gradient(135deg, var(--dark-soft), var(--panel));
+  }
+  .tip-glow {
+    opacity: 0.35;
+  }
+
+  :is(
+      .service-icon,
+      .service-row-icon,
+      .activity-icon,
+      .project-avatar,
+      .brand-mark,
+      .workspace-icon,
+      .metric-icon.green
+    ) {
+    background: var(--dark-soft);
+    color: var(--dark-accent);
+  }
+  .metric-icon.blue {
+    background: color-mix(in srgb, var(--k-eda75f) 9%, var(--panel2));
+  }
+  :is(.metric-icon.purple, .config-icon) {
+    background: color-mix(in srgb, var(--text) 5%, var(--panel2));
+  }
+  .metric-icon.orange {
+    background: color-mix(in srgb, var(--k-eda75f) 8%, var(--panel2));
+  }
+  :is(.metric-trend, .metric-icon) {
+    filter: saturate(0.75);
+  }
+  .activity-status.warning {
+    color: var(--k-f0b263);
+  }
+  .notice {
+    background: var(--dark-soft);
+    border-color: var(--dark-accent-line);
+    color: var(--muted);
+  }
+  .notice b {
+    color: var(--dark-accent);
+  }
+
+  :is(.mini-toggle, .large-toggle) {
+    background: var(--line);
+  }
+  :is(.mini-toggle.on, .large-toggle.on) {
+    background: color-mix(in srgb, var(--k-eda75f) 65%, var(--panel2));
+  }
+  :is(.mini-toggle span, .large-toggle span) {
+    background: var(--text);
+  }
+  :is(
+      .comment,
+      .config-content small,
+      .service-footer i,
+      .muted,
+      .search-field input::placeholder,
+      .log-line > span,
+      .hljs-comment,
+      .hljs-quote
+    ) {
+    color: var(--dim);
+  }
+  :is(.editor-preview pre, .hljs) {
+    background: transparent;
+    color: var(--text);
+  }
+  .config-item {
+    color: var(--muted);
+  }
+  .table-head {
+    color: var(--muted);
+  }
+
+  .toast {
+    background: var(--panel2);
+    color: var(--text);
+    border-color: var(--dark-accent-line);
+  }
+  .toast button {
+    color: var(--muted);
+  }
+  .toast .toast-action {
+    color: var(--dark-accent);
+    border-color: var(--dark-accent-line);
+  }
+  .menu-popover {
+    box-shadow: 0 12px 32px var(--dark-shadow);
+  }
+  .menu-item:disabled {
+    color: var(--dim);
+  }
+  .menu-item:disabled:hover {
+    background: transparent;
+  }
+  .modal-overlay {
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+  }
+  .modal-window {
+    box-shadow: 0 24px 60px var(--dark-shadow);
+  }
+  :is(.modal-input, .modal-select, .module-select, .quick-search-input) {
+    background: var(--panel2);
+    color: var(--text);
+    border-color: var(--line);
+  }
+  .quick-search-overlay {
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+  }
+
+  /* Severity and destructive actions keep their semantic colours. */
+  :is(.log-line.warning, .activity-icon.warning) {
+    background: #2b241b;
+    color: #e5c48d;
+  }
+  :is(.log-line.error, .activity-icon.error) {
+    background: #2b1b1b;
+    color: #e5a08d;
+  }
+  .activity-status.warning {
+    color: #e5c48d;
+  }
+  .activity-status.error {
+    color: #e5a08d;
+  }
+  .menu-item.danger {
+    color: #e08c7a;
+  }
+  .menu-item.danger:hover {
+    background: #3a211a;
+  }
+}
+
+/* Herd light: white cards, a flat grey sidebar and neutral navigation. */
+.app-shell.light {
+  color-scheme: light;
+
+  :is(
+      .metric-card,
+      .service-card,
+      .activity-panel,
+      .project-table,
+      .service-list,
+      .settings-card,
+      .config-card,
+      .editor-preview,
+      .log-panel,
+      .theme-card,
+      .backup-row,
+      .modal-window,
+      .quick-search,
+      .configs-list
+    ) {
+    box-shadow: 0 2px 5px var(--lt-shadow);
+  }
+
+  .log-line.warning {
+    background: var(--lt-warn-soft);
+    color: var(--lt-warn-text);
+  }
+
+  .sidebar {
+    background: var(--lt-sidebar);
+  }
+
+  .nav-item {
+    color: var(--lt-text);
+  }
+
+  .nav-item.active {
+    color: var(--lt-text);
+    background: var(--lt-panel);
+    box-shadow: 0 1px 3px var(--lt-shadow);
+  }
+
+  .nav-item.active svg {
+    color: var(--lt-text-soft);
+  }
+
+  :is(.hero-panel, .tip-panel) {
+    background: var(--lt-panel);
+    border-color: var(--lt-line);
+  }
+
+  :is(.secondary-button, .filter-button) {
+    background: var(--lt-panel);
+    box-shadow: 0 1px 2px var(--lt-shadow);
+  }
+
+  :is(.secondary-button, .filter-button):hover {
+    background: var(--lt-hover);
+  }
+
+  .filter-button.active {
+    background: var(--lt-accent-soft);
+  }
+}
+
+:root:has(.app-shell.light) {
+  color-scheme: light;
+  color: #202222;
+  background: #f9fafb;
+}
+body:has(.app-shell.light) {
+  background: #f9fafb;
 }

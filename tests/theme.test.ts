@@ -123,6 +123,14 @@ describe('parity: --k-* between theme.ts and styles.css', () => {
   });
 });
 
+describe('parity: dark theme tokens in styles.css', () => {
+  it('declares every dark surface token referenced by the stylesheet', () => {
+    const declared = new Set([...css.matchAll(/(--dark-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    const used = new Set([...css.matchAll(/var\((--dark-[a-z0-9-]+)/g)].map((m) => m[1]));
+    expect([...used].filter((token) => !declared.has(token))).toEqual([]);
+  });
+});
+
 describe('parity: light theme tokens between theme.ts and styles.css', () => {
   const accentTokens = ['--lt-accent', '--lt-accent-text', '--lt-accent-strong', '--lt-on-accent'];
   const paletteTokens = ['--lt-bg', '--lt-panel', '--lt-panel-2', '--lt-text', '--lt-muted', '--lt-dim'];
