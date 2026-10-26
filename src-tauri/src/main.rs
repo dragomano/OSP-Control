@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod app_update_handoff;
+mod app_updates;
 mod backups;
 mod db;
 mod error;
@@ -20,9 +22,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{Manager, WindowEvent};
 
-use app::{read_app_settings, set_tray, TrayState};
+use app::{TrayState, read_app_settings, set_tray};
 
 fn main() {
+    if app_updates::early_mode() {
+        return;
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -60,6 +65,9 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            app_updates::check_app_update,
+            app_updates::install_app_update,
+            app_update_handoff::app_update_startup,
             module_updates::check_module_updates,
             module_updates::install_module_update,
             module_updates::recover_module_update,

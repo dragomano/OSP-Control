@@ -1,5 +1,6 @@
 import { ChevronRight, FolderOpen, Monitor, Moon, RefreshCw, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { AppUpdateSettings } from '../../appUpdates';
 import { errorText, type LocaleInfo, useI18n } from '../../i18n';
 import { useModuleUpdates } from '../../moduleUpdates';
 import {
@@ -286,6 +287,7 @@ export function Settings({
                   <span />
                 </button>
               </div>
+              <AppUpdateSettings />
               <div className="setting-block">
                 <div>
                   <h3>{t('settings.closeToTrayTitle')}</h3>

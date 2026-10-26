@@ -62,6 +62,35 @@ describe('App (browser mode: adapter serves mocks)', () => {
     expect(screen.getByRole('button', { name: 'Открыть папку OSPanel' })).toBeInTheDocument();
   });
 
+  it('opens updates from the brand icon and keeps only the startup toggle in settings', async () => {
+    render(<App />);
+    const button = screen.getByRole('button', { name: 'Проверить обновления приложения' });
+    expect(button.closest('.brand')).not.toBeNull();
+    expect(button).toHaveClass('icon-button');
+    expect(button).toHaveAttribute('title', 'Проверить обновления приложения');
+    expect(button).toHaveTextContent('');
+    fireEvent.click(button);
+    expect(await screen.findByRole('dialog', { name: 'Обновление приложения' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Автозапуск и уведомления' }));
+    const card = document.querySelector<HTMLElement>('.settings-card');
+    expect(card).not.toBeNull();
+    if (!card) throw new Error('Settings card not found');
+    expect(within(card).queryByText('Обновление приложения')).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Проверить обновления приложения' })).toBeNull();
+    const toggle = within(card).getByRole('button', {
+      name: 'Проверять обновления приложения при запуске',
+    });
+    expect(toggle).toHaveClass('large-toggle');
+    fireEvent.click(toggle);
+    expect(localStorage.getItem('ospanel.checkAppUpdates')).toBe('1');
+    fireEvent.click(screen.getByRole('button', { name: 'Свернуть панель' }));
+    expect(button).toBeVisible();
+    fireEvent.click(button);
+    expect(await screen.findByRole('dialog', { name: 'Обновление приложения' })).toBeVisible();
+  });
+
   it('switches pages via navigation', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));

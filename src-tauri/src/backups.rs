@@ -651,9 +651,9 @@ mod tests {
 
         let list = list_backups(custom.clone()).unwrap();
         assert_eq!(list.len(), 2, "the project archive + the auto archive before the restore");
-        assert!(list
-            .iter()
-            .all(|item| item.kind == "project" && item.subject.as_deref() == Some("dune.loc")));
+        assert!(
+            list.iter().all(|item| item.kind == "project" && item.subject.as_deref() == Some("dune.loc"))
+        );
 
         let bad = create_project_backup("..\\evil".into(), custom.clone()).unwrap_err();
         assert_eq!(bad.code, "err.invalidDomain");

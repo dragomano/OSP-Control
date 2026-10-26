@@ -1,7 +1,11 @@
 //! Official Windows PHP release metadata and installed binary identification.
-use std::{io::Read, path::Path, time::{Duration, Instant}};
-use serde::{Deserialize, Serialize};
 use crate::{error::CommandError, paths::hidden_command};
+use serde::{Deserialize, Serialize};
+use std::{
+    io::Read,
+    path::Path,
+    time::{Duration, Instant},
+};
 
 const BASE: &str = "https://downloads.php.net/~windows/releases/";
 // PHP_EXTENSION_BUILD is a C macro, not a PHP constant. Read it from CLI phpinfo.
@@ -10,7 +14,9 @@ const BUILD_PROBE: &str = concat!(
     "preg_match('/^PHP Extension Build => (.+)$/m', $info, $build); ",
     "echo json_encode([PHP_VERSION, PHP_ZTS, PHP_INT_SIZE, PHP_EXTRA_VERSION, trim($build[1] ?? '')]);"
 );
-pub(crate) fn invalid() -> CommandError { CommandError::new("err.phpUnsupported") }
+pub(crate) fn invalid() -> CommandError {
+    CommandError::new("err.phpUnsupported")
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -20,30 +26,44 @@ pub(crate) struct Build {
     pub toolchain: String,
 }
 
-pub(crate) fn version(value: &str) -> Option<(u32,u32,u32)> {
+pub(crate) fn version(value: &str) -> Option<(u32, u32, u32)> {
     let parts: Vec<_> = value.split('.').collect();
-    if parts.len() != 3 { return None; }
+    if parts.len() != 3 {
+        return None;
+    }
     Some((parts[0].parse().ok()?, parts[1].parse().ok()?, parts[2].parse().ok()?))
 }
 pub(crate) fn branch(name: &str) -> Option<&str> {
     let value = name.strip_prefix("PHP-")?;
     let parts: Vec<_> = value.split('.').collect();
-    if parts.len()!=2 || parts.iter().any(|p| p.is_empty() || !p.bytes().all(|c| c.is_ascii_digit())) { return None; }
+    if parts.len() != 2 || parts.iter().any(|p| p.is_empty() || !p.bytes().all(|c| c.is_ascii_digit())) {
+        return None;
+    }
     Some(value)
 }
 
 pub(crate) fn identify(dir: &Path) -> Result<Build, CommandError> {
     let mut child = hidden_command(dir.join("php.exe"))
         .args(["-n", "-r", BUILD_PROBE])
-        .stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::null()).spawn()?;
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()?;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        if child.try_wait()?.is_some() { break; }
-        if Instant::now() > deadline { let _ = child.kill(); let _ = child.wait(); return Err(invalid()); }
+        if child.try_wait()?.is_some() {
+            break;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(invalid());
+        }
         std::thread::sleep(Duration::from_millis(50));
     }
     let output = child.wait_with_output()?;
-    if !output.status.success() { return Err(invalid()); }
+    if !output.status.success() {
+        return Err(invalid());
+    }
     parse_build(&output.stdout)
 }
 
@@ -52,20 +72,42 @@ fn parse_build(output: &[u8]) -> Result<Build, CommandError> {
     let v = info[0].as_str().ok_or_else(invalid)?.to_string();
     // PHP_ZTS changed from int to bool in PHP 8.4; both NTS representations are valid.
     let nts = info[1].as_i64() == Some(0) || info[1].as_bool() == Some(false);
-    if version(&v).is_none() || !nts || info[3].as_str()!=Some("") { return Err(invalid()); }
-    let extension_build=info[4].as_str().ok_or_else(invalid)?;
-    if !extension_build.contains(",NTS,") { return Err(invalid()); }
-    let compiler = if extension_build.ends_with(",VS17") { "vs17" }
-        else if extension_build.ends_with(",VS16") { "vs16" }
-        else if extension_build.ends_with(",VC15") { "vc15" }
-        else { return Err(invalid()); };
-    Ok(Build { version: v, arch: match info[2].as_u64() { Some(8)=>"x64", Some(4)=>"x86", _=>return Err(invalid()) }.into(), toolchain: compiler.into() })
+    if version(&v).is_none() || !nts || info[3].as_str() != Some("") {
+        return Err(invalid());
+    }
+    let extension_build = info[4].as_str().ok_or_else(invalid)?;
+    if !extension_build.contains(",NTS,") {
+        return Err(invalid());
+    }
+    let compiler = if extension_build.ends_with(",VS17") {
+        "vs17"
+    } else if extension_build.ends_with(",VS16") {
+        "vs16"
+    } else if extension_build.ends_with(",VC15") {
+        "vc15"
+    } else {
+        return Err(invalid());
+    };
+    Ok(Build {
+        version: v,
+        arch: match info[2].as_u64() {
+            Some(8) => "x64",
+            Some(4) => "x86",
+            _ => return Err(invalid()),
+        }
+        .into(),
+        toolchain: compiler.into(),
+    })
 }
 
 pub(crate) fn client() -> Result<reqwest::blocking::Client, CommandError> {
-    reqwest::blocking::Client::builder().https_only(true).connect_timeout(Duration::from_secs(15))
-        .timeout(Duration::from_secs(180)).redirect(reqwest::redirect::Policy::none())
-        .build().map_err(network)
+    reqwest::blocking::Client::builder()
+        .https_only(true)
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(180))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(network)
 }
 fn network(e: reqwest::Error) -> CommandError {
     use std::error::Error;
@@ -80,29 +122,55 @@ fn network(e: reqwest::Error) -> CommandError {
 }
 pub(crate) fn catalog() -> Result<serde_json::Value, CommandError> {
     let mut bytes = Vec::new();
-    client()?.get(format!("{BASE}releases.json")).send().map_err(network)?.error_for_status().map_err(network)?
-        .take(2_000_001).read_to_end(&mut bytes)?;
-    if bytes.len()>2_000_000 { return Err(invalid()); }
+    client()?
+        .get(format!("{BASE}releases.json"))
+        .send()
+        .map_err(network)?
+        .error_for_status()
+        .map_err(network)?
+        .take(2_000_001)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() > 2_000_000 {
+        return Err(invalid());
+    }
     serde_json::from_slice(&bytes).map_err(|_| CommandError::new("err.phpCatalog"))
 }
 #[derive(Debug, Clone)]
-pub(crate) struct Release { pub version: String, pub file: String, pub sha256: String }
-pub(crate) fn select(json: &serde_json::Value, family: &str, build: &Build) -> Result<Option<Release>, CommandError> {
+pub(crate) struct Release {
+    pub version: String,
+    pub file: String,
+    pub sha256: String,
+}
+pub(crate) fn select(
+    json: &serde_json::Value,
+    family: &str,
+    build: &Build,
+) -> Result<Option<Release>, CommandError> {
     let old = version(&build.version).ok_or_else(invalid)?;
-    if format!("{}.{}", old.0, old.1)!=family || build.toolchain.is_empty() { return Err(invalid()); }
+    if format!("{}.{}", old.0, old.1) != family || build.toolchain.is_empty() {
+        return Err(invalid());
+    }
     let node = &json[family];
-    if node.is_null() { return Err(invalid()); }
+    if node.is_null() {
+        return Err(invalid());
+    }
     let latest = node["version"].as_str().ok_or_else(|| CommandError::new("err.phpCatalog"))?;
     let new = version(latest).ok_or_else(invalid)?;
-    if (old.0,old.1)!=(new.0,new.1) { return Err(invalid()); }
-    if new<=old { return Ok(None); }
+    if (old.0, old.1) != (new.0, new.1) {
+        return Err(invalid());
+    }
+    if new <= old {
+        return Ok(None);
+    }
     let key = format!("nts-{}-{}", build.toolchain, build.arch);
     let zip = &node[&key]["zip"];
     let file = zip["path"].as_str().ok_or_else(invalid)?;
     let expected = format!("php-{latest}-nts-Win32-{}-{}.zip", build.toolchain, build.arch);
     let hash = zip["sha256"].as_str().ok_or_else(invalid)?;
-    if file!=expected || hash.len()!=64 || !hash.bytes().all(|c|c.is_ascii_hexdigit()) { return Err(invalid()); }
-    Ok(Some(Release{ version: latest.into(), file:file.into(), sha256:hash.to_ascii_lowercase() }))
+    if file != expected || hash.len() != 64 || !hash.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return Err(invalid());
+    }
+    Ok(Some(Release { version: latest.into(), file: file.into(), sha256: hash.to_ascii_lowercase() }))
 }
 #[cfg(test)]
 mod tests {
@@ -173,9 +241,13 @@ mod tests {
         let mut checked = 0;
         for entry in fs::read_dir(&modules).unwrap() {
             let entry = entry.unwrap();
-            if !entry.file_type().unwrap().is_dir() { continue; }
+            if !entry.file_type().unwrap().is_dir() {
+                continue;
+            }
             let name = entry.file_name().to_string_lossy().into_owned();
-            let Some(family) = branch(&name) else { continue; };
+            let Some(family) = branch(&name) else {
+                continue;
+            };
             let dir = fs::canonicalize(entry.path()).unwrap();
             assert_eq!(dir.parent(), Some(modules.as_path()));
             let build = identify(&dir).unwrap_or_else(|e| panic!("{name}: {e:?}"));
@@ -185,7 +257,11 @@ mod tests {
                 continue;
             }
             let release = select(json, family, &build).unwrap_or_else(|e| panic!("{name}: {e:?}"));
-            eprintln!("{name}: {} -> {}", build.version, release.map(|r| r.version).as_deref().unwrap_or("current"));
+            eprintln!(
+                "{name}: {} -> {}",
+                build.version,
+                release.map(|r| r.version).as_deref().unwrap_or("current")
+            );
         }
         assert!(checked > 0, "The installation must contain PHP modules");
     }
@@ -202,13 +278,17 @@ mod tests {
         check_installed_modules(&serde_json::from_str(CATALOG_SNAPSHOT).unwrap());
     }
 
-    #[test] fn only_stable_patch_releases_are_selected() {
-        let b=Build{version:"8.4.9".into(),arch:"x64".into(),toolchain:"vs17".into()};
-        let mut j=serde_json::json!({"8.4":{"version":"8.4.10","nts-vs17-x64":{"zip":{"path":"php-8.4.10-nts-Win32-vs17-x64.zip","sha256":"a".repeat(64)}}}});
-        assert_eq!(select(&j,"8.4",&b).unwrap().unwrap().version,"8.4.10");
-        j["8.4"]["version"]="8.5.0".into(); assert!(select(&j,"8.4",&b).is_err());
-        j["8.4"]["version"]="8.4.11RC1".into(); assert!(select(&j,"8.4",&b).is_err());
-        j["8.4"]["version"]="8.4.8".into(); assert!(select(&j,"8.4",&b).unwrap().is_none());
+    #[test]
+    fn only_stable_patch_releases_are_selected() {
+        let b = Build { version: "8.4.9".into(), arch: "x64".into(), toolchain: "vs17".into() };
+        let mut j = serde_json::json!({"8.4":{"version":"8.4.10","nts-vs17-x64":{"zip":{"path":"php-8.4.10-nts-Win32-vs17-x64.zip","sha256":"a".repeat(64)}}}});
+        assert_eq!(select(&j, "8.4", &b).unwrap().unwrap().version, "8.4.10");
+        j["8.4"]["version"] = "8.5.0".into();
+        assert!(select(&j, "8.4", &b).is_err());
+        j["8.4"]["version"] = "8.4.11RC1".into();
+        assert!(select(&j, "8.4", &b).is_err());
+        j["8.4"]["version"] = "8.4.8".into();
+        assert!(select(&j, "8.4", &b).unwrap().is_none());
         assert!(branch("PHP-8.4/../../config").is_none());
     }
 }

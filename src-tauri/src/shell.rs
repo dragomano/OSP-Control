@@ -7,7 +7,7 @@ use std::process::Command;
 
 use serde::Serialize;
 
-use crate::error::{spawn_failed, CommandError};
+use crate::error::{CommandError, spawn_failed};
 use crate::paths::{explorer_open, modified_secs, resolve_installation, within_installation};
 
 #[derive(Debug, Clone, Serialize)]

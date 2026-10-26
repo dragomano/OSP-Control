@@ -5,10 +5,10 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::{spawn_failed, CommandError};
+use crate::error::{CommandError, spawn_failed};
 use crate::panel_api::{
-    active_profile_settings, api_json, classify_module, dat_field, dat_node_map, dat_string_value,
-    module_port, modules_from_api, projects_from_api, read_osp_version, services_from_json, Project, Service,
+    Project, Service, active_profile_settings, api_json, classify_module, dat_field, dat_node_map,
+    dat_string_value, module_port, modules_from_api, projects_from_api, read_osp_version, services_from_json,
 };
 use crate::paths::{hidden_command, is_valid_module_name, now_iso, resolve_installation};
 
@@ -138,14 +138,14 @@ fn endpoint_is_reachable(ip: &str, port: u16) -> bool {
 // under <root>\modules\. Unreachable processes are skipped.
 #[cfg(windows)]
 fn module_processes_ram(root: &Path) -> u64 {
-    use windows::core::PWSTR;
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::ProcessStatus::{
         EnumProcesses, GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
     };
     use windows::Win32::System::Threading::{
-        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+        OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
     };
+    use windows::core::PWSTR;
 
     // canonicalize adds the \\?\ prefix — process paths do not have it.
     let modules_dir = fs::canonicalize(root.join("modules")).ok();

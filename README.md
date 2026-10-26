@@ -84,6 +84,20 @@ pnpm test             # Vitest (jsdom)
 
 `pnpm tauri:build` produces the portable version only — no installers (MSI/NSIS) are created. The result is the folder `dist-portable/OSP_Control_<version>_<arch>/`: `osp-control.exe` with the editable `locales/` folder next to it. The app needs the WebView2 Runtime, as any Tauri app on Windows does; if the system has none, install the Evergreen WebView2 Runtime from Microsoft.
 
+## Application updates
+
+To check for updates manually, use the icon button to the right of **OSP Control** in the left sidebar header, styled like the **Open OSPanel folder** button below it. The update button is also available when the sidebar is collapsed and opens the application-update dialog. **Settings → Autostart & notifications** retains only the separate **Check for application updates at startup** toggle (off by default).
+
+When a new version is found, a compact notice opens a release-details dialog with an **Update and restart** button. Installation always requires confirmation.
+
+Updates use the latest stable GitHub Release from `dragomano/OSP-Control`, selecting `OSP_Control_<version>_<arch>.zip`. The updater checks the exact URL, size, GitHub SHA-256 digest, ZIP paths and PE architecture. GitHub is the trust root: its digest is not an independent publisher signature.
+
+No additional updater is shipped. During installation, `.osp-control-update` beside the executable holds a temporary copy of the same exe and the download. The application directory must be writable, with enough free space for the archive, extracted files and backup. After waiting for the app to exit, the helper **backs up and verifies the previous exe and entire `locales/` directory before replacing any installed files**, saving them in `.osp-control-backups/<identifier>/` beside the application. If creating or verifying the backup fails, installed files are not replaced.
+
+The **exe and entire `locales/` directory are then replaced with the release versions**, without merging: custom edits and additional languages remain only in the backup. User settings are not changed. If replacement fails or the new interface does not acknowledge startup within 60 seconds, both the previous exe and previous `locales/` are restored together (including the absence of `locales/` if it did not exist). After confirmed startup or successful rollback, `.osp-control-update` is cleaned up, but `.osp-control-backups/` is retained. Each backup has its own directory; old backups are never deleted automatically. Remove them manually after verifying the app and recovering any custom translations you need.
+
+A power loss can require manual recovery. Close all application processes and, before deleting `.osp-control-update`, restore **both components from the same completed backup** in `.osp-control-backups/<identifier>/` (a completed backup contains a `complete` file): copy `osp-control.exe` to the application directory under the original exe name and replace the entire current `locales/` with the backup's `locales/`. Do not overlay the dictionaries, which would leave extra files behind. A `no-locales` marker means there was no translation directory before the update; remove it when restoring that backup. `.osp-control-update/backup-path.txt` records this operation's backup path. `previous.exe` and `previous-locales/` inside staging are moved originals for automatic rollback, not separate programs. Keep staging until recovery is complete. Installation is disabled in development builds.
+
 ## Localization
 
 Translations live in `src-tauri/resources/locales/*.json` and are embedded into the binary. The portable build ships a copy in `locales/` next to the exe: edit the files there and the changes are picked up when the window regains focus, or via the "Reload translations" button in the settings.

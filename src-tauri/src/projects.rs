@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::{spawn_failed, CommandError};
+use crate::error::{CommandError, spawn_failed};
 use crate::panel_api::{
-    dat_field, dat_node_map, dat_string_value, modules_from_api, parse_osp_json, Service,
+    Service, dat_field, dat_node_map, dat_string_value, modules_from_api, parse_osp_json,
 };
 use crate::paths::{hidden_command, is_valid_domain, resolve_installation};
 
@@ -593,11 +593,7 @@ pub fn create_project(
     // Engines for the project table: in the panel's table an implicitly set engine is "-".
     let engine_display = |value: &str, strip_php: bool| -> String {
         let stripped = if strip_php { value.strip_prefix("PHP-").unwrap_or(value) } else { value };
-        if stripped.is_empty() || stripped == ENGINE_AUTO {
-            "-".into()
-        } else {
-            stripped.into()
-        }
+        if stripped.is_empty() || stripped == ENGINE_AUTO { "-".into() } else { stripped.into() }
     };
     Ok(CreatedProject {
         domain: params.domain,

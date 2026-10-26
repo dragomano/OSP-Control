@@ -160,15 +160,11 @@ pub(crate) fn api_json(root: &Path, path: &str) -> Option<serde_json::Value> {
 fn service_from_dat(name: &str, node: &serde_json::Value) -> Option<Service> {
     let fields = dat_node_map(node)?;
     let text = |key: &str| fields.get(key).map(|field| dat_string_value(field)).unwrap_or_default();
-    let enabled = fields
-        .get("enabled")
-        .and_then(|field| field.get("_value"))
-        .and_then(serde_json::Value::as_bool);
+    let enabled =
+        fields.get("enabled").and_then(|field| field.get("_value")).and_then(serde_json::Value::as_bool);
     // handle — the module's process descriptor inside the panel; -1 means not running.
-    let handle = fields
-        .get("handle")
-        .and_then(|field| field.get("_value"))
-        .and_then(serde_json::Value::as_i64);
+    let handle =
+        fields.get("handle").and_then(|field| field.get("_value")).and_then(serde_json::Value::as_i64);
     let category = text("category");
     let kind = classify_module(name, Some(category.as_str()).filter(|value| !value.is_empty()));
 

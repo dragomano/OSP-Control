@@ -4,8 +4,8 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use crate::backups::{backup_target, backups_root, parse_backup_id, BackupEntry, BackupKind};
-use crate::error::{command_failed, spawn_failed, CommandError};
+use crate::backups::{BackupEntry, BackupKind, backup_target, backups_root, parse_backup_id};
+use crate::error::{CommandError, command_failed, spawn_failed};
 use crate::panel_api::{api_json, dat_node_map, dat_string_value};
 use crate::paths::{is_valid_module_name, resolve_installation, unix_now};
 

@@ -247,6 +247,38 @@ export type ModuleUpdate = {
   errorParams?: Record<string, string>;
   recovery: boolean;
 };
+export type AppUpdate = {
+  version: string;
+  notes: string;
+  publishedAt: string;
+  size: number;
+  url: string;
+  sha256: string;
+};
+export type AppUpdateProgress = {
+  phase: 'prepare' | 'download' | 'verify' | 'restart';
+  received: number;
+  total: number;
+};
+export async function checkAppUpdate(): Promise<AppUpdate | null> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  return invoke('check_app_update');
+}
+export async function appUpdateStartup(): Promise<string | null> {
+  if (!isTauri()) return null;
+  return invoke('app_update_startup');
+}
+export async function installAppUpdate(
+  expected: string,
+  onProgress: (progress: AppUpdateProgress) => void,
+): Promise<void> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  const { Channel } = await import('@tauri-apps/api/core');
+  const channel = new Channel<AppUpdateProgress>();
+  channel.onmessage = onProgress;
+  return invoke('install_app_update', { expected, onProgress: channel });
+}
+
 export async function checkModuleUpdates(force = true): Promise<ModuleUpdate[]> {
   if (!isTauri()) throw new Error('err.desktopOnly');
   return invoke('check_module_updates', { ...customPathArgs(), force });

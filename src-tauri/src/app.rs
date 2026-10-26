@@ -7,11 +7,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
 
+use tauri::Manager;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::Manager;
 
-use crate::error::{spawn_failed, CommandError};
+use crate::error::{CommandError, spawn_failed};
 use crate::locales::locale_key_string;
 use crate::paths::is_valid_lang;
 

@@ -28,11 +28,7 @@ fn locale_name_from_content(raw: &str) -> Option<String> {
     let raw = raw.strip_prefix('\u{feff}').unwrap_or(raw);
     let value = serde_json::from_str::<serde_json::Value>(raw).ok()?;
     let name = value.get("lang.name")?.as_str()?.trim();
-    if name.is_empty() {
-        None
-    } else {
-        Some(name.to_string())
-    }
+    if name.is_empty() { None } else { Some(name.to_string()) }
 }
 
 // The locales folder next to the exe — the place the user edits dictionaries in.
@@ -236,7 +232,11 @@ mod tests {
 
         let list = list_locales_in(Some(&dir)).unwrap();
         let codes: Vec<&str> = list.iter().map(|item| item.code.as_str()).collect();
-        assert_eq!(codes, ["de", "en", "es", "be", "ru", "uk"], "picked up, sorted by name, no duplicates or junk");
+        assert_eq!(
+            codes,
+            ["de", "en", "es", "be", "ru", "uk"],
+            "picked up, sorted by name, no duplicates or junk"
+        );
 
         let name = |code: &str| list.iter().find(|item| item.code == code).unwrap().name.clone();
         assert_eq!(name("de"), "Deutsch");
@@ -260,7 +260,8 @@ mod tests {
     #[test]
     fn locale_key_string_reads_the_file_and_falls_back_to_the_key() {
         let dir = temp_locales_dir("keystring");
-        fs::write(dir.join("de.json"), "{\"lang.name\":\"Deutsch\",\"tray.show\":\"Fenster zeigen\"}").unwrap();
+        fs::write(dir.join("de.json"), "{\"lang.name\":\"Deutsch\",\"tray.show\":\"Fenster zeigen\"}")
+            .unwrap();
         assert_eq!(locale_key_string_in(Some(&dir), "de", "tray.show"), "Fenster zeigen");
         assert_eq!(locale_key_string_in(Some(&dir), "de", "tray.missing"), "tray.missing");
         assert_eq!(locale_key_string_in(Some(&dir), "fr", "tray.show"), "Show window");
