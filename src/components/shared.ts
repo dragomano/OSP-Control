@@ -13,6 +13,7 @@ import {
   Globe2,
   KeyRound,
   LayoutDashboard,
+  ListTree,
   Mail,
   Network,
   Play,
@@ -25,7 +26,15 @@ import { type ReactNode, type RefObject, useEffect } from 'react';
 import type { Translator } from '../i18n';
 import type { OsPanelService, ServiceStatus } from '../ospanel';
 
-export type Page = 'overview' | 'services' | 'projects' | 'configs' | 'logs' | 'backups' | 'settings';
+export type Page =
+  | 'overview'
+  | 'services'
+  | 'projects'
+  | 'configs'
+  | 'menu'
+  | 'logs'
+  | 'backups'
+  | 'settings';
 
 export type Service = OsPanelService & { icon: typeof Activity };
 
@@ -99,6 +108,7 @@ export const navItems: { id: Page; icon: typeof Activity }[] = [
   { id: 'services', icon: SlidersHorizontal },
   { id: 'projects', icon: FolderOpen },
   { id: 'configs', icon: FileCode2 },
+  { id: 'menu', icon: ListTree },
   { id: 'logs', icon: Terminal },
 ];
 

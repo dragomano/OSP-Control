@@ -44,7 +44,7 @@ describe('QuickSearch', () => {
     setup(true);
     const list = screen.getByRole('dialog');
     // Pages plus per-section settings options and the backups shortcut.
-    expect(list.querySelectorAll('.quick-search-item')).toHaveLength(15);
+    expect(list.querySelectorAll('.quick-search-item')).toHaveLength(16);
     expect(within(list).getByRole('button', { name: 'OverviewWorkspace' })).toBeInTheDocument();
     expect(within(list).getByRole('button', { name: /Interface themeSettings/ })).toBeInTheDocument();
     expect(within(list).getByRole('button', { name: 'BackupsSystem' })).toBeInTheDocument();
@@ -141,6 +141,6 @@ describe('QuickSearch', () => {
     rerender(true);
     const reopened = screen.getByRole('textbox', { name: 'Quick search' });
     await waitFor(() => expect(reopened).toHaveValue(''));
-    expect(screen.getByRole('dialog').querySelectorAll('.quick-search-item')).toHaveLength(15);
+    expect(screen.getByRole('dialog').querySelectorAll('.quick-search-item')).toHaveLength(16);
   });
 });

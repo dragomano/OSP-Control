@@ -12,4 +12,16 @@ const { productName } = JSON.parse(
 export default defineConfig({
   plugins: [react()],
   define: { 'import.meta.env.VITE_APP_NAME': JSON.stringify(productName) },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          // Cache the React runtime independently of application code and dictionaries.
+          groups: [
+            { name: 'react-vendor', test: /[\\/]node_modules[\\/](?:react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 });

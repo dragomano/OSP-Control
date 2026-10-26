@@ -82,6 +82,9 @@ export { buildActivityRows } from './components/tables/Logs';
 const Configs = lazy(() =>
   import('./components/tables/Configs').then((module) => ({ default: module.Configs })),
 );
+const MenuEditor = lazy(() =>
+  import('./components/pages/MenuEditor').then((module) => ({ default: module.MenuEditor })),
+);
 
 const initialLang = (): string =>
   localStorage.getItem('ospanel.lang') ?? preferredLang(EMBEDDED_LANGS) ?? BASE_LANG;
@@ -95,6 +98,10 @@ const isTypingTarget = (target: EventTarget | null): boolean =>
 
 function App() {
   const [page, setPage] = useState<Page>('overview');
+  const [menuVisited, setMenuVisited] = useState(false);
+  useEffect(() => {
+    if (page === 'menu') setMenuVisited(true);
+  }, [page]);
   const [services, setServices] = useState<Service[]>([]);
   // Demo list for the browser comes from mockSnapshot (ospanel.ts); on desktop
   // the list is filled only from the panel's data — no hardcoded projects.
@@ -1001,6 +1008,19 @@ function App() {
                   >
                     <Configs notify={notify} />
                   </Suspense>
+                )}
+                {(page === 'menu' || menuVisited) && (
+                  <div hidden={page !== 'menu'}>
+                    <Suspense fallback={<div className="empty-note">{t('common.loading')}</div>}>
+                      <MenuEditor
+                        notify={notify}
+                        installationPath={snapshot?.path ?? null}
+                        active={page === 'menu'}
+                        blocked={panelRestarting || moduleUpdating || appUpdating || autostartBusy}
+                        onRestart={() => void restartPanel()}
+                      />
+                    </Suspense>
+                  </div>
                 )}
                 {page === 'logs' && (
                   <Logs

@@ -1,3 +1,5 @@
+import type { OsPanelMenuDocument, OsPanelMenuItem, OsPanelMenuSaveResult } from './menu';
+
 export type ServiceStatus = 'running' | 'stopped' | 'warning' | 'unknown';
 
 export type OsPanelService = {
@@ -204,6 +206,74 @@ export function persistOsPanelPath(path: string) {
 // Custom installation path from the settings: passed to every command that resolves
 // the OSPanel root (the Rust side validates it itself — resolve_installation).
 const customPathArgs = () => ({ customPath: localStorage.getItem('ospanel.path') });
+
+const browserMenu = (): OsPanelMenuItem[] => [
+  {
+    id: 'editor',
+    fields: { caption: 'Visual Studio Code', category: 'Development', command: 'code.exe', icon: 'code' },
+  },
+  {
+    id: 'terminal',
+    fields: {
+      caption: '{lang_open_in_console}',
+      category: 'Development',
+      command: 'wt.exe',
+      icon: 'terminal',
+    },
+  },
+  {
+    id: 'database',
+    fields: { caption: 'HeidiSQL', category: 'Database', command: 'heidisql.exe', icon: 'database' },
+  },
+  {
+    id: 'project',
+    fields: {
+      caption: '{lang_open_in_explorer}',
+      category: 'projects',
+      command: 'explorer.exe "{project_root}"',
+      icon: 'folder-closed',
+      work_directory: '{project_root}',
+    },
+  },
+  { id: 'options', fields: { caption: '{lang_options}', command: 'command_open_options', icon: 'tools' } },
+];
+
+function browserMenuDocument(): OsPanelMenuDocument {
+  const content = localStorage.getItem('ospanel.demoMenu');
+  try {
+    const stored = content ? (JSON.parse(content) as OsPanelMenuDocument) : null;
+    if (stored && Array.isArray(stored.items) && typeof stored.revision === 'string') return stored;
+  } catch {
+    /* Ignore a broken browser-only draft. */
+  }
+  return { items: browserMenu(), revision: 'browser-initial' };
+}
+
+export async function readMenu(installationPath?: string | null): Promise<OsPanelMenuDocument> {
+  return isTauri()
+    ? invoke<OsPanelMenuDocument>(
+        'read_menu',
+        installationPath ? { customPath: installationPath } : customPathArgs(),
+      )
+    : browserMenuDocument();
+}
+
+export async function writeMenu(
+  items: OsPanelMenuItem[],
+  expectedRevision: string,
+  installationPath?: string | null,
+): Promise<OsPanelMenuSaveResult> {
+  if (isTauri())
+    return invoke<OsPanelMenuSaveResult>('write_menu', {
+      items,
+      expectedRevision,
+      ...(installationPath ? { customPath: installationPath } : customPathArgs()),
+    });
+  if (browserMenuDocument().revision !== expectedRevision) throw new Error('err.menuConflict');
+  const document = { items, revision: crypto.randomUUID() };
+  localStorage.setItem('ospanel.demoMenu', JSON.stringify(document));
+  return { document, backupPath: null };
+}
 
 export async function discoverOsPanel(): Promise<OsPanelSnapshot> {
   const customPath = localStorage.getItem('ospanel.path');

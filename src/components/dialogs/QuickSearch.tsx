@@ -7,6 +7,7 @@ import {
   Gauge,
   Globe2,
   LayoutDashboard,
+  ListTree,
   Moon,
   Power,
   Search,
@@ -61,6 +62,7 @@ const searchEntries: SearchEntry[] = [
     icon: FileCode2,
   },
   { id: 'page.logs', page: 'logs', titleKey: 'nav.logs', sectionKey: 'nav.workspace', icon: Terminal },
+  { id: 'page.menu', page: 'menu', titleKey: 'nav.menu', sectionKey: 'nav.workspace', icon: ListTree },
   {
     id: 'page.settings',
     page: 'settings',

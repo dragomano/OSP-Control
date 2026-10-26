@@ -7,6 +7,7 @@ mod backups;
 mod db;
 mod error;
 mod locales;
+mod menu;
 mod module_health;
 mod module_releases;
 mod module_updates;
@@ -86,6 +87,8 @@ fn main() {
             services::restart_ospanel,
             shell::read_config,
             shell::list_configs,
+            menu::read_menu,
+            menu::write_menu,
             shell::open_in_browser,
             shell::open_folder,
             shell::open_panel_folder,

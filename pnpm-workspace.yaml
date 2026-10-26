@@ -1,0 +1,3 @@
+allowBuilds:
+  # Fonts and metadata are shipped ready to use; skip the attribution-only postinstall.
+  "@fortawesome/fontawesome-free": false
