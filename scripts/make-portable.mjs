@@ -13,8 +13,9 @@
 // folder is what a user copies to a USB stick.
 //
 // Usage: node scripts/make-portable.mjs [releaseDir] [outRoot] [arch]
-import { cp, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises';
+import { cp, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 // Paths of the project files are derived from this script, not from the working
 // directory: the script is run both by `pnpm tauri:build` and by its test.
@@ -67,28 +68,110 @@ const exeName = `${crateName}.exe`;
 const exeSource = path.join(releaseDir, exeName);
 
 try {
-  await stat(exeSource);
+  if (!(await stat(exeSource)).isFile()) fail(`${exeSource} is not a file`);
 } catch {
   fail(`${exeSource} is missing — run \`tauri build\` (or \`pnpm tauri:build\`) first`);
 }
 
-const target = path.join(outRoot, folderName);
+let target = path.join(outRoot, folderName);
+let staging;
+let canonicalOutRoot;
+const busyCodes = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY']);
+const removeOptions = { recursive: true, force: true, maxRetries: 5, retryDelay: 150 };
+const inside = (parent, child) => {
+  const relative = path.relative(parent, child);
+  return (
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+};
+const checkedOutput = (file) => {
+  if (!inside(canonicalOutRoot, path.resolve(file))) throw new Error(`path outside output root: ${file}`);
+  return file;
+};
+const removeOutput = async (file) => {
+  if (path.relative(target, file) === '') throw new Error(`refusing to remove the portable root: ${file}`);
+  await rm(checkedOutput(file), removeOptions);
+};
+const retry = async (operation) => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!busyCodes.has(error.code) || attempt >= 5) throw error;
+      await delay(150 * (attempt + 1));
+    }
+  }
+};
 
-// A fresh folder every run: an old executable or a dictionary that was dropped from
-// resources must not survive into the distribution.
-await rm(target, { recursive: true, force: true });
-await mkdir(target, { recursive: true });
-await cp(exeSource, path.join(target, exeName));
+// Keep directory identities: Windows prevents deleting a process's current directory.
+// Prepared files replace their predecessors atomically; removed resources are pruned.
+const publish = async (source, destination) => {
+  const metadata = await lstat(destination).catch((error) => {
+    if (error.code !== 'ENOENT') throw error;
+    return null;
+  });
+  if (metadata && (metadata.isSymbolicLink() || !metadata.isDirectory())) {
+    throw new Error(`output directory is not a regular directory: ${destination}`);
+  }
+  await mkdir(checkedOutput(destination), { recursive: true });
+  const entries = await readdir(source, { withFileTypes: true });
+  // Detect a locked executable before changing dictionaries or removing stale files.
+  entries.sort((a, b) => Number(b.name === exeName) - Number(a.name === exeName));
+  for (const entry of entries) {
+    const from = checkedOutput(path.join(source, entry.name));
+    const to = checkedOutput(path.join(destination, entry.name));
+    if (entry.isDirectory()) await publish(from, to);
+    else if (entry.isFile()) await retry(() => rename(from, to));
+    else throw new Error(`unsupported staged entry: ${from}`);
+  }
+  const expected = new Set(entries.map((entry) => entry.name));
+  for (const name of await readdir(destination)) {
+    if (!expected.has(name)) await removeOutput(path.join(destination, name));
+  }
+};
 
-// locales/ next to the exe is where the app reads user dictionaries from; the embedded
-// copies are only a fallback, so a missing folder is worth a warning, not a failure.
 const localesSource = path.join(releaseDir, 'locales');
 let dictionaries = [];
 try {
-  dictionaries = (await readdir(localesSource)).filter((name) => name.toLowerCase().endsWith('.json'));
-  await cp(localesSource, path.join(target, 'locales'), { recursive: true });
-} catch {
-  dictionaries = [];
+  await mkdir(outRoot, { recursive: true });
+  canonicalOutRoot = await realpath(outRoot);
+  target = path.join(canonicalOutRoot, folderName);
+  const canonicalRelease = await realpath(releaseDir);
+  if (
+    path.relative(canonicalRelease, target) === '' ||
+    inside(target, canonicalRelease) ||
+    inside(target, await realpath(exeSource))
+  ) {
+    throw new Error(`release directory overlaps portable output: ${releaseDir}`);
+  }
+  staging = await mkdtemp(path.join(canonicalOutRoot, `.${folderName}.staging-`));
+  await cp(exeSource, path.join(staging, exeName));
+  let hasLocales = true;
+  try {
+    dictionaries = (await readdir(localesSource)).filter((name) => name.toLowerCase().endsWith('.json'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    hasLocales = false;
+  }
+  if (hasLocales) await cp(localesSource, path.join(staging, 'locales'), { recursive: true });
+  await publish(staging, target);
+  await removeOutput(staging);
+  staging = undefined;
+} catch (error) {
+  if (staging) {
+    await removeOutput(staging).catch((cleanupError) => {
+      console.warn(`make-portable: cannot clean temporary folder ${staging}: ${cleanupError.message}`);
+    });
+  }
+  const hint = busyCodes.has(error.code)
+    ? ' Close the portable application and programs holding its files; check write permissions, then rerun this script.'
+    : '';
+  fail(
+    `cannot assemble ${target}: ${error.message}.${hint} The compiled executable is available at ${exeSource}.`,
+  );
 }
 
 const { size } = await stat(path.join(target, exeName));

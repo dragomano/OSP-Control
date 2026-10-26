@@ -1,6 +1,6 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -32,7 +32,9 @@ const archTokens: Record<string, string> = { x64: 'x64', arm64: 'arm64', ia32: '
 const roots: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    roots.splice(0).map((dir) => rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })),
+  );
 });
 
 // A throwaway copy of what `tauri build` leaves in target/release: the executable and
@@ -68,6 +70,34 @@ const exists = (target: string) =>
     () => false,
   );
 
+// Keep a real Windows directory/image lock without touching any user process.
+const withHeldDirectory = async (
+  cwd: string,
+  action: (release: () => Promise<void>) => Promise<void>,
+  executable = process.execPath,
+) => {
+  const child = spawn(executable, ['-e', "process.stdout.write('ready'); setInterval(() => {}, 1000)"], {
+    cwd,
+    windowsHide: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const closed = new Promise<void>((resolve) => child.once('close', () => resolve()));
+  const release = async () => {
+    child.kill();
+    await closed;
+  };
+  try {
+    await new Promise<void>((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', () => reject(new Error('Lock fixture exited before becoming ready')));
+      child.stdout.once('data', () => resolve());
+    });
+    await action(release);
+  } finally {
+    await release();
+  }
+};
+
 describe('make-portable.mjs', () => {
   it('assembles the portable folder: the executable plus the editable dictionaries', async () => {
     const { release, out } = await workspace();
@@ -100,7 +130,7 @@ describe('make-portable.mjs', () => {
     expect(await readdir(out)).toEqual([`OSP_Control_${version}_${expected}`]);
   });
 
-  it('rebuilds the folder from scratch: an earlier build leaves nothing behind', async () => {
+  it('refreshes files and removes resources dropped from an earlier build', async () => {
     const { release, out } = await workspace();
     const stale = path.join(out, `OSP_Control_${version}_x64`);
     await mkdir(path.join(stale, 'locales'), { recursive: true });
@@ -142,5 +172,101 @@ describe('make-portable.mjs', () => {
     expect(error.code).toBe(1);
     expect(error.stderr).toContain('unsupported arch');
     expect(await readdir(root)).toEqual(['release']);
+  });
+
+  for (const workingDirectory of ['', 'locales']) {
+    it.runIf(process.platform === 'win32')(
+      `rebuilds while a process uses ${workingDirectory || 'the portable root'} as its current directory`,
+      async () => {
+        const { release, out } = await workspace();
+        const folder = path.join(out, `OSP_Control_${version}_x64`);
+        await mkdir(path.join(folder, 'locales'), { recursive: true });
+        await writeFile(path.join(folder, exeName), 'old executable');
+        await writeFile(path.join(folder, 'locales', 'xx.json'), '{}');
+        await withHeldDirectory(path.join(folder, workingDirectory), async () => {
+          const { stdout } = await makePortable([release, out, 'x64']);
+          expect(stdout).toContain('portable: ready');
+          expect(await readFile(path.join(folder, exeName), 'utf8')).toBe(`stub:${exeName}`);
+          expect((await readdir(path.join(folder, 'locales'))).sort()).toEqual(['en.json', 'ru.json']);
+          expect(await readdir(out)).toEqual([path.basename(folder)]);
+        });
+      },
+    );
+  }
+
+  it.runIf(process.platform === 'win32')(
+    'reports a persistently locked executable and leaves the earlier build intact',
+    async () => {
+      const { release, out } = await workspace();
+      const folder = path.join(out, `OSP_Control_${version}_x64`);
+      await mkdir(path.join(folder, 'locales'), { recursive: true });
+      const executable = path.join(folder, exeName);
+      await copyFile(process.execPath, executable);
+      const previousSize = (await stat(executable)).size;
+      await writeFile(path.join(folder, 'locales', 'ru.json'), 'previous dictionary');
+      await withHeldDirectory(
+        folder,
+        async () => {
+          const error = await failure([release, out, 'x64']);
+          expect(error.code).toBe(1);
+          expect(error.stderr).toContain('Close the portable application');
+          expect(error.stderr).toContain(path.join(release, exeName));
+          expect((await stat(executable)).size).toBe(previousSize);
+          expect(await readFile(path.join(folder, 'locales', 'ru.json'), 'utf8')).toBe('previous dictionary');
+          expect(await readdir(out)).toEqual([path.basename(folder)]);
+        },
+        executable,
+      );
+    },
+    15000,
+  );
+
+  it.runIf(process.platform === 'win32')(
+    'retries an executable lock released during packaging',
+    async () => {
+      const { release, out } = await workspace();
+      const folder = path.join(out, `OSP_Control_${version}_x64`);
+      await mkdir(folder, { recursive: true });
+      const executable = path.join(folder, exeName);
+      await copyFile(process.execPath, executable);
+      await withHeldDirectory(
+        folder,
+        async (unlock) => {
+          const timer = setTimeout(() => void unlock(), 400);
+          try {
+            const { stdout } = await makePortable([release, out, 'x64']);
+            expect(stdout).toContain('portable: ready');
+            expect(await readFile(executable, 'utf8')).toBe(`stub:${exeName}`);
+          } finally {
+            clearTimeout(timer);
+          }
+        },
+        executable,
+      );
+    },
+    15000,
+  );
+
+  it('fails on unreadable locale sources without modifying an earlier distribution', async () => {
+    const { release, out } = await workspace([exeName, 'locales']);
+    const folder = path.join(out, `OSP_Control_${version}_x64`);
+    await mkdir(folder, { recursive: true });
+    await writeFile(path.join(folder, exeName), 'previous executable');
+    const error = await failure([release, out, 'x64']);
+    expect(error.code).toBe(1);
+    expect(error.stderr).toContain('cannot assemble');
+    expect(await readFile(path.join(folder, exeName), 'utf8')).toBe('previous executable');
+    expect(await readdir(out)).toEqual([path.basename(folder)]);
+  });
+
+  it('refuses to assemble over the release directory itself', async () => {
+    const { root, release } = await workspace();
+    const folderName = `OSP_Control_${version}_x64`;
+    const nestedRelease = path.join(root, folderName);
+    await mkdir(nestedRelease, { recursive: true });
+    await copyFile(path.join(release, exeName), path.join(nestedRelease, exeName));
+    const error = await failure([nestedRelease, root, 'x64']);
+    expect(error.stderr).toContain('overlaps portable output');
+    expect(await readFile(path.join(nestedRelease, exeName), 'utf8')).toBe(`stub:${exeName}`);
   });
 });
