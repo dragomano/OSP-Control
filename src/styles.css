@@ -333,6 +333,49 @@ button {
   border-radius: 5px;
   padding: 2px 6px;
 }
+.sidebar-ideas {
+  flex-shrink: 0;
+  margin-top: 16px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: 9px;
+  background: var(--k-332a1e);
+}
+.sidebar-ideas-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-ideas-heading svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.sidebar-ideas-heading h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.sidebar-ideas p {
+  margin: 8px 0 11px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.sidebar-ideas .sidebar-ideas-link {
+  width: 100%;
+  padding: 8px;
+  gap: 7px;
+  font-size: 12px;
+  text-decoration: none;
+  white-space: normal;
+}
+.sidebar-ideas-link svg {
+  flex-shrink: 0;
+}
+.sidebar-ideas-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 .main-content {
   flex: 1;
   min-width: 0;
@@ -2922,6 +2965,26 @@ button {
 }
 .sidebar.collapsed .nav-settings {
   margin-top: 30px;
+}
+.sidebar.collapsed .sidebar-ideas {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.sidebar.collapsed .sidebar-ideas-heading,
+.sidebar.collapsed .sidebar-ideas p {
+  display: none;
+}
+.sidebar.collapsed .sidebar-ideas .sidebar-ideas-link {
+  min-height: 42px;
+  padding: 0;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: var(--k-332a1e);
+  color: var(--accent);
+  box-shadow: none;
+}
+.sidebar.collapsed .sidebar-ideas .sidebar-ideas-link:hover {
+  border-color: var(--accent);
 }
 
 /* Light theme for the overlays: these rules have to follow their base rules. */

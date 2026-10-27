@@ -1,8 +1,11 @@
 import {
+  ArrowUpRight,
   ChevronRight,
   Copy,
   FolderOpen,
   Leaf,
+  Lightbulb,
+  MessagesSquare,
   Monitor,
   Moon,
   Search,
@@ -68,6 +71,7 @@ import {
   type OsPanelProject,
   type OsPanelSnapshot,
   type OverviewMetrics,
+  openInBrowser,
   openPanelFolder,
   panelOnline,
   refreshService,
@@ -89,6 +93,8 @@ const MenuEditor = lazy(() =>
 
 const initialLang = (): string =>
   localStorage.getItem('ospanel.lang') ?? preferredLang(EMBEDDED_LANGS) ?? BASE_LANG;
+
+const DISCUSSIONS_URL = 'https://github.com/dragomano/OSP-Control/discussions';
 
 // Hotkeys like "/" must not fire while the user is typing into a text field.
 const isTypingTarget = (target: EventTarget | null): boolean =>
@@ -949,6 +955,37 @@ function App() {
                   <span>{t('nav.backups')}</span>
                 </button>
               </nav>
+              <div className="sidebar-ideas">
+                <div className="sidebar-ideas-heading">
+                  <MessagesSquare size={17} aria-hidden="true" />
+                  <h2>{t('nav.ideasTitle')}</h2>
+                </div>
+                <p>{t('nav.ideasText')}</p>
+                <a
+                  className="primary-button sidebar-ideas-link"
+                  href={DISCUSSIONS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t('nav.ideasLinkLabel')}
+                  title={sidebarNarrow ? t('nav.ideasLinkLabel') : undefined}
+                  onClick={(event) => {
+                    if (!isDesktopApp()) return;
+                    event.preventDefault();
+                    void openInBrowser(DISCUSSIONS_URL).catch((error) =>
+                      notify(errorText(t, error, 'nav.ideasOpenFailed')),
+                    );
+                  }}
+                >
+                  {sidebarNarrow ? (
+                    <Lightbulb size={18} aria-hidden="true" />
+                  ) : (
+                    <>
+                      <span>{t('nav.ideasAction')}</span>
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                    </>
+                  )}
+                </a>
+              </div>
             </aside>
             <main className="main-content">
               <header className="topbar">
