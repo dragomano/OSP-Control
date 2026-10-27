@@ -3,6 +3,7 @@ import { Download, RefreshCw, X } from 'lucide-react';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { version } from '../package.json';
 import { formatSize, useDismiss } from './components/shared';
+import { ReleaseNotes } from './components/widgets/ReleaseNotes';
 import { errorText, useI18n } from './i18n';
 import {
   type AppUpdate,
@@ -133,6 +134,7 @@ export function AppUpdatesProvider({
           onClose={() => setVisible(false)}
           onCheck={() => void check()}
           onInstall={() => void install()}
+          onLinkError={(error) => setMessage(errorText(t, error, 'projects.toastOpenFailed'))}
         />
       )}
     </Context.Provider>
@@ -150,6 +152,7 @@ function UpdateDialog({
   onClose,
   onCheck,
   onInstall,
+  onLinkError,
 }: {
   update: AppUpdate | null;
   busy: boolean;
@@ -161,6 +164,7 @@ function UpdateDialog({
   onClose: () => void;
   onCheck: () => void;
   onInstall: () => void;
+  onLinkError: (error: unknown) => void;
 }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
@@ -184,7 +188,7 @@ function UpdateDialog({
         tabIndex={-1}
         onKeyDown={(event) => {
           if (event.key !== 'Tab') return;
-          const nodes = ref.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+          const nodes = ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
           if (!nodes?.length) {
             event.preventDefault();
             return;
@@ -235,7 +239,13 @@ function UpdateDialog({
           <>
             <p className="modal-hint">{t('appUpdates.archive', { size: formatSize(update.size) })}</p>
             <h4>{t('appUpdates.notes')}</h4>
-            <div className="app-update-notes">{update.notes || t('appUpdates.noNotes')}</div>
+            <div className="app-update-notes">
+              {update.notes.trim() ? (
+                <ReleaseNotes notes={update.notes} onLinkError={onLinkError} />
+              ) : (
+                t('appUpdates.noNotes')
+              )}
+            </div>
           </>
         ) : (
           <p className="modal-hint">{t(checked ? 'appUpdates.current' : 'appUpdates.checkHint')}</p>

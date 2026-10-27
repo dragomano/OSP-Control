@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   installAppUpdate: vi.fn(),
   appUpdateStartup: vi.fn(),
   isDesktopApp: vi.fn(),
+  openInBrowser: vi.fn(),
 }));
 vi.mock('../src/ospanel', async (original) => ({
   ...(await original<typeof import('../src/ospanel')>()),
@@ -81,6 +82,28 @@ it('automatically announces a release and opens its details without interpreting
   expect(screen.getByRole('dialog')).toBeVisible();
   expect(screen.getByText('<script>unsafe</script>')).toBeVisible();
   expect(document.querySelector('script')).toBeNull();
+});
+
+it('renders Markdown inside the update dialog and reports link opening failures', async () => {
+  mocks.checkAppUpdate.mockResolvedValue({
+    ...release,
+    notes:
+      "### What's new\n\n- **Application updates**\n\n[Full Changelog](https://github.com/dragomano/OSP-Control/compare/v0.2.0...v0.3.0)",
+  });
+  mocks.openInBrowser.mockRejectedValue(new Error('err.popupBlocked'));
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Check application updates' }));
+  expect(await screen.findByRole('heading', { name: "What's new" })).toBeVisible();
+  expect(screen.getByRole('listitem')).toHaveTextContent('Application updates');
+  fireEvent.click(screen.getByRole('link', { name: 'Full Changelog' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The browser blocked the new window');
+});
+
+it('shows the localized fallback for blank release notes', async () => {
+  mocks.checkAppUpdate.mockResolvedValue({ ...release, notes: '   \n' });
+  setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Check application updates' }));
+  expect(await screen.findByText(t('appUpdates.noNotes'))).toBeVisible();
 });
 
 it('checks manually, retries installation errors and prevents duplicate installs', async () => {

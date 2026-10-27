@@ -78,13 +78,88 @@
 .app-update-notes {
   max-height: 220px;
   overflow: auto;
-  white-space: pre-wrap;
+  white-space: normal;
   overflow-wrap: anywhere;
   padding: 14px;
   background: var(--panel2);
   border-radius: 8px;
   font-size: 12px;
   line-height: 1.7;
+}
+.app-update-notes :is(h1, h2, h3, h4, h5, h6) {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.app-update-notes :is(h1, h2) {
+  font-size: 16px;
+}
+.app-update-notes :is(p, ul, ol, blockquote, pre, .app-update-table) {
+  margin: 10px 0;
+}
+.app-update-notes > :first-child {
+  margin-top: 0;
+}
+.app-update-notes > :last-child {
+  margin-bottom: 0;
+}
+.app-update-notes :is(ul, ol) {
+  padding-left: 22px;
+}
+.app-update-notes li + li {
+  margin-top: 4px;
+}
+.app-update-notes a {
+  color: var(--k-eda75f);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.app-update-notes a:focus-visible {
+  outline: 2px solid var(--k-eda75f);
+  outline-offset: 2px;
+}
+.app-update-notes blockquote {
+  border-left: 3px solid var(--line);
+  padding-left: 12px;
+  color: var(--muted);
+}
+.app-update-notes code {
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 0.95em;
+}
+.app-update-notes pre {
+  padding: 10px;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: var(--bg);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.app-update-notes pre code {
+  padding: 0;
+  background: none;
+}
+.app-update-table {
+  overflow-x: auto;
+}
+.app-update-notes table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.app-update-notes :is(th, td) {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+.app-update-notes hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 14px 0;
+}
+.app-update-notes input[type="checkbox"] {
+  accent-color: var(--k-eda75f);
 }
 .app-update-dialog progress {
   width: 100%;
