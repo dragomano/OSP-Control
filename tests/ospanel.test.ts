@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearLogs,
   createDbBackup,
   createProject,
   createProjectBackup,
@@ -70,6 +71,11 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
 
   it('panelOnline reports the panel as running in the mock', async () => {
     expect(await panelOnline()).toBe(true);
+  });
+
+  it('does not pretend to clear real logs outside the desktop app', async () => {
+    await expect(clearLogs('general.log')).rejects.toThrow('err.desktopOnly');
+    await expect(clearLogs(null)).rejects.toThrow('err.desktopOnly');
   });
 
   it('refreshService toggles status; an unknown service rejects with err.serviceNotFound', async () => {
@@ -199,6 +205,19 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
     invokeMock.mockResolvedValueOnce([]);
     await listLogSources();
     expect(invokeMock).toHaveBeenLastCalledWith('list_log_sources', { customPath: 'D:\\OSPanel6' });
+
+    invokeMock.mockResolvedValueOnce(1);
+    await clearLogs('domains/dune.loc_error.log');
+    expect(invokeMock).toHaveBeenLastCalledWith('clear_logs', {
+      source: 'domains/dune.loc_error.log',
+      customPath: 'D:\\OSPanel6',
+    });
+    invokeMock.mockResolvedValueOnce(3);
+    await clearLogs(null);
+    expect(invokeMock).toHaveBeenLastCalledWith('clear_logs', {
+      source: null,
+      customPath: 'D:\\OSPanel6',
+    });
 
     invokeMock.mockResolvedValueOnce({ id: 'backup-1-db-MySQL-8.0' });
     await createDbBackup('MySQL-8.0');

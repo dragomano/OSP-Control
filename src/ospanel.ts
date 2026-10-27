@@ -467,6 +467,13 @@ export async function fetchLogTail(source: string, maxLines = 300): Promise<stri
   ];
 }
 
+// A null source clears every log exposed by listLogSources, including domain logs.
+export async function clearLogs(source: string | null): Promise<number> {
+  if (isTauri()) return invoke<number>('clear_logs', { source, ...customPathArgs() });
+
+  throw new Error('err.desktopOnly');
+}
+
 export async function listBackups(): Promise<BackupEntry[]> {
   if (isTauri()) return invoke<BackupEntry[]>('list_backups', customPathArgs());
 

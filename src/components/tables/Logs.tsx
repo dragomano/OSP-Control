@@ -1,7 +1,8 @@
-import { ChevronRight, Copy, RefreshCw, Search, Terminal } from 'lucide-react';
+import { ChevronRight, Copy, Eraser, RefreshCw, Search, Terminal, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useI18n } from '../../i18n';
 import type { LogSource } from '../../ospanel';
+import { ClearLogsDialog } from '../dialogs/ClearLogsDialog';
 import { type ActivityEntry, copyText, type Notify } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
 import { RowMenu } from '../widgets/RowMenu';
@@ -156,6 +157,9 @@ export function Logs({
   lines,
   auto,
   onAutoChange,
+  clearing,
+  blocked,
+  onClear,
 }: {
   notify: Notify;
   sources: LogSource[];
@@ -164,11 +168,20 @@ export function Logs({
   lines: string[];
   auto: boolean;
   onAutoChange: (auto: boolean) => void;
+  clearing: boolean;
+  blocked: boolean;
+  onClear: (source: string | null) => Promise<string | null>;
 }) {
   const { t } = useI18n();
   const aliases = useMemo(() => logAliasesFromTranslator(t), [t]);
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<'all' | 'error' | 'warning'>('all');
+  const [clearTarget, setClearTarget] = useState<{ source: string | null } | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const openClearDialog = (target: string | null) => {
+    setClearError(null);
+    setClearTarget({ source: target });
+  };
   // Level tabs show merged events: in an error block the marker, the message
   // and the reason become one entry with a detail, not a bare "ERROR" line.
   const events = useMemo(() => buildActivityRows(lines, aliases), [aliases, lines]);
@@ -223,14 +236,27 @@ export function Logs({
         heading={t('logs.pageTitle')}
         description={t('logs.subtitle')}
         action={
-          <button
-            type="button"
-            className={`secondary-button ${auto ? 'on' : ''}`}
-            onClick={() => onAutoChange(!auto)}
-          >
-            <RefreshCw size={15} />
-            {t('logs.autorefresh')}
-          </button>
+          <div className="logs-header-actions">
+            <button
+              type="button"
+              className={`secondary-button ${auto ? 'on' : ''}`}
+              onClick={() => onAutoChange(!auto)}
+              disabled={clearing}
+              aria-pressed={auto}
+            >
+              <RefreshCw size={15} />
+              {t('logs.autorefresh')}
+            </button>
+            <button
+              type="button"
+              className="secondary-button log-clear-all"
+              onClick={() => openClearDialog(null)}
+              disabled={clearing || blocked || sources.length === 0}
+            >
+              <Trash2 size={15} />
+              {t('logs.clearAll')}
+            </button>
+          </div>
         }
       />
       <div className="toolbar">
@@ -250,6 +276,7 @@ export function Logs({
               onClick={onToggle}
               aria-haspopup="menu"
               aria-expanded={open}
+              disabled={clearing}
             >
               <Terminal size={15} />
               {activeSource ? sourceLabel(activeSource) : source}
@@ -259,6 +286,7 @@ export function Logs({
           entries={sources.map((item) => ({
             label: sourceLabel(item),
             icon: Terminal,
+            disabled: clearing,
             onSelect: () => onSourceChange(item.name),
           }))}
         />
@@ -286,28 +314,59 @@ export function Logs({
           >
             {t('logs.tabWarnings')} <em className="orange">{counts.warning}</em>
           </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={t('logs.copyAria')}
-            onClick={() =>
-              void copyText(
-                t,
-                level === 'all'
-                  ? rawVisible.join('\n')
-                  : levelVisible.map((event) => `[${event.time}] ${event.text}`).join('\n'),
-                'label.log',
-                notify,
-              )
-            }
-          >
-            <Copy size={15} />
-          </button>
+          <div className="log-tab-actions">
+            <button
+              type="button"
+              className="secondary-button log-clear-current"
+              disabled={clearing || blocked || !activeSource}
+              onClick={() => openClearDialog(source)}
+            >
+              <Eraser size={15} />
+              {t('logs.clearCurrent')}
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t('logs.copyAria')}
+              onClick={() =>
+                void copyText(
+                  t,
+                  level === 'all'
+                    ? rawVisible.join('\n')
+                    : levelVisible.map((event) => `[${event.time}] ${event.text}`).join('\n'),
+                  'label.log',
+                  notify,
+                )
+              }
+            >
+              <Copy size={15} />
+            </button>
+          </div>
         </div>
         <div className="log-content">
-          {rendered.length > 0 ? rendered : <div className="empty-note">{t('logs.empty')}</div>}
+          {rendered.length > 0 ? (
+            rendered
+          ) : (
+            <div className="empty-note">{t(lines.length === 0 ? 'logs.emptyLog' : 'logs.empty')}</div>
+          )}
         </div>
       </div>
+      {clearTarget && (
+        <ClearLogsDialog
+          source={clearTarget.source}
+          count={sources.length}
+          busy={clearing}
+          error={clearError}
+          onClose={() => setClearTarget(null)}
+          onConfirm={() => {
+            setClearError(null);
+            void onClear(clearTarget.source).then((error) => {
+              if (error) setClearError(error);
+              else setClearTarget(null);
+            });
+          }}
+        />
+      )}
     </>
   );
 }

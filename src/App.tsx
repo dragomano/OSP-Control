@@ -54,6 +54,7 @@ import {
   askConfirm,
   autostartFromProjects,
   type CreatedProject,
+  clearLogs,
   deleteProject,
   discoverOsPanel,
   fetchLogTail,
@@ -154,6 +155,10 @@ function App() {
   const [logSource, setLogSource] = useState('general.log');
   const [logLines, setLogLines] = useState<string[]>([]);
   const [logAuto, setLogAuto] = useState(false);
+  const [logClearing, setLogClearing] = useState(false);
+  const logClearingRef = useRef(false);
+  const logSourceRef = useRef(logSource);
+  logSourceRef.current = logSource;
   // Local edits to the project list: the panel rescans home/ only at its own startup,
   // so created and deleted domains diverge from the API data until a restart.
   const localAddedRef = useRef(new Map<string, OsPanelProject>());
@@ -227,6 +232,7 @@ function App() {
   const userNameDisplay = userName || t('nav.userFallback');
   // Tail of the panel log for "Recent activity" on the overview page.
   const loadActivity = useCallback(async () => {
+    if (logClearingRef.current) return;
     const request = ++activityRequestRef.current;
     try {
       // 60 lines: error blocks get merged, so 3 events need a longer tail than the line count.
@@ -434,19 +440,58 @@ function App() {
   }, []);
 
   // The log tail loading lives in App so the "Logs" badge and the page show the same data.
-  const loadLogTail = useCallback(async () => {
-    const request = ++logRequestRef.current;
-    const source = logSource;
+  const loadLogTail = useCallback(
+    async (silent = false) => {
+      if (logClearingRef.current) return;
+      const request = ++logRequestRef.current;
+      const source = logSource;
 
-    try {
-      const lines = await fetchLogTail(source, 300);
-      if (request === logRequestRef.current && source === logSource) setLogLines(lines);
-    } catch (error) {
-      if (request === logRequestRef.current && source === logSource) {
-        notify(errorText(t, error, 'logs.toastReadFailed'));
+      try {
+        const lines = await fetchLogTail(source, 300);
+        if (request === logRequestRef.current && source === logSourceRef.current) setLogLines(lines);
+      } catch (error) {
+        if (!silent && request === logRequestRef.current && source === logSourceRef.current) {
+          notify(errorText(t, error, 'logs.toastReadFailed'));
+        }
       }
+    },
+    [logSource, notify, t],
+  );
+
+  const clearSelectedLogs = async (source: string | null): Promise<string | null> => {
+    if (
+      logClearingRef.current ||
+      panelRestartRef.current ||
+      updateBusyRef.current ||
+      appUpdatingRef.current ||
+      autostartBusyRef.current ||
+      inFlightServicesRef.current.size > 0
+    )
+      return t('err.updateBusy');
+    logClearingRef.current = true;
+    setLogClearing(true);
+    panelRestartRef.current = true;
+    setPanelRestarting(true);
+    // Invalidate reads started before truncation, including the overview activity tail.
+    logRequestRef.current += 1;
+    activityRequestRef.current += 1;
+    try {
+      const count = await clearLogs(source);
+      if (source === null || source === logSourceRef.current) setLogLines([]);
+      if (source === null || source === 'general.log') setActivityLines([]);
+      notify(source === null ? t('logs.toastAllCleared', { count }) : t('logs.toastCleared', { source }));
+      return null;
+    } catch (error) {
+      return errorText(t, error, 'logs.toastClearFailed');
+    } finally {
+      logClearingRef.current = false;
+      // Always reread: a bulk failure may have already cleared some of the files.
+      await Promise.all([loadLogTail(true), loadActivity(), loadSnapshot()]);
+      panelRestartRef.current = false;
+      setPanelRestarting(false);
+      setLogClearing(false);
     }
-  }, [logSource, notify, t]);
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the source list is read once at startup — no need to refetch on every log switch
   useEffect(() => {
@@ -1031,6 +1076,15 @@ function App() {
                     lines={logLines}
                     auto={logAuto}
                     onAutoChange={setLogAuto}
+                    clearing={logClearing}
+                    blocked={
+                      panelRestarting ||
+                      moduleUpdating ||
+                      appUpdating ||
+                      autostartBusy ||
+                      pendingServices.size > 0
+                    }
+                    onClear={clearSelectedLogs}
                   />
                 )}
                 {page === 'settings' && (

@@ -98,6 +98,7 @@ fn main() {
             locales::list_locales,
             shell::list_log_sources,
             shell::read_log_tail,
+            shell::clear_logs,
             backups::list_backups,
             backups::create_backup,
             backups::restore_backup,

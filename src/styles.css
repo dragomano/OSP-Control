@@ -1304,7 +1304,7 @@ button {
   overflow: hidden;
 }
 .log-tabs {
-  height: 43px;
+  min-height: 43px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -1312,6 +1312,87 @@ button {
   padding: 0 15px;
   color: #838b97;
   font-size: 10px;
+  flex-wrap: wrap;
+}
+.logs-header-actions,
+.log-tab-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.logs-header-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.log-tab-actions {
+  margin-left: auto;
+  padding: 5px 0;
+}
+.app-shell .log-tab-actions .secondary-button.log-clear-current {
+  background: transparent;
+  border-color: transparent;
+}
+.log-clear-all,
+.log-clear-dialog {
+  --log-danger: light-dark(var(--lt-err-text), #e08c7a);
+}
+.app-shell .logs-header-actions .secondary-button.log-clear-all {
+  color: var(--log-danger);
+}
+.log-clear-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.log-clear-heading > svg {
+  color: var(--log-danger);
+  flex-shrink: 0;
+}
+.log-clear-target {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel2);
+}
+.log-clear-target > svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.log-clear-target strong,
+.log-clear-target span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.log-clear-target strong {
+  font-size: 12px;
+}
+.log-clear-target span {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.modal-foot.log-clear-foot {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.log-clear-error {
+  font-size: 12px;
+  color: var(--log-danger);
+  overflow-wrap: anywhere;
+}
+.app-shell .log-clear-dialog .primary-button.log-clear-confirm {
+  background: var(--log-danger);
+  border-color: var(--log-danger);
+  color: var(--bg);
+  box-shadow: none;
+}
+.app-shell .log-clear-dialog .primary-button.log-clear-confirm:hover {
+  background: color-mix(in srgb, var(--log-danger) 90%, var(--text));
 }
 .log-tabs > b {
   height: 100%;
