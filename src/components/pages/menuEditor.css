@@ -1,6 +1,14 @@
 .menu-editor {
   min-width: 0;
 }
+.menu-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.menu-backup-hint {
+  text-align: left;
+}
 .menu-editor-fields {
   border: 0;
   min-width: 0;

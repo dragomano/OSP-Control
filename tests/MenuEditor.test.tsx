@@ -29,10 +29,18 @@ const original: OsPanelMenuItem[] = [
 ];
 const notify = vi.fn();
 const onRestart = vi.fn();
+const onOpenBackups = vi.fn();
 const mount = (path = 'C:/Panel') =>
   render(
     <I18nContext.Provider value={{ lang: 'en', t, plural }}>
-      <MenuEditor notify={notify} installationPath={path} active blocked={false} onRestart={onRestart} />
+      <MenuEditor
+        notify={notify}
+        installationPath={path}
+        active
+        blocked={false}
+        onRestart={onRestart}
+        onOpenBackups={onOpenBackups}
+      />
     </I18nContext.Provider>,
   );
 
@@ -50,6 +58,49 @@ afterEach(() => {
 });
 
 describe('MenuEditor', () => {
+  it('opens backups without discarding the draft and reloads after a confirmed restore', async () => {
+    const onStateChange = vi.fn();
+    const view = render(
+      <I18nContext.Provider value={{ lang: 'en', t, plural }}>
+        <MenuEditor
+          notify={notify}
+          installationPath="C:/Panel"
+          active
+          blocked={false}
+          onRestart={onRestart}
+          onOpenBackups={onOpenBackups}
+          onStateChange={onStateChange}
+        />
+      </I18nContext.Provider>,
+    );
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Name' }), { target: { value: 'Draft' } });
+    expect(onStateChange).toHaveBeenLastCalledWith({ dirty: true, busy: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Backups' }));
+    expect(onOpenBackups).toHaveBeenCalledOnce();
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Draft');
+    const restored = structuredClone(original);
+    restored[0].fields.caption = 'Restored editor';
+    vi.mocked(readMenu).mockResolvedValue({ items: restored, revision: 'restored' });
+    view.rerender(
+      <I18nContext.Provider value={{ lang: 'en', t, plural }}>
+        <MenuEditor
+          notify={notify}
+          installationPath="C:/Panel"
+          active={false}
+          blocked={false}
+          onRestart={onRestart}
+          onOpenBackups={onOpenBackups}
+          onStateChange={onStateChange}
+          reloadVersion={1}
+        />
+      </I18nContext.Provider>,
+    );
+    expect(await screen.findByRole('textbox', { name: 'Name' })).toHaveValue('Restored editor');
+    expect(onStateChange).toHaveBeenLastCalledWith({ dirty: false, busy: false });
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+    expect(writeMenu).not.toHaveBeenCalled();
+  });
+
   it('keeps edits local until save and preserves native conditions and unknown properties', async () => {
     mount();
     const name = await screen.findByRole('textbox', { name: 'Name' });
@@ -136,7 +187,14 @@ describe('MenuEditor', () => {
     const view = mount('C:/Old');
     view.rerender(
       <I18nContext.Provider value={{ lang: 'en', t, plural }}>
-        <MenuEditor notify={notify} installationPath="C:/New" active blocked={false} onRestart={onRestart} />
+        <MenuEditor
+          notify={notify}
+          installationPath="C:/New"
+          active
+          blocked={false}
+          onRestart={onRestart}
+          onOpenBackups={onOpenBackups}
+        />
       </I18nContext.Provider>,
     );
     expect(await screen.findByRole('textbox', { name: 'Name' })).toHaveValue('My editor');

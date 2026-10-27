@@ -461,9 +461,8 @@ export async function openPanelFolder(): Promise<void> {
 }
 
 export type LogSource = { name: string; label: string; domain: boolean };
-// kind: config — the config directory, db — a module's SQL dump (subject), project —
-// a zip archive of home/<domain> (subject). See parse_backup_id in main.rs.
-export type BackupKind = 'config' | 'db' | 'project';
+// Menu backups preserve system/menu.dat; DB and project backups also name their subject.
+export type BackupKind = 'config' | 'db' | 'project' | 'menu';
 export type BackupEntry = {
   id: string;
   createdAt: number;
@@ -524,6 +523,21 @@ export async function createBackup(): Promise<BackupEntry> {
 export async function restoreBackup(id: string): Promise<void> {
   if (isTauri()) {
     await invoke('restore_backup', { id, ...customPathArgs() });
+    return;
+  }
+
+  throw new Error('err.desktopOnly');
+}
+
+export async function createMenuBackup(): Promise<BackupEntry> {
+  if (isTauri()) return invoke<BackupEntry>('create_menu_backup', customPathArgs());
+
+  throw new Error('err.desktopOnly');
+}
+
+export async function restoreMenuBackup(id: string): Promise<void> {
+  if (isTauri()) {
+    await invoke('restore_menu_backup', { id, ...customPathArgs() });
     return;
   }
 

@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Database } from 'lucide-react';
+import { type ComponentProps, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Notify, Service } from '../src/components/shared';
-import { Backups } from '../src/components/tables/Backups';
+import { type BackupFilter, Backups } from '../src/components/tables/Backups';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
 import type { BackupEntry, OsPanelProject } from '../src/ospanel';
 
@@ -10,9 +11,11 @@ const mocks = vi.hoisted(() => ({
   listBackups: vi.fn(),
   createBackup: vi.fn(),
   createDbBackup: vi.fn(),
+  createMenuBackup: vi.fn(),
   createProjectBackup: vi.fn(),
   restoreBackup: vi.fn(),
   restoreDbBackup: vi.fn(),
+  restoreMenuBackup: vi.fn(),
   restoreProjectBackup: vi.fn(),
   deleteBackup: vi.fn(),
   openBackupsFolder: vi.fn(),
@@ -54,6 +57,15 @@ const projectBackup: BackupEntry = {
   subject: 'my-shop.test',
 };
 
+const menuBackup: BackupEntry = {
+  id: 'menu-1700000003000000000',
+  createdAt: 1_700_000_003,
+  sizeBytes: 512,
+  files: 1,
+  kind: 'menu',
+  subject: null,
+};
+
 const database = (name: string): Service => ({
   name,
   version: '',
@@ -72,15 +84,23 @@ const project: OsPanelProject = {
   ssl: true,
 };
 
-const renderBackups = (
-  notify: Notify,
-  { services = [], projects = [] }: { services?: Service[]; projects?: OsPanelProject[] } = {},
-) =>
-  render(
+function BackupsHarness({ notify, ...props }: Partial<ComponentProps<typeof Backups>> & { notify: Notify }) {
+  const [filter, setFilter] = useState<BackupFilter>(props.filter ?? 'all');
+  return (
     <I18nContext.Provider value={{ lang: 'en', t, plural }}>
-      <Backups notify={notify} services={services} projects={projects} />
-    </I18nContext.Provider>,
+      <Backups
+        services={[]}
+        projects={[]}
+        {...props}
+        notify={notify}
+        filter={filter}
+        onFilterChange={setFilter}
+      />
+    </I18nContext.Provider>
   );
+}
+const renderBackups = (notify: Notify, props: Partial<ComponentProps<typeof Backups>> = {}) =>
+  render(<BackupsHarness {...props} notify={notify} />);
 
 beforeEach(() => {
   for (const mock of Object.values(mocks)) mock.mockReset();
@@ -99,21 +119,22 @@ describe('Backups loading', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load backups');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
-    expect(await screen.findByText('Configurations')).toBeInTheDocument();
+    expect(await screen.findByText('Configurations', { selector: '.backup-kind' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
 describe('Backups list', () => {
-  it('renders all three kinds with their subjects, date and size', async () => {
-    mocks.listBackups.mockResolvedValue([configBackup, dbBackup, projectBackup]);
+  it('renders all four kinds with their subjects, date and size', async () => {
+    mocks.listBackups.mockResolvedValue([configBackup, dbBackup, projectBackup, menuBackup]);
     renderBackups(vi.fn());
 
-    expect(await screen.findByText('Configurations')).toBeInTheDocument();
+    expect(await screen.findByText('Configurations', { selector: '.backup-kind' })).toBeInTheDocument();
     expect(screen.getByText('Database: MySQL-8.0')).toBeInTheDocument();
     expect(screen.getByText('Project: my-shop.test')).toBeInTheDocument();
+    expect(screen.getByText('OSPanel menu', { selector: '.backup-kind' })).toBeInTheDocument();
     // 1_700_000_000 is 2023-11-14 in any timezone.
-    expect(screen.getAllByText(/2023/)).toHaveLength(3);
+    expect(screen.getAllByText(/2023/)).toHaveLength(4);
     expect(screen.getByText('1 file · 1024 B')).toBeInTheDocument();
     expect(screen.getByText('3 files · 4.0 KB')).toBeInTheDocument();
   });
@@ -122,9 +143,31 @@ describe('Backups list', () => {
     renderBackups(vi.fn());
     expect(await screen.findByText('No saved backups yet')).toBeInTheDocument();
   });
+
+  it('opens filtered menu copies and allows switching to other types', async () => {
+    mocks.listBackups.mockResolvedValue([configBackup, menuBackup]);
+    renderBackups(vi.fn(), { filter: 'menu' });
+    expect(await screen.findByText('OSPanel menu', { selector: '.backup-kind' })).toBeInTheDocument();
+    expect(screen.queryByText('Configurations', { selector: '.backup-kind' })).toBeNull();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Backup type' }), { target: { value: 'db' } });
+    expect(screen.getByText('No backups of this type yet')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Backup type' }), { target: { value: 'all' } });
+    expect(screen.getByText('Configurations', { selector: '.backup-kind' })).toBeInTheDocument();
+  });
 });
 
 describe('Backups creation', () => {
+  it('creates a menu snapshot and refreshes the list', async () => {
+    mocks.createMenuBackup.mockResolvedValue(menuBackup);
+    const notify = vi.fn();
+    renderBackups(notify);
+    await screen.findByText('No saved backups yet');
+    fireEvent.click(screen.getByRole('button', { name: 'Back up menu' }));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Menu backup created'));
+    expect(mocks.createMenuBackup).toHaveBeenCalledOnce();
+    expect(mocks.listBackups).toHaveBeenCalledTimes(2);
+  });
+
   it('creates a config copy and refreshes the list', async () => {
     mocks.createBackup.mockResolvedValue(configBackup);
     const notify = vi.fn();
@@ -191,6 +234,53 @@ describe('Backups creation', () => {
 });
 
 describe('Backups restore', () => {
+  it('reloads the menu after restoring and offers to restart OSPanel', async () => {
+    mocks.listBackups.mockResolvedValue([menuBackup]);
+    mocks.askConfirm.mockResolvedValue(true);
+    const notify = vi.fn();
+    const onMenuRestored = vi.fn();
+    const onRestart = vi.fn();
+    const onMenuRestoreBusyChange = vi.fn();
+    renderBackups(notify, { onMenuRestored, onRestart, onMenuRestoreBusyChange });
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+    await vi.waitFor(() => expect(onMenuRestoreBusyChange).toHaveBeenLastCalledWith(false));
+    expect(mocks.restoreMenuBackup).toHaveBeenCalledWith(menuBackup.id);
+    expect(onMenuRestored).toHaveBeenCalledOnce();
+    expect(notify).toHaveBeenCalledWith(t('settings.backupsDoneMenu'), {
+      label: t('projects.restartPanel'),
+      run: onRestart,
+    });
+    expect(mocks.askConfirm).toHaveBeenCalledOnce();
+    expect(mocks.askConfirm).toHaveBeenCalledWith(expect.stringContaining('system/menu.dat'), 'Confirmation');
+    expect(mocks.listBackups).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps unsaved menu edits when the additional confirmation is declined', async () => {
+    mocks.listBackups.mockResolvedValue([menuBackup]);
+    mocks.askConfirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const onMenuRestored = vi.fn();
+    renderBackups(vi.fn(), { menuDirty: true, onMenuRestored });
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+    await vi.waitFor(() => expect(mocks.askConfirm).toHaveBeenCalledTimes(2));
+    expect(mocks.askConfirm).toHaveBeenLastCalledWith(t('menu.restoreDiscardConfirm'), 'Confirmation');
+    expect(mocks.restoreMenuBackup).not.toHaveBeenCalled();
+    expect(onMenuRestored).not.toHaveBeenCalled();
+  });
+
+  it('restores after both confirmations and retains the editor on failure', async () => {
+    mocks.listBackups.mockResolvedValue([menuBackup]);
+    mocks.askConfirm.mockResolvedValue(true);
+    mocks.restoreMenuBackup.mockRejectedValue(new Error('err.menuInvalid'));
+    const notify = vi.fn();
+    const onMenuRestored = vi.fn();
+    renderBackups(notify, { menuDirty: true, onMenuRestored });
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith(t('err.menuInvalid')));
+    expect(mocks.restoreMenuBackup).toHaveBeenCalledOnce();
+    expect(mocks.askConfirm).toHaveBeenCalledTimes(2);
+    expect(onMenuRestored).not.toHaveBeenCalled();
+  });
+
   it('restores a config copy after confirmation', async () => {
     mocks.listBackups.mockResolvedValue([configBackup]);
     mocks.askConfirm.mockResolvedValue(true);

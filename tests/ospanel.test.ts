@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearLogs,
   createDbBackup,
+  createMenuBackup,
   createProject,
   createProjectBackup,
   deleteBackup,
@@ -24,6 +25,7 @@ import {
   restartOsPanel,
   restoreBackup,
   restoreDbBackup,
+  restoreMenuBackup,
   restoreProjectBackup,
   setAutostart,
   setCloseToTray,
@@ -236,6 +238,15 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
     invokeMock.mockResolvedValueOnce(undefined);
     await openBackupsFolder();
     expect(invokeMock).toHaveBeenLastCalledWith('open_backups_folder', {
+      customPath: 'D:\\OSPanel6',
+    });
+
+    invokeMock.mockResolvedValueOnce({ id: 'menu-1700000000000000000', kind: 'menu' });
+    await createMenuBackup();
+    expect(invokeMock).toHaveBeenLastCalledWith('create_menu_backup', { customPath: 'D:\\OSPanel6' });
+    await restoreMenuBackup('menu-1700000000000000000');
+    expect(invokeMock).toHaveBeenLastCalledWith('restore_menu_backup', {
+      id: 'menu-1700000000000000000',
       customPath: 'D:\\OSPanel6',
     });
   });

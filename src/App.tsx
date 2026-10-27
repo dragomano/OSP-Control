@@ -33,7 +33,7 @@ import {
   type SettingsTab,
   type ToastAction,
 } from './components/shared';
-import { Backups } from './components/tables/Backups';
+import { type BackupFilter, Backups } from './components/tables/Backups';
 import { buildActivityRows, Logs, logAliasesFromTranslator } from './components/tables/Logs';
 import { RowMenu } from './components/widgets/RowMenu';
 import {
@@ -106,6 +106,10 @@ const isTypingTarget = (target: EventTarget | null): boolean =>
 function App() {
   const [page, setPage] = useState<Page>('overview');
   const [menuVisited, setMenuVisited] = useState(false);
+  const [backupFilter, setBackupFilter] = useState<BackupFilter>('all');
+  const [menuState, setMenuState] = useState({ dirty: false, busy: false });
+  const [menuReloadVersion, setMenuReloadVersion] = useState(0);
+  const [menuRestoring, setMenuRestoring] = useState(false);
   useEffect(() => {
     if (page === 'menu') setMenuVisited(true);
   }, [page]);
@@ -815,6 +819,7 @@ function App() {
 
   const navigateTo = useCallback((nextPage: Page, tab?: SettingsTab) => {
     if (tab) setSettingsTab(tab);
+    if (nextPage === 'backups') setBackupFilter('all');
     setPage(nextPage);
     setSearchOpen(false);
   }, []);
@@ -947,7 +952,7 @@ function App() {
                 <button
                   type="button"
                   className={`nav-item nav-backups ${page === 'backups' ? 'active' : ''}`}
-                  onClick={() => setPage('backups')}
+                  onClick={() => navigateTo('backups')}
                   aria-label={t('nav.backups')}
                   title={sidebarNarrow ? t('nav.backups') : undefined}
                 >
@@ -1098,8 +1103,16 @@ function App() {
                         notify={notify}
                         installationPath={snapshot?.path ?? null}
                         active={page === 'menu'}
-                        blocked={panelRestarting || moduleUpdating || appUpdating || autostartBusy}
+                        blocked={
+                          panelRestarting || moduleUpdating || appUpdating || autostartBusy || menuRestoring
+                        }
                         onRestart={() => void restartPanel()}
+                        onOpenBackups={() => {
+                          setBackupFilter('menu');
+                          setPage('backups');
+                        }}
+                        onStateChange={setMenuState}
+                        reloadVersion={menuReloadVersion}
                       />
                     </Suspense>
                   </div>
@@ -1160,7 +1173,27 @@ function App() {
                     onReloadLocales={reloadLocales}
                   />
                 )}
-                {page === 'backups' && <Backups notify={notify} services={services} projects={projects} />}
+                {page === 'backups' && (
+                  <Backups
+                    notify={notify}
+                    services={services}
+                    projects={projects}
+                    filter={backupFilter}
+                    onFilterChange={setBackupFilter}
+                    menuDirty={menuState.dirty}
+                    blocked={
+                      panelRestarting ||
+                      moduleUpdating ||
+                      appUpdating ||
+                      autostartBusy ||
+                      menuState.busy ||
+                      menuRestoring
+                    }
+                    onMenuRestored={() => setMenuReloadVersion((version) => version + 1)}
+                    onMenuRestoreBusyChange={setMenuRestoring}
+                    onRestart={() => void restartPanel()}
+                  />
+                )}
               </div>
             </main>
             {toast && (

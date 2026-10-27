@@ -1,5 +1,5 @@
-import { Box, Copy, Database, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Box, Copy, Database, ListTree, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorText, localeTag, useI18n } from '../../i18n';
 import {
   askConfirm,
@@ -7,6 +7,7 @@ import {
   type BackupKind,
   createBackup,
   createDbBackup,
+  createMenuBackup,
   createProjectBackup,
   deleteBackup,
   listBackups,
@@ -14,6 +15,7 @@ import {
   openBackupsFolder,
   restoreBackup,
   restoreDbBackup,
+  restoreMenuBackup,
   restoreProjectBackup,
 } from '../../ospanel';
 import { formatSize, type Notify, type Service } from '../shared';
@@ -21,6 +23,14 @@ import { PageHeader } from '../widgets/PageHeader';
 
 // "All" sentinel for the backup subject selects: '*' can never collide with a module or domain name.
 const ALL_TARGETS = '*';
+export type BackupFilter = BackupKind | 'all';
+const FILTER_KEYS = {
+  all: 'settings.backupsAll',
+  config: 'backups.filterConfig',
+  db: 'backups.filterDb',
+  project: 'backups.filterProject',
+  menu: 'settings.backupsKindMenu',
+} satisfies Record<BackupFilter, string>;
 
 // Per-kind wording and action of a restore: db and project name the subject, config does not.
 type RestorePlan = {
@@ -31,20 +41,37 @@ type RestorePlan = {
 };
 
 // A dedicated "Backups" page (moved out of the settings — it lives in the sidebar
-// under the "Settings" button): config copies, DB dumps and project archives.
+// under the "Settings" button): config/menu copies, DB dumps and project archives.
 export function Backups({
   notify,
   services,
   projects,
+  filter,
+  onFilterChange,
+  menuDirty = false,
+  blocked = false,
+  onMenuRestored,
+  onMenuRestoreBusyChange,
+  onRestart,
 }: {
   notify: Notify;
   services: Service[];
   projects: OsPanelProject[];
+  filter: BackupFilter;
+  onFilterChange: (filter: BackupFilter) => void;
+  menuDirty?: boolean;
+  blocked?: boolean;
+  onMenuRestored?: () => void;
+  onMenuRestoreBusyChange?: (busy: boolean) => void;
+  onRestart?: () => void;
 }) {
   const { t, plural, lang } = useI18n();
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const restoringRef = useRef(false);
+  const disabled = busy || blocked;
+  const visibleBackups = backups.filter((item) => filter === 'all' || item.kind === filter);
   // Subjects for new backups: running DBMS with a supported engine
   // (MySQL/MariaDB/PostgreSQL — prefixes as in db_engine in main.rs) and projects.
   const dbModules = useMemo(
@@ -84,6 +111,18 @@ export function Backups({
     try {
       const entry = await createBackup();
       notify(plural('configs.toastBackupDone', entry.files));
+      await refreshBackups();
+    } catch (error) {
+      notify(errorText(t, error, 'configs.toastBackupFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const createNewMenuBackup = async () => {
+    setBusy(true);
+    try {
+      await createMenuBackup();
+      notify(t('settings.backupsMenuCreated'));
       await refreshBackups();
     } catch (error) {
       notify(errorText(t, error, 'configs.toastBackupFailed'));
@@ -135,16 +174,19 @@ export function Backups({
       { one: 'settings.backupsProjectCreated', many: 'settings.backupsProjectCreatedCount' },
       'domain',
     );
-  // Backup kind label for the list row: configs, DB or project.
+  // Backup kind label for the list row, including the subject when applicable.
   const backupKindLabel = (item: BackupEntry) =>
     item.kind === 'db'
       ? t('settings.backupsKindDb', { module: item.subject ?? '' })
       : item.kind === 'project'
         ? t('settings.backupsKindProject', { domain: item.subject ?? '' })
-        : t('settings.backupsKindConfig');
+        : item.kind === 'menu'
+          ? t('settings.backupsKindMenu')
+          : t('settings.backupsKindConfig');
   // The timestamp shown in the list and in the restore/delete confirmations.
   const formatWhen = (item: BackupEntry) => new Date(item.createdAt * 1000).toLocaleString(localeTag(lang));
   const restoreFromBackup = async (item: BackupEntry) => {
+    if (disabled || restoringRef.current) return;
     const date = formatWhen(item);
     const subject = item.subject ?? '';
     // One table instead of four checks against item.kind.
@@ -167,23 +209,46 @@ export function Backups({
         doneKey: 'settings.backupsDone',
         restore: () => restoreBackup(item.id),
       },
+      menu: {
+        confirmKey: 'settings.backupsConfirmMenu',
+        confirmVars: { date },
+        doneKey: 'settings.backupsDoneMenu',
+        restore: () => restoreMenuBackup(item.id),
+      },
     };
     const plan = plans[item.kind];
 
-    const confirmed = await askConfirm(t(plan.confirmKey, plan.confirmVars), t('common.confirmTitle')).catch(
-      () => false,
-    );
-    if (!confirmed) return;
-
+    restoringRef.current = true;
     setBusy(true);
+    if (item.kind === 'menu') onMenuRestoreBusyChange?.(true);
     try {
+      const confirmed = await askConfirm(t(plan.confirmKey, plan.confirmVars), t('common.confirmTitle'));
+      if (!confirmed) return;
+      if (
+        item.kind === 'menu' &&
+        menuDirty &&
+        !(await askConfirm(t('menu.restoreDiscardConfirm'), t('common.confirmTitle')))
+      ) {
+        return;
+      }
       await plan.restore();
-      notify(t(plan.doneKey));
+      if (item.kind === 'menu') {
+        onMenuRestored?.();
+        notify(
+          t(plan.doneKey),
+          onRestart ? { label: t('projects.restartPanel'), run: onRestart } : undefined,
+        );
+      } else {
+        notify(t(plan.doneKey));
+      }
       await refreshBackups();
     } catch (error) {
       notify(errorText(t, error, 'settings.backupsFailed'));
+      if (item.kind === 'menu') await refreshBackups();
     } finally {
+      restoringRef.current = false;
       setBusy(false);
+      if (item.kind === 'menu') onMenuRestoreBusyChange?.(false);
     }
   };
   const deleteFromBackup = async (item: BackupEntry) => {
@@ -227,11 +292,26 @@ export function Backups({
           <button
             type="button"
             className="primary-button"
-            disabled={busy}
+            disabled={disabled}
             onClick={() => void createNewBackup()}
           >
             <Copy size={15} />
             {t('settings.backupsCreate')}
+          </button>
+        </div>
+        <div className="setting-block">
+          <div>
+            <h3>{t('settings.backupsMenuTitle')}</h3>
+            <p>{t('settings.backupsMenuText')}</p>
+          </div>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={disabled}
+            onClick={() => void createNewMenuBackup()}
+          >
+            <ListTree size={15} />
+            {t('settings.backupsMenuCreate')}
           </button>
         </div>
         <div className="setting-block">
@@ -261,7 +341,7 @@ export function Backups({
             <button
               type="button"
               className="primary-button"
-              disabled={busy || !selectedDbModule}
+              disabled={disabled || !selectedDbModule}
               onClick={() => void createNewDbBackup()}
             >
               <Database size={15} />
@@ -296,13 +376,29 @@ export function Backups({
             <button
               type="button"
               className="primary-button"
-              disabled={busy || !selectedProjectDomain}
+              disabled={disabled || !selectedProjectDomain}
               onClick={() => void createNewProjectBackup()}
             >
               <Box size={15} />
               {t('settings.backupsProjectCreate')}
             </button>
           </div>
+        </div>
+        <div className="backup-filter">
+          <span>{t('backups.filter')}</span>
+          <label className="module-select">
+            <select
+              aria-label={t('backups.filter')}
+              value={filter}
+              onChange={(event) => onFilterChange(event.target.value as BackupFilter)}
+            >
+              {Object.entries(FILTER_KEYS).map(([kind, key]) => (
+                <option key={kind} value={kind}>
+                  {t(key)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         {loadError && (
           <div className="backup-load-error" role="alert">
@@ -311,17 +407,21 @@ export function Backups({
               type="button"
               className="text-button"
               onClick={() => void refreshBackups()}
-              disabled={busy}
+              disabled={disabled}
             >
               <RefreshCw size={14} />
               {t('settings.backupsRetry')}
             </button>
           </div>
         )}
-        {backups.length === 0 && !loadError && <div className="empty-note">{t('settings.backupsNone')}</div>}
-        {backups.length > 0 && (
+        {visibleBackups.length === 0 && !loadError && (
+          <div className="empty-note">
+            {t(filter === 'all' ? 'settings.backupsNone' : 'backups.filteredNone')}
+          </div>
+        )}
+        {visibleBackups.length > 0 && (
           <div className="backup-list">
-            {backups.map((item) => (
+            {visibleBackups.map((item) => (
               <div className="backup-row" key={item.id}>
                 <div>
                   <b>{formatWhen(item)}</b>
@@ -336,7 +436,7 @@ export function Backups({
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={busy}
+                    disabled={disabled}
                     onClick={() => void restoreFromBackup(item)}
                   >
                     {t('settings.backupsRestore')}
@@ -344,7 +444,7 @@ export function Backups({
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={busy}
+                    disabled={disabled}
                     onClick={() => void openBackupFolder()}
                   >
                     {t('settings.backupsOpenFolder')}
@@ -352,7 +452,7 @@ export function Backups({
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={busy}
+                    disabled={disabled}
                     onClick={() => void deleteFromBackup(item)}
                   >
                     {t('settings.backupsDelete')}

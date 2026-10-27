@@ -11,7 +11,7 @@ use crate::paths::{
     resolve_installation, unix_now, within_installation,
 };
 
-// kind: "config" | "db" | "project"; subject — the module for a dump, the domain for a project.
+// Subject is the module for a dump or the domain for a project; menu copies have no subject.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BackupEntry {
@@ -24,9 +24,13 @@ pub(crate) struct BackupEntry {
 }
 
 pub(crate) fn backups_root(custom_path: Option<&str>) -> Result<PathBuf, CommandError> {
-    let root = resolve_installation(custom_path)?;
+    let root = fs::canonicalize(resolve_installation(custom_path)?)?;
     let backups = root.join("backups");
     fs::create_dir_all(&backups)?;
+    let backups = fs::canonicalize(backups)?;
+    if !backups.starts_with(&root) {
+        return Err(CommandError::new("err.accessDenied"));
+    }
     Ok(backups)
 }
 
@@ -54,6 +58,7 @@ pub(crate) enum BackupKind {
     Config,
     Db(String),
     Project(String),
+    Menu,
 }
 
 impl BackupKind {
@@ -62,12 +67,13 @@ impl BackupKind {
             BackupKind::Config => "config",
             BackupKind::Db(_) => "db",
             BackupKind::Project(_) => "project",
+            BackupKind::Menu => "menu",
         }
     }
 
     pub(crate) fn subject(&self) -> Option<String> {
         match self {
-            BackupKind::Config => None,
+            BackupKind::Config | BackupKind::Menu => None,
             BackupKind::Db(module) => Some(module.clone()),
             BackupKind::Project(domain) => Some(domain.clone()),
         }
@@ -78,6 +84,9 @@ impl BackupKind {
 // The module and domain are encoded in the id — the list and restore commands need
 // no separate parameters and cannot diverge from the file.
 pub(crate) fn parse_backup_id(id: &str) -> Option<(u64, bool, BackupKind)> {
+    if let Some(timestamp) = crate::menu::backup_timestamp(id) {
+        return Some((timestamp, false, BackupKind::Menu));
+    }
     let rest = id.strip_prefix("backup-")?;
     let digits_end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
     if digits_end == 0 {
@@ -264,18 +273,27 @@ pub fn list_backups(custom_path: Option<String>) -> Result<Vec<BackupEntry>, Com
 
             if path.is_file() {
                 let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
-                if extension != "zip" && extension != "sql" {
+                let Some(stem) = (if extension == "bak" {
+                    name.strip_suffix(".dat.bak")
+                } else {
+                    path.file_stem().and_then(|stem| stem.to_str())
+                }) else {
+                    continue;
+                };
+                let Some((timestamp, _, kind)) = parse_backup_id(stem) else {
+                    continue;
+                };
+                if !matches!(
+                    (&kind, extension),
+                    (BackupKind::Menu, "bak")
+                        | (BackupKind::Db(_), "sql")
+                        | (BackupKind::Config | BackupKind::Project(_), "zip")
+                ) {
                     continue;
                 }
-                let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
-                    continue;
-                };
-                let Some((_, _, kind)) = parse_backup_id(stem) else {
-                    continue;
-                };
                 file_entries.push(BackupEntry {
                     id: stem.to_string(),
-                    created_at,
+                    created_at: if kind == BackupKind::Menu { timestamp } else { created_at },
                     size_bytes: meta.as_ref().map(|m| m.len()).unwrap_or(0),
                     files: if extension == "zip" { zip_file_count(&path).unwrap_or(1) } else { 1 },
                     kind: kind.as_str().into(),
@@ -286,6 +304,9 @@ pub fn list_backups(custom_path: Option<String>) -> Result<Vec<BackupEntry>, Com
                 let Some((_, _, kind)) = parse_backup_id(&name) else {
                     continue;
                 };
+                if kind == BackupKind::Menu {
+                    continue;
+                }
                 let (size_bytes, files) = dir_stats(&path);
                 dir_entries.push(BackupEntry {
                     id: name,
@@ -387,8 +408,11 @@ pub fn restore_backup(id: String, custom_path: Option<String>) -> Result<(), Com
 
 #[tauri::command]
 pub fn delete_backup(id: String, custom_path: Option<String>) -> Result<(), CommandError> {
-    if parse_backup_id(&id).is_none() {
+    let Some((_, _, kind)) = parse_backup_id(&id) else {
         return Err(CommandError::new("err.invalidBackupId"));
+    };
+    if kind == BackupKind::Menu {
+        return crate::menu::delete_menu_backup(&id, custom_path.as_deref());
     }
 
     let backups = backups_root(custom_path.as_deref())?;

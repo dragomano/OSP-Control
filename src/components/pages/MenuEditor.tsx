@@ -73,12 +73,18 @@ export function MenuEditor({
   active,
   blocked,
   onRestart,
+  onOpenBackups,
+  onStateChange,
+  reloadVersion = 0,
 }: {
   notify: Notify;
   installationPath: string | null;
   active: boolean;
   blocked: boolean;
   onRestart: () => void;
+  onOpenBackups: () => void;
+  onStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
+  reloadVersion?: number;
 }) {
   const { t } = useI18n();
   const [saved, setSaved] = useState<OsPanelMenuDocument | null>(null);
@@ -109,6 +115,10 @@ export function MenuEditor({
   const selectedCategory = selection.kind === 'category' ? selection.path : item ? categoryOf(item) : '';
   const isSpecial = MENU_SPECIAL_CATEGORIES.some((path) => path === selectedCategory);
   const disabled = busy || loading || blocked;
+
+  useEffect(() => {
+    onStateChange?.({ dirty, busy: busy || loading });
+  }, [dirty, busy, loading, onStateChange]);
 
   const change = (next: MenuDraft, batch = '') => {
     const merge = batch !== '' && editBatchRef.current === batch;
@@ -159,14 +169,14 @@ export function MenuEditor({
     }
   }, [installationPath, t]);
   // The locale may hot-reload while a draft is edited; it must never trigger a disk reload.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: installation identity is the only automatic reload trigger
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload only for installation changes or a confirmed restore
   useEffect(() => {
     setSaved(null);
     void load();
     return () => {
       requestRef.current++;
     };
-  }, [installationPath]);
+  }, [installationPath, reloadVersion]);
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -471,15 +481,26 @@ export function MenuEditor({
         heading={t('nav.menu')}
         description={t('menu.subtitle')}
         action={
-          <button
-            type="button"
-            className="primary-button"
-            disabled={!dirty || disabled || !!loadError}
-            onClick={() => void save()}
-          >
-            <Check size={16} />
-            {t('common.save')}
-          </button>
+          <div className="menu-header-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={busy || blocked}
+              onClick={onOpenBackups}
+            >
+              <Copy size={16} />
+              {t('nav.backups')}
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!dirty || disabled || !!loadError}
+              onClick={() => void save()}
+            >
+              <Check size={16} />
+              {t('common.save')}
+            </button>
+          </div>
         }
       />
       {!isDesktopApp() && (
@@ -794,7 +815,9 @@ export function MenuEditor({
           </div>
           <p className="menu-file-note">
             <Info size={14} />
-            {t('menu.saveHint')}
+            <button type="button" className="text-button menu-backup-hint" onClick={onOpenBackups}>
+              {t('menu.saveHint')}
+            </button>
             <button
               type="button"
               className="text-button"

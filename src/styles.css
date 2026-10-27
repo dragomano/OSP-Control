@@ -2028,6 +2028,15 @@ button {
   gap: 8px;
   margin-top: 14px;
 }
+.backup-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+  font-size: 11px;
+  color: var(--muted);
+}
 .backup-load-error {
   display: flex;
   align-items: center;

@@ -95,6 +95,8 @@ fn main() {
             shell::list_configs,
             menu::read_menu,
             menu::write_menu,
+            menu::create_menu_backup,
+            menu::restore_menu_backup,
             shell::open_in_browser,
             shell::open_folder,
             shell::open_panel_folder,

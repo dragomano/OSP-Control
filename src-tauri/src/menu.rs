@@ -12,7 +12,12 @@ use std::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{error::CommandError, paths::resolve_installation, update_files::safe_tree};
+use crate::{
+    backups::{BackupEntry, backups_root},
+    error::CommandError,
+    paths::resolve_installation,
+    update_files::safe_tree,
+};
 
 const MAX_BYTES: usize = 2 * 1024 * 1024;
 static SAVE_LOCK: Mutex<()> = Mutex::new(());
@@ -209,6 +214,11 @@ fn menu_path(root: &Path) -> Result<PathBuf, CommandError> {
         return Err(CommandError::new("err.accessDenied"));
     }
     let menu = system.join("menu.dat");
+    match fs::symlink_metadata(&menu) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(menu),
+        Err(error) => return Err(error.into()),
+        Ok(_) => {}
+    }
     safe_tree(&menu)?;
     let menu = fs::canonicalize(menu)?;
     if menu.parent() != Some(system.as_path()) || !menu.is_file() {
@@ -222,6 +232,125 @@ fn read_content(path: &Path) -> Result<String, CommandError> {
         return Err(invalid());
     }
     fs::read_to_string(path).map_err(Into::into)
+}
+
+pub(crate) fn backup_timestamp(id: &str) -> Option<u64> {
+    let nonce = id.strip_prefix("menu-")?;
+    if nonce.is_empty() || !nonce.bytes().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    u64::try_from(nonce.parse::<u128>().ok()? / 1_000_000_000).ok()
+}
+
+fn snapshot(root: &Path, content: &[u8]) -> Result<(BackupEntry, PathBuf), CommandError> {
+    let backups = backups_root(Some(&root.to_string_lossy()))?;
+    let mut nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    loop {
+        let id = format!("menu-{nonce}");
+        let path = backups.join(format!("{id}.dat.bak"));
+        let mut file = match fs::OpenOptions::new().create_new(true).write(true).open(&path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                nonce += 1;
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        };
+        if let Err(error) = file.write_all(content).and_then(|_| file.sync_all()) {
+            drop(file);
+            let _ = fs::remove_file(&path);
+            return Err(error.into());
+        }
+        return Ok((
+            BackupEntry {
+                id,
+                created_at: (nonce / 1_000_000_000) as u64,
+                size_bytes: content.len() as u64,
+                files: 1,
+                kind: "menu".into(),
+                subject: None,
+            },
+            path,
+        ));
+    }
+}
+
+fn current_content(path: &Path) -> Result<Option<Vec<u8>>, CommandError> {
+    match fs::read(path) {
+        Ok(content) => Ok(Some(content)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+// Save exact bytes atomically, preserving the previous file even when it is damaged.
+fn replace_menu(
+    root: &Path,
+    path: &Path,
+    original: Option<&[u8]>,
+    next: &[u8],
+) -> Result<Option<String>, CommandError> {
+    let backup = original.map(|content| snapshot(root, content)).transpose()?;
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let temporary = path.parent().ok_or_else(invalid)?.join(format!(".menu-{nonce}.tmp"));
+    let mut file = fs::OpenOptions::new().create_new(true).write(true).open(&temporary)?;
+    let result = (|| -> Result<(), CommandError> {
+        file.write_all(next)?;
+        file.sync_all()?;
+        drop(file);
+        if current_content(path)?.as_deref() != original || menu_path(root)? != path {
+            return Err(CommandError::new("err.menuConflict"));
+        }
+        fs::rename(&temporary, path)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result?;
+    Ok(backup.map(|(_, path)| path.to_string_lossy().into_owned()))
+}
+
+fn backup_path(id: &str, custom_path: Option<&str>) -> Result<PathBuf, CommandError> {
+    backup_timestamp(id).ok_or_else(|| CommandError::new("err.invalidBackupId"))?;
+    let backups = backups_root(custom_path)?;
+    let path = backups.join(format!("{id}.dat.bak"));
+    if !path.is_file() {
+        return Err(CommandError::new("err.backupNotFound").with("id", id));
+    }
+    safe_tree(&path)?;
+    let path = fs::canonicalize(path)?;
+    if path.parent() != Some(backups.as_path()) {
+        return Err(CommandError::new("err.accessDenied"));
+    }
+    Ok(path)
+}
+
+#[tauri::command]
+pub fn create_menu_backup(custom_path: Option<String>) -> Result<BackupEntry, CommandError> {
+    let _lock = SAVE_LOCK.lock().map_err(|_| CommandError::new("err.menuBusy"))?;
+    let root = fs::canonicalize(resolve_installation(custom_path.as_deref())?)?;
+    let content = fs::read(menu_path(&root)?)?;
+    Ok(snapshot(&root, &content)?.0)
+}
+
+#[tauri::command]
+pub fn restore_menu_backup(id: String, custom_path: Option<String>) -> Result<(), CommandError> {
+    let _lock = SAVE_LOCK.lock().map_err(|_| CommandError::new("err.menuBusy"))?;
+    let source = backup_path(&id, custom_path.as_deref())?;
+    let next = read_content(&source)?;
+    document(&next)?;
+    let root = fs::canonicalize(resolve_installation(custom_path.as_deref())?)?;
+    let path = menu_path(&root)?;
+    let original = current_content(&path)?;
+    replace_menu(&root, &path, original.as_deref(), next.as_bytes())?;
+    Ok(())
+}
+
+pub(crate) fn delete_menu_backup(id: &str, custom_path: Option<&str>) -> Result<(), CommandError> {
+    let _lock = SAVE_LOCK.lock().map_err(|_| CommandError::new("err.menuBusy"))?;
+    fs::remove_file(backup_path(id, custom_path)?)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -243,35 +372,8 @@ fn save(root: &Path, items: &[MenuItem], expected_revision: &str) -> Result<Menu
     if next == original {
         return Ok(MenuSaveResult { document: next_document, backup_path: None });
     }
-    let backups = root.join("backups");
-    fs::create_dir_all(&backups)?;
-    let backups = fs::canonicalize(backups)?;
-    if !backups.starts_with(&root) {
-        return Err(CommandError::new("err.accessDenied"));
-    }
-    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
-    let backup = backups.join(format!("menu-{nonce}.dat.bak"));
-    let temporary = path.parent().ok_or_else(invalid)?.join(format!(".menu-{nonce}.tmp"));
-    let result = (|| -> Result<(), CommandError> {
-        let mut backup_file = fs::OpenOptions::new().create_new(true).write(true).open(&backup)?;
-        backup_file.write_all(original.as_bytes())?;
-        backup_file.sync_all()?;
-        let mut file = fs::OpenOptions::new().create_new(true).write(true).open(&temporary)?;
-        file.write_all(next.as_bytes())?;
-        file.sync_all()?;
-        drop(file);
-        // Another application may have saved the template while the new file was prepared.
-        if read_content(&path)? != original || menu_path(&root)? != path {
-            return Err(CommandError::new("err.menuConflict"));
-        }
-        fs::rename(&temporary, &path)?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result?;
-    Ok(MenuSaveResult { document: next_document, backup_path: Some(backup.to_string_lossy().into_owned()) })
+    let backup_path = replace_menu(&root, &path, Some(original.as_bytes()), next.as_bytes())?;
+    Ok(MenuSaveResult { document: next_document, backup_path })
 }
 
 #[tauri::command]
@@ -288,6 +390,127 @@ mod tests {
     use super::*;
 
     const SAMPLE: &str = "\u{feff}; template\r\n[terminal]\r\n\r\nCaption  = {lang_cli}\r\ncommand = cmd.exe /k \"echo a=b & echo ; #\"\r\nneed_use_wt = off\r\ncustom_future = keep\r\n; comment\r\n\r\n[browser]\r\ncaption = Browser\r\ncommand = command_open_options";
+
+    fn test_root() -> PathBuf {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("osp-menu-backups-{nonce}"));
+        fs::create_dir_all(root.join("system")).unwrap();
+        fs::write(root.join("system/menu.dat"), SAMPLE).unwrap();
+        root
+    }
+
+    #[test]
+    fn menu_backups_preserve_exact_bytes_and_support_the_complete_lifecycle() {
+        use crate::backups::{delete_backup, list_backups, restore_backup};
+        let root = test_root();
+        let custom = Some(root.to_string_lossy().into_owned());
+        let path = root.join("system/menu.dat");
+        let created = create_menu_backup(custom.clone()).unwrap();
+        assert_eq!(created.kind, "menu");
+        assert_eq!(created.files, 1);
+        assert_eq!(created.size_bytes, SAMPLE.len() as u64);
+        assert!(created.subject.is_none());
+        let backup = root.join("backups").join(format!("{}.dat.bak", created.id));
+        assert_eq!(fs::read_to_string(&backup).unwrap(), SAMPLE);
+
+        // Existing automatic editor copies are discovered without renaming or migration.
+        let mut doc = read_menu(custom.clone()).unwrap();
+        doc.items[0].fields.insert("caption".into(), "Edited".into());
+        let saved = save(&root, &doc.items, &doc.revision).unwrap();
+        let edited = fs::read(&path).unwrap();
+        let list = list_backups(custom.clone()).unwrap();
+        assert_eq!(list.len(), 2);
+        assert!(list.iter().all(|item| item.kind == "menu"));
+        assert!(
+            list.iter().any(|item| {
+                saved.backup_path.as_ref().unwrap().ends_with(&format!("{}.dat.bak", item.id))
+            })
+        );
+        assert!(restore_backup(created.id.clone(), custom.clone()).is_err());
+
+        restore_menu_backup(created.id.clone(), custom.clone()).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), SAMPLE);
+        let list = list_backups(custom.clone()).unwrap();
+        assert_eq!(list.len(), 3);
+        let safety = list
+            .iter()
+            .find(|item| {
+                fs::read(root.join("backups").join(format!("{}.dat.bak", item.id))).unwrap() == edited
+            })
+            .unwrap();
+        restore_menu_backup(safety.id.clone(), custom.clone()).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), edited);
+
+        // A different extension cannot substitute for the menu backup on listing/deletion.
+        let unrelated = root.join("backups").join(format!("{}.zip", created.id));
+        fs::write(&unrelated, "unrelated").unwrap();
+        assert_eq!(list_backups(custom.clone()).unwrap().len(), 4);
+        delete_backup(created.id.clone(), custom.clone()).unwrap();
+        assert!(!backup.exists());
+        assert!(unrelated.is_file());
+        assert_eq!(delete_backup(created.id, custom.clone()).unwrap_err().code, "err.backupNotFound");
+        assert_eq!(list_backups(custom).unwrap().len(), 3);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_damaged_backups_and_restores_over_damaged_or_missing_menus() {
+        use crate::backups::list_backups;
+        let root = test_root();
+        let custom = Some(root.to_string_lossy().into_owned());
+        let created = create_menu_backup(custom.clone()).unwrap();
+        let damaged = root.join("backups/menu-1700000000000000000.dat.bak");
+        fs::write(&damaged, "outside=1").unwrap();
+        let path = root.join("system/menu.dat");
+        assert_eq!(
+            restore_menu_backup("menu-1700000000000000000".into(), custom.clone()).unwrap_err().code,
+            "err.menuInvalid"
+        );
+        assert_eq!(fs::read_to_string(&path).unwrap(), SAMPLE);
+        assert_eq!(list_backups(custom.clone()).unwrap().len(), 2);
+
+        let broken = b"damaged\0\xff";
+        fs::write(&path, broken).unwrap();
+        restore_menu_backup(created.id.clone(), custom.clone()).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), SAMPLE);
+        assert!(list_backups(custom.clone()).unwrap().iter().any(|item| {
+            fs::read(root.join("backups").join(format!("{}.dat.bak", item.id))).unwrap() == broken
+        }));
+
+        fs::remove_file(&path).unwrap();
+        restore_menu_backup(created.id, custom).unwrap();
+        assert_eq!(fs::read_to_string(path).unwrap(), SAMPLE);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn menu_backup_commands_reject_invalid_ids_before_accessing_files() {
+        for id in [
+            "menu-",
+            "menu-1/../../x",
+            "menu-1\\x",
+            "menu-+1",
+            "menu-1.dat.bak",
+            "menu-１２",
+            "menu-999999999999999999999999999999999999999999",
+            "backup-1700000000",
+        ] {
+            assert!(backup_timestamp(id).is_none(), "must reject {id}");
+            assert_eq!(restore_menu_backup(id.into(), None).unwrap_err().code, "err.invalidBackupId");
+            assert_eq!(delete_menu_backup(id, None).unwrap_err().code, "err.invalidBackupId");
+        }
+    }
+
+    #[test]
+    fn a_failed_safety_copy_prevents_replacement() {
+        let root = test_root();
+        fs::write(root.join("backups"), "not a directory").unwrap();
+        let root = fs::canonicalize(root).unwrap();
+        let path = menu_path(&root).unwrap();
+        assert!(replace_menu(&root, &path, Some(SAMPLE.as_bytes()), b"[replacement]").is_err());
+        assert_eq!(fs::read_to_string(path).unwrap(), SAMPLE);
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn untouched_template_is_byte_identical() {
