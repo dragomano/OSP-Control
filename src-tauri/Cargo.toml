@@ -18,6 +18,7 @@ sha2 = "0.10"
 ignore = "0.4"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
 # Zip archives for backups (configurations, projects) — pure Rust, no external utilities.
 zip = { version = "2", default-features = false, features = ["deflate"] }
 

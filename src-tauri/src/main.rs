@@ -31,6 +31,10 @@ fn main() {
         return;
     }
     tauri::Builder::default()
+        // Register first so duplicate launches exit before other plugins and setup run.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            app::show_main_window(app);
+        }))
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // The window title comes from productName in tauri.conf.json (via
