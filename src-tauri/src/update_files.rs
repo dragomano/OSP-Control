@@ -106,7 +106,7 @@ fn metadata_error() -> CommandError {
 }
 
 fn metadata_content(content: &str, version: &str, timestamp: u64) -> Result<String, CommandError> {
-    if crate::php_releases::version(version).is_none() || timestamp == 0 {
+    if crate::php_releases::package_version(version).is_none() || timestamp == 0 {
         return Err(metadata_error());
     }
     let timestamp = timestamp.to_string();
@@ -309,6 +309,14 @@ mod tests {
         let source = "[MAIN] ; metadata\n  VERSION\t=\t8.2.30  ; installed version\nTimestamp = 1651770000 # installed time\n; version = example\n";
         let expected = "[MAIN] ; metadata\n  VERSION\t=\t8.2.35  ; installed version\nTimestamp = 1792616076 # installed time\n; version = example\n";
         assert_eq!(metadata_content(source, "8.2.35", 1792616076).unwrap(), expected);
+    }
+
+    #[test]
+    fn metadata_preserves_the_windows_package_revision() {
+        let updated = metadata_content(METADATA, "8.5.12-1", 1792616076).unwrap();
+        assert!(updated.contains("version                  = 8.5.12-1"));
+        assert!(metadata_content(METADATA, "8.5.12-RC1", 1792616076).is_err());
+        assert!(metadata_content(METADATA, "8.5.12-1\narchitecture = x86", 1792616076).is_err());
     }
 
     #[test]

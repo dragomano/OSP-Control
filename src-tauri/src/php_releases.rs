@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     io::Read,
     path::Path,
+    sync::Mutex,
     time::{Duration, Instant},
 };
 
@@ -28,10 +29,28 @@ pub(crate) struct Build {
 
 pub(crate) fn version(value: &str) -> Option<(u32, u32, u32)> {
     let parts: Vec<_> = value.split('.').collect();
-    if parts.len() != 3 {
+    if parts.len() != 3 || parts.iter().any(|p| p.is_empty() || !p.bytes().all(|c| c.is_ascii_digit())) {
         return None;
     }
     Some((parts[0].parse().ok()?, parts[1].parse().ok()?, parts[2].parse().ok()?))
+}
+// Windows package revisions are stable rebuilds, not PHP prereleases.
+pub(crate) fn package_version(value: &str) -> Option<(u32, u32, u32, u32)> {
+    let (base, revision) = match value.split_once('-') {
+        Some((base, revision)) => {
+            if revision.is_empty() || !revision.bytes().all(|c| c.is_ascii_digit()) {
+                return None;
+            }
+            let revision: u32 = revision.parse().ok()?;
+            if revision == 0 {
+                return None;
+            }
+            (base, revision)
+        }
+        None => (value, 0),
+    };
+    let (major, minor, patch) = version(base)?;
+    Some((major, minor, patch, revision))
 }
 pub(crate) fn branch(name: &str) -> Option<&str> {
     let value = name.strip_prefix("PHP-")?;
@@ -100,11 +119,12 @@ fn parse_build(output: &[u8]) -> Result<Build, CommandError> {
     })
 }
 
-pub(crate) fn client() -> Result<reqwest::blocking::Client, CommandError> {
+fn client() -> Result<reqwest::blocking::Client, CommandError> {
     reqwest::blocking::Client::builder()
         .https_only(true)
         .connect_timeout(Duration::from_secs(15))
-        .timeout(Duration::from_secs(180))
+        .timeout(Duration::from_secs(30))
+        .user_agent(concat!("OSP-Control/", env!("CARGO_PKG_VERSION")))
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(network)
@@ -120,16 +140,55 @@ fn network(e: reqwest::Error) -> CommandError {
     }
     CommandError::new("err.phpNetwork").with("detail", detail)
 }
-pub(crate) fn catalog() -> Result<serde_json::Value, CommandError> {
+type CatalogCache = Mutex<Option<(Instant, serde_json::Value)>>;
+static CACHE: CatalogCache = Mutex::new(None);
+
+pub(crate) fn catalog(force: bool) -> Result<serde_json::Value, CommandError> {
+    cached_catalog(&CACHE, force, fetch_catalog)
+}
+fn cached_catalog(
+    cache: &CatalogCache,
+    force: bool,
+    fetch: impl FnOnce() -> Result<serde_json::Value, CommandError>,
+) -> Result<serde_json::Value, CommandError> {
+    if !force
+        && let Some((checked, json)) = cache.lock().map_err(|_| invalid())?.as_ref()
+        && checked.elapsed() < Duration::from_secs(6 * 3600)
+    {
+        return Ok(json.clone());
+    }
+    // Failed checks never replace the cache or masquerade as a current catalog.
+    let json = fetch()?;
+    *cache.lock().map_err(|_| invalid())? = Some((Instant::now(), json.clone()));
+    Ok(json)
+}
+fn retry_request<T>(mut request: impl FnMut() -> Result<T, reqwest::Error>) -> Result<T, CommandError> {
+    let mut attempt = 0;
+    loop {
+        match request() {
+            Ok(response) => return Ok(response),
+            Err(e)
+                if attempt == 0
+                    && (e.is_connect()
+                        || e.is_timeout()
+                        || e.status().is_some_and(|s| s.is_server_error())) =>
+            {
+                attempt += 1;
+            }
+            Err(e) => return Err(network(e)),
+        }
+    }
+}
+fn fetch_catalog() -> Result<serde_json::Value, CommandError> {
+    let client = client()?;
+    let response = retry_request(|| {
+        client.get(format!("{BASE}releases.json")).send().and_then(|r| r.error_for_status())
+    })?;
     let mut bytes = Vec::new();
-    client()?
-        .get(format!("{BASE}releases.json"))
-        .send()
-        .map_err(network)?
-        .error_for_status()
-        .map_err(network)?
+    response
         .take(2_000_001)
-        .read_to_end(&mut bytes)?;
+        .read_to_end(&mut bytes)
+        .map_err(|e| CommandError::new("err.phpNetwork").with("detail", e.to_string()))?;
     if bytes.len() > 2_000_000 {
         return Err(invalid());
     }
@@ -146,7 +205,7 @@ pub(crate) fn select(
     family: &str,
     build: &Build,
 ) -> Result<Option<Release>, CommandError> {
-    let old = version(&build.version).ok_or_else(invalid)?;
+    let old = package_version(&build.version).ok_or_else(invalid)?;
     if format!("{}.{}", old.0, old.1) != family || build.toolchain.is_empty() {
         return Err(invalid());
     }
@@ -155,7 +214,7 @@ pub(crate) fn select(
         return Err(invalid());
     }
     let latest = node["version"].as_str().ok_or_else(|| CommandError::new("err.phpCatalog"))?;
-    let new = version(latest).ok_or_else(invalid)?;
+    let new = package_version(latest).ok_or_else(|| CommandError::new("err.phpCatalog"))?;
     if (old.0, old.1) != (new.0, new.1) {
         return Err(invalid());
     }
@@ -176,6 +235,116 @@ pub(crate) fn select(
 mod tests {
     use super::*;
     use std::fs;
+    #[test]
+    fn windows_revisions_sort_after_the_base_release_and_before_the_next_patch() {
+        let versions = ["8.5.11-10", "8.5.12", "8.5.12-1", "8.5.12-2", "8.5.12-10", "8.5.13"];
+        for pair in versions.windows(2) {
+            assert!(package_version(pair[0]).unwrap() < package_version(pair[1]).unwrap());
+        }
+        for value in [
+            "8.5.12RC1",
+            "8.5.12-rc1",
+            "8.5.12-",
+            "8.5.12-0",
+            "8.5.12--1",
+            "8.5.12-1-2",
+            "8.5.12-1/../file",
+            "8.5.12-4294967296",
+            "8.5.+12",
+            "8.5.12- 1",
+            "8.5.12-1\n",
+        ] {
+            assert!(package_version(value).is_none(), "{value}");
+        }
+        assert!(version("8.5.12-1").is_none());
+    }
+
+    #[test]
+    fn stable_windows_rebuilds_are_selected_without_downgrading_or_changing_the_branch() {
+        let mut b = Build { version: "8.5.12".into(), arch: "x64".into(), toolchain: "vs17".into() };
+        let mut json = serde_json::json!({"8.5": {
+            "version": "8.5.12-1",
+            "nts-vs17-x64": {"zip": {
+                "path": "php-8.5.12-1-nts-Win32-vs17-x64.zip",
+                "sha256": "2a36a2edcb7a5b9252f638fd5e4cf84d7f6e066092654220dc0b63e5cf4e9723"
+            }}
+        }});
+        let release = select(&json, "8.5", &b).unwrap().unwrap();
+        assert_eq!(release.version, "8.5.12-1");
+        assert_eq!(release.file, "php-8.5.12-1-nts-Win32-vs17-x64.zip");
+        for installed in ["8.5.12-1", "8.5.12-2", "8.5.13"] {
+            b.version = installed.into();
+            assert!(select(&json, "8.5", &b).unwrap().is_none());
+        }
+        b.version = "8.5.12".into();
+        assert!(select(&json, "8.4", &b).is_err());
+        json["8.5"]["nts-vs17-x64"]["zip"]["path"] = "php-8.5.12-nts-Win32-vs17-x64.zip".into();
+        assert!(select(&json, "8.5", &b).is_err());
+    }
+
+    #[test]
+    fn catalog_cache_respects_expiry_force_and_failed_refreshes() {
+        let cache = Mutex::new(None);
+        let first = serde_json::json!({"8.5": {"version": "8.5.12"}});
+        let next = serde_json::json!({"8.5": {"version": "8.5.12-1"}});
+        assert_eq!(cached_catalog(&cache, false, || Ok(first.clone())).unwrap(), first);
+        assert_eq!(cached_catalog(&cache, false, || panic!("Fresh catalog must be reused")).unwrap(), first);
+        assert_eq!(cached_catalog(&cache, true, || Ok(next.clone())).unwrap(), next);
+        let failed = || Err(CommandError::new("err.phpNetwork"));
+        assert_eq!(cached_catalog(&cache, true, failed).unwrap_err().code, "err.phpNetwork");
+        assert_eq!(
+            cached_catalog(&cache, false, || panic!("Failed refresh must preserve the cache")).unwrap(),
+            next
+        );
+        cache.lock().unwrap().as_mut().unwrap().0 = Instant::now() - Duration::from_secs(6 * 3600 + 1);
+        assert!(cached_catalog(&cache, false, failed).is_err());
+        assert_eq!(cached_catalog(&cache, false, || Ok(first.clone())).unwrap(), first);
+        let empty = Mutex::new(None);
+        assert!(cached_catalog(&empty, false, failed).is_err());
+        assert!(empty.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn catalog_requests_retry_transient_errors_once_and_preserve_permanent_failures() {
+        use std::{io::Write, net::TcpListener};
+        for (statuses, expected_attempts, success) in
+            [(vec![503, 200], 2, true), (vec![503, 503], 2, false), (vec![404], 1, false)]
+        {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let url = format!("http://{}/releases.json", listener.local_addr().unwrap());
+            let server = std::thread::spawn(move || {
+                for status in statuses {
+                    let (mut stream, _) = listener.accept().unwrap();
+                    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                    let mut request = [0; 8192];
+                    stream.read(&mut request).unwrap();
+                    write!(
+                        stream,
+                        "HTTP/1.1 {status} Test\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}"
+                    )
+                    .unwrap();
+                }
+            });
+            let client = reqwest::blocking::Client::builder()
+                .no_proxy()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap();
+            let mut attempts = 0;
+            let result = retry_request(|| {
+                attempts += 1;
+                client.get(&url).send().and_then(|r| r.error_for_status())
+            });
+            assert_eq!(attempts, expected_attempts);
+            assert_eq!(result.is_ok(), success);
+            if let Err(error) = result {
+                assert_eq!(error.code, "err.phpNetwork");
+                assert!(error.params["detail"].contains(&url));
+            }
+            server.join().unwrap();
+        }
+    }
+
     #[test]
     fn identifies_observed_php_7_and_8_nts_builds() {
         for (payload, expected_version, expected_toolchain) in [
@@ -269,7 +438,7 @@ mod tests {
     #[test]
     #[ignore = "Requires OSP_CONTROL_PHP_TEST_ROOT and network access to the official PHP catalog"]
     fn installed_modules_match_live_catalog() {
-        check_installed_modules(&catalog().expect("The official PHP catalog must be reachable"));
+        check_installed_modules(&catalog(true).expect("The official PHP catalog must be reachable"));
     }
 
     #[test]

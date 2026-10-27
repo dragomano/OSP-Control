@@ -185,6 +185,17 @@ pub(crate) fn receipt(dir: &Path) -> Result<Option<Receipt>, CommandError> {
     }
     serde_json::from_slice(&bytes).map(Some).map_err(|_| catalog_error())
 }
+pub(crate) fn installed_version(kind: Kind, dir: &Path, build: &Build) -> Result<String, CommandError> {
+    if kind == Kind::Php
+        && let Some(receipt) = receipt(dir)?
+        && let Some((major, minor, patch, _)) = php::package_version(&receipt.version)
+        && php::version(&build.version) == Some((major, minor, patch))
+    {
+        // PHP_VERSION does not include the Windows archive revision.
+        return Ok(receipt.version);
+    }
+    Ok(build.version.clone())
+}
 pub(crate) fn save_receipt(dir: &Path, release: &Release) -> Result<(), CommandError> {
     use std::io::Write;
     let data = crate::update_files::child(dir, "ospanel_data")?;
@@ -231,10 +242,11 @@ impl Catalog {
         if kind == Kind::Php {
             let json = self
                 .php
-                .get_or_insert_with(php::catalog)
+                .get_or_insert_with(|| php::catalog(self.force))
                 .as_ref()
                 .map_err(|e| CommandError { code: e.code.clone(), params: e.params.clone() })?;
-            return php::select(json, php::branch(name).ok_or_else(unsupported)?, build).map(|r| {
+            let build = Build { version: installed_version(kind, dir, build)?, ..build.clone() };
+            return php::select(json, php::branch(name).ok_or_else(unsupported)?, &build).map(|r| {
                 r.map(|r| {
                     release(
                         r.version.clone(),
@@ -668,7 +680,12 @@ pub(crate) fn validate_candidate(
 }
 fn validate_version(kind: Kind, installed: &str, declared: &str, actual: &str) -> Result<(), CommandError> {
     let old = php::version(installed).ok_or_else(unsupported)?;
-    let expected = php::version(declared).ok_or_else(unsupported)?;
+    let expected = if kind == Kind::Php {
+        let (major, minor, patch, _) = php::package_version(declared).ok_or_else(unsupported)?;
+        (major, minor, patch)
+    } else {
+        php::version(declared).ok_or_else(unsupported)?
+    };
     let found = php::version(actual).ok_or_else(unsupported)?;
     let corrected_patch = kind == Kind::Caddy
         && (found.0, found.1) == (expected.0, expected.1)
@@ -900,6 +917,37 @@ mod tests {
         fs::create_dir(&path).unwrap();
         path
     }
+    #[test]
+    fn php_rebuild_receipts_preserve_the_package_version_without_reoffering_the_update() {
+        let dir = temporary("php-revision");
+        fs::create_dir(dir.join("ospanel_data")).unwrap();
+        let build = Build { toolchain: "vs17".into(), ..build("8.5.12") };
+        let json = serde_json::json!({"8.5": {"version": "8.5.12-1", "nts-vs17-x64": {"zip": {
+            "path": "php-8.5.12-1-nts-Win32-vs17-x64.zip", "sha256": "a".repeat(64)
+        }}}});
+        let mut catalog = Catalog { force: true, php: Some(Ok(json)) };
+        let release = catalog.select("PHP-8.5", &build, &dir).unwrap().unwrap();
+        assert_eq!(release.version, "8.5.12-1");
+        assert_eq!(release.display, "8.5.12-1");
+        validate_version(Kind::Php, &build.version, &release.version, "8.5.12").unwrap();
+        assert!(validate_version(Kind::Php, &build.version, &release.version, "8.5.11").is_err());
+        assert!(validate_version(Kind::Php, &build.version, &release.version, "8.5.13").is_err());
+        assert!(validate_version(Kind::Php, &build.version, "8.5.12-RC1", "8.5.12").is_err());
+        save_receipt(&dir, &release).unwrap();
+        assert_eq!(installed_version(Kind::Php, &dir, &build).unwrap(), "8.5.12-1");
+        assert!(catalog.select("PHP-8.5", &build, &dir).unwrap().is_none());
+        let mut newer = build.clone();
+        newer.version = "8.5.13".into();
+        assert_eq!(installed_version(Kind::Php, &dir, &newer).unwrap(), "8.5.13");
+        assert!(catalog.select("PHP-8.5", &newer, &dir).unwrap().is_none());
+        // A later numeric rebuild must still be offered after recording revision 1.
+        let json = catalog.php.as_mut().unwrap().as_mut().unwrap();
+        json["8.5"]["version"] = "8.5.12-2".into();
+        json["8.5"]["nts-vs17-x64"]["zip"]["path"] = "php-8.5.12-2-nts-Win32-vs17-x64.zip".into();
+        assert_eq!(catalog.select("PHP-8.5", &build, &dir).unwrap().unwrap().version, "8.5.12-2");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn payload_installation_preserves_configuration_custom_modules_and_supports_exact_rollback() {
         use crate::update_files as files;

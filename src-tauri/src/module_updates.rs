@@ -330,7 +330,7 @@ pub async fn check_module_updates(
             let check = (|| {
                 let dir = files::child(&root.join("modules"), &name)?;
                 let b = releases::identify(kind, &dir)?;
-                installed = b.version.clone();
+                installed = releases::installed_version(kind, &dir, &b)?;
                 catalog.select(&name, &b, &dir)
             })();
             let recovery = journal_path(&root, &name)?.exists();
@@ -416,9 +416,9 @@ pub async fn install_module_update(
             files::extract(&zip, &staging)?;
             let payload = releases::payload(kind, &staging)?;
             let fresh = releases::validate_candidate(kind, &payload, &b, &release)?;
-            if fresh.version != release.version {
+            if kind != Kind::Php && fresh.version != release.version {
                 candidate_version(&app, &name, &release.version, &fresh.version);
-                release.version = fresh.version;
+                release.version = fresh.version.clone();
                 release.display = release.version.clone();
             }
             if kind == Kind::Caddy {
@@ -464,7 +464,7 @@ pub async fn install_module_update(
                         command(&root, &name, false)?;
                     }
                 }
-                if releases::identify(kind, &dir)?.version != release.version {
+                if releases::identify(kind, &dir)?.version != fresh.version {
                     return Err(releases::unsupported());
                 }
                 fs::remove_file(journal_path(&root, &name)?)?;
@@ -534,7 +534,7 @@ pub async fn recover_module_update(
             fs::remove_file(journal_path(&root, &name)?)?;
             Ok(())
         }?;
-        Ok(releases::identify(kind, &dir)?.version)
+        releases::installed_version(kind, &dir, &releases::identify(kind, &dir)?)
     })
     .await
     .map_err(|_| releases::unsupported())?
