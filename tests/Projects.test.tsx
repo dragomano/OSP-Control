@@ -6,6 +6,7 @@ import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i1
 import type { OsPanelProject } from '../src/ospanel';
 
 const mocks = vi.hoisted(() => ({
+  getProjectActivity: vi.fn(),
   listEditors: vi.fn(),
   openInBrowser: vi.fn(),
   openProjectFolder: vi.fn(),
@@ -85,6 +86,7 @@ const stubClipboard = (impl: () => Promise<void>) => {
 beforeEach(() => {
   for (const mock of Object.values(mocks)) mock.mockReset();
   mocks.listEditors.mockResolvedValue([{ id: 'vscode', name: 'VS Code' }]);
+  mocks.getProjectActivity.mockResolvedValue([]);
   mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
   mocks.getProjectSettings.mockResolvedValue({
     domain: 'my-shop.test',

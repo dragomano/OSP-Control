@@ -1134,6 +1134,111 @@ button {
   gap: 10px;
   align-items: center;
 }
+.project-activity-group-heading {
+  margin: 0;
+  font-weight: 400;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 15px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 10px;
+}
+.project-activity-group-heading b {
+  color: var(--text);
+  font-weight: 600;
+}
+.project-activity-identity {
+  min-width: 0;
+}
+.project-activity-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.project-activity-title > b {
+  font-size: 10px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.project-activity-path {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+.project-last-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.project-last-change:hover {
+  color: var(--text);
+}
+.project-last-change .expanded {
+  transform: rotate(180deg);
+}
+.project-activity-unavailable {
+  color: var(--muted);
+  font-size: 9px;
+}
+.project-activity-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 10px;
+}
+.project-activity-file[hidden] {
+  display: none;
+}
+.project-activity-file:last-child {
+  border-bottom: 0;
+}
+.project-activity-file code {
+  color: var(--text);
+  font-size: inherit;
+  overflow-wrap: anywhere;
+}
+.project-activity-warning {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-basis: 100%;
+  color: var(--k-eda75f);
+}
+.project-activity-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.project-activity-footer > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
 .project-avatar {
   height: 32px;
   width: 32px;

@@ -30,6 +30,34 @@ export type OsPanelProject = {
   ssl: boolean;
 };
 
+export type ProjectActivity = {
+  domain: string;
+  // Unix seconds, matching the other filesystem timestamps from Rust.
+  modifiedAt: number | null;
+  lastFile: string | null;
+  status: 'ready' | 'partial' | 'empty' | 'unavailable';
+};
+
+export async function getProjectActivity(domains: string[]): Promise<ProjectActivity[]> {
+  if (isTauri()) return invoke<ProjectActivity[]>('project_activity', { domains, ...customPathArgs() });
+  const now = new Date();
+  const times = [
+    Math.floor(now.getTime() / 1000) - 12 * 60,
+    Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 18, 10).getTime() / 1000),
+    Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 9, 24).getTime() / 1000),
+  ];
+  const files = ['resources/views/catalog.blade.php', 'index.html', 'src/routes.php'];
+  return domains.map((domain) => {
+    const index = mockSnapshot.projects?.findIndex((project) => project.domain === domain) ?? -1;
+    return {
+      domain,
+      modifiedAt: index >= 0 ? times[index] : null,
+      lastFile: index >= 0 ? files[index] : null,
+      status: index >= 0 ? 'ready' : 'unavailable',
+    };
+  });
+}
+
 export function filterProjects(projects: OsPanelProject[], query: string): OsPanelProject[] {
   const needle = query.trim().toLowerCase();
 

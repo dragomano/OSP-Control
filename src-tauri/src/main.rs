@@ -14,6 +14,7 @@ mod module_updates;
 mod panel_api;
 mod paths;
 mod php_releases;
+mod project_activity;
 mod projects;
 mod services;
 mod shell;
@@ -82,6 +83,7 @@ fn main() {
             projects::global_project_engines,
             projects::create_project,
             projects::delete_project,
+            project_activity::project_activity,
             shell::list_editors,
             shell::open_in_editor,
             services::restart_ospanel,
