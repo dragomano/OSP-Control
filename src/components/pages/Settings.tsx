@@ -11,6 +11,7 @@ import {
   setAutostart,
   setCloseToTray,
 } from '../../ospanel';
+import { settingsStorage } from '../../settingsStorage';
 import { ACCENT_THEMES, accentSwatch, FONT_OPTIONS, type ThemeMode } from '../../theme';
 import type { Notify, SettingsTab } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
@@ -66,14 +67,16 @@ export function Settings({
   const busyRef = useRef(updates.busy);
   busyRef.current = updates.busy;
   const [checkUpdates, setCheckUpdates] = useState(
-    () => localStorage.getItem('ospanel.checkServiceUpdates') === '1',
+    () => settingsStorage.getItem('ospanel.checkServiceUpdates') === '1',
   );
-  const [osPath, setOsPath] = useState(() => localStorage.getItem('ospanel.path') ?? installationPath ?? '');
+  const [osPath, setOsPath] = useState(
+    () => settingsStorage.getItem('ospanel.path') ?? installationPath ?? '',
+  );
   const [autostart, setAutostartState] = useState(false);
   const [closeToTray, setCloseToTrayState] = useState(false);
-  const [notifications, setNotifications] = useState(() => localStorage.getItem('ospanel.notify') !== '0');
+  const [notifications, setNotifications] = useState(() => settingsStorage.getItem('ospanel.notify') !== '0');
   const [projectAutostart, setProjectAutostartState] = useState(
-    () => localStorage.getItem('ospanel.autostartProjects') === '1',
+    () => settingsStorage.getItem('ospanel.autostartProjects') === '1',
   );
   // The language the tray icon was last built with — a change of language rebuilds it below.
   const trayLangRef = useRef('');
@@ -94,7 +97,8 @@ export function Settings({
   const pathEditedRef = useRef(false);
 
   useEffect(() => {
-    if (localStorage.getItem('ospanel.path') || !installationPath || pathEditedRef.current || osPath) return;
+    if (settingsStorage.getItem('ospanel.path') || !installationPath || pathEditedRef.current || osPath)
+      return;
     savedPathRef.current = installationPath;
     setOsPath(installationPath);
   }, [installationPath, osPath]);
@@ -169,14 +173,14 @@ export function Settings({
   const toggleProjectAutostart = () => {
     const next = !projectAutostart;
     setProjectAutostartState(next);
-    localStorage.setItem('ospanel.autostartProjects', next ? '1' : '0');
+    settingsStorage.setItem('ospanel.autostartProjects', next ? '1' : '0');
     notify(t(next ? 'settings.projectAutostartOn' : 'settings.projectAutostartOff'));
     onProjectAutostartChange(next);
   };
   const toggleNotifications = () => {
     const next = !notifications;
     setNotifications(next);
-    localStorage.setItem('ospanel.notify', next ? '1' : '0');
+    settingsStorage.setItem('ospanel.notify', next ? '1' : '0');
     notify(t(next ? 'settings.notificationsOn' : 'settings.notificationsOff'));
   };
 
@@ -280,7 +284,7 @@ export function Settings({
                   onClick={() => {
                     const next = !checkUpdates;
                     setCheckUpdates(next);
-                    localStorage.setItem('ospanel.checkServiceUpdates', next ? '1' : '0');
+                    settingsStorage.setItem('ospanel.checkServiceUpdates', next ? '1' : '0');
                   }}
                   aria-label={t('updates.startup')}
                 >

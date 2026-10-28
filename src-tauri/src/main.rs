@@ -17,6 +17,7 @@ mod php_releases;
 mod project_activity;
 mod projects;
 mod services;
+mod settings;
 mod shell;
 mod update_files;
 
@@ -24,7 +25,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{Manager, WindowEvent};
 
-use app::{TrayState, read_app_settings, set_tray};
+use app::{TrayState, set_tray};
+use settings::SettingsStore;
 
 fn main() {
     if app_updates::early_mode() {
@@ -45,11 +47,16 @@ fn main() {
             }
 
             // The tray icon is needed right at startup if the setting was enabled.
-            let settings = read_app_settings(app.handle());
-            app.manage(TrayState { close_to_tray: AtomicBool::new(settings.close_to_tray) });
-            if settings.close_to_tray {
-                let lang = if settings.lang.is_empty() { "ru".to_string() } else { settings.lang };
-                if let Err(error) = set_tray(app.handle(), true, &lang) {
+            let store = SettingsStore::for_app(app.handle()).map_err(|e| std::io::Error::other(e.code))?;
+            // Invalid settings are reported by the frontend; startup itself remains usable.
+            let settings = store.load().ok().map(|s| s.values).unwrap_or_default();
+            let close_to_tray = settings.get("ospanel.closeToTray").is_some_and(|v| v == "1");
+            app.manage(store);
+            app.manage(TrayState { close_to_tray: AtomicBool::new(close_to_tray) });
+            if close_to_tray {
+                let lang = settings.get("ospanel.lang").map(String::as_str).unwrap_or("ru");
+                if let Err(error) = set_tray(app.handle(), true, lang) {
+                    app.state::<TrayState>().close_to_tray.store(false, Ordering::SeqCst);
                     eprintln!("tray init failed: {}", error.code);
                 }
             }
@@ -71,6 +78,9 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            settings::load_settings,
+            settings::save_settings,
+            settings::migrate_settings,
             app_updates::check_app_update,
             app_updates::install_app_update,
             app_update_handoff::app_update_startup,

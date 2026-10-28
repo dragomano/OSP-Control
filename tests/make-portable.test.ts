@@ -154,6 +154,23 @@ describe('make-portable.mjs', () => {
     expect(stdout).toContain('portable: ready');
   });
 
+  it('does not ship development settings and preserves preferences in an existing portable copy', async () => {
+    const { release, out } = await workspace([
+      exeName,
+      'locales/en.json',
+      'settings.toml',
+      'settings.toml.bak',
+    ]);
+    await makePortable([release, out, 'x64']);
+    const folder = path.join(out, `OSP_Control_${version}_x64`);
+    expect((await readdir(folder)).sort()).toEqual(['locales', exeName].sort());
+    await writeFile(path.join(folder, 'settings.toml'), '# user settings\n[interface]\ntheme="light"\n');
+    await writeFile(path.join(folder, 'settings.toml.bak'), '# backup');
+    await makePortable([release, out, 'x64']);
+    expect(await readFile(path.join(folder, 'settings.toml'), 'utf8')).toContain('# user settings');
+    expect(await readFile(path.join(folder, 'settings.toml.bak'), 'utf8')).toBe('# backup');
+  });
+
   it('fails without assembling anything when the executable was not built', async () => {
     const { release, out } = await workspace(['locales/en.json']);
 

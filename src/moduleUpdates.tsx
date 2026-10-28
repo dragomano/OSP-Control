@@ -8,6 +8,7 @@ import {
   type ModuleUpdate,
   recoverModuleUpdate,
 } from './ospanel';
+import { settingsStorage } from './settingsStorage';
 
 let events: Promise<typeof import('@tauri-apps/api/event')> | undefined;
 
@@ -90,7 +91,7 @@ export function ModuleUpdatesProvider({
   );
   // biome-ignore lint/correctness/useExhaustiveDependencies: startup check runs once per mount
   useEffect(() => {
-    if (localStorage.getItem('ospanel.checkServiceUpdates') !== '1' || !isDesktopApp()) return;
+    if (settingsStorage.getItem('ospanel.checkServiceUpdates') !== '1' || !isDesktopApp()) return;
     void check(false);
   }, []);
   const blockedRef = useRef(blocked);
@@ -109,7 +110,7 @@ export function ModuleUpdatesProvider({
     if (locks.current.size === 1) onBusy(true);
     setActive((current) => ({ ...current, [name]: 'preparing' }));
     setResults((current) => ({ ...current, [name]: '' }));
-    const path = localStorage.getItem('ospanel.path');
+    const path = settingsStorage.getItem('ospanel.path');
     let unlisten: (() => void) | undefined;
     try {
       if (isDesktopApp()) {

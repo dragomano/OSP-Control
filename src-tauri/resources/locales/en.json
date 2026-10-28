@@ -665,5 +665,9 @@
   "projects.sortTagsHint": "Projects without tags last; tags are compared alphabetically",
   "err.invalidProjectTag": "A tag must contain 1–32 printable characters",
   "err.projectTagLimit": "A project can have up to 12 tags",
-  "err.projectTagsSaveFailed": "Failed to save project tags"
+  "err.projectTagsSaveFailed": "Failed to save project tags",
+  "err.settingsInvalid": "The settings file is invalid or uses an unsupported version: {path}. Fix it and retry. The file has not been overwritten.",
+  "err.settingsSaveFailed": "Could not read or save settings beside the application: {path}. Check folder permissions and retry.",
+  "settings.storageFailed": "Settings could not be loaded or saved. Changes have not been saved to disk.",
+  "settings.storageRetry": "Retry"
 }

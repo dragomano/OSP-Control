@@ -43,6 +43,7 @@ import {
   tagsForProject,
   writeProjectTags,
 } from '../../projectTags';
+import { settingsStorage } from '../../settingsStorage';
 import { CreateProjectDialog } from '../dialogs/CreateProjectDialog';
 import { ProjectModulesDialog } from '../dialogs/ProjectModulesDialog';
 import { copyText, type Notify } from '../shared';
@@ -66,7 +67,7 @@ type ProjectsProps = {
 };
 
 export function Projects(props: ProjectsProps) {
-  const key = projectTagsStorageKey(props.installationPath ?? localStorage.getItem('ospanel.path'));
+  const key = projectTagsStorageKey(props.installationPath ?? settingsStorage.getItem('ospanel.path'));
   return <ProjectsContent {...props} tagStorageKey={key} />;
 }
 

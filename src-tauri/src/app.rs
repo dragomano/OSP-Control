@@ -1,7 +1,6 @@
-//! Application-level integration: tray icon, settings.json, Windows autostart, user info, UI zoom.
+//! Application-level integration: tray icon, Windows autostart, user info, UI zoom.
 
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -14,6 +13,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use crate::error::{CommandError, spawn_failed};
 use crate::locales::locale_key_string;
 use crate::paths::is_valid_lang;
+use crate::settings::SettingsStore;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -78,39 +78,9 @@ pub fn set_ui_zoom(window: tauri::WebviewWindow, zoom: f64) -> Result<(), Comman
 }
 
 // --- Minimize to tray instead of closing ---
-// The setting is stored on the Rust side (settings.json in the app's config
-// directory): the "hide the window instead of closing" decision is made by the
-// CloseRequested handler, and it must know the setting before the frontend loads.
+// Portable settings are read before the frontend because CloseRequested needs this flag.
 
 const TRAY_ID: &str = "main-tray";
-
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-pub(crate) struct AppSettings {
-    #[serde(default)]
-    pub(crate) close_to_tray: bool,
-    #[serde(default)]
-    pub(crate) lang: String,
-}
-
-fn app_settings_path(app: &tauri::AppHandle) -> Result<PathBuf, CommandError> {
-    let dir = app.path().app_config_dir().map_err(|_| CommandError::new("err.ioFailed"))?;
-    fs::create_dir_all(&dir)?;
-    Ok(dir.join("settings.json"))
-}
-
-pub(crate) fn read_app_settings(app: &tauri::AppHandle) -> AppSettings {
-    app_settings_path(app)
-        .ok()
-        .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|raw| serde_json::from_str(&raw).ok())
-        .unwrap_or_default()
-}
-
-fn write_app_settings(app: &tauri::AppHandle, settings: &AppSettings) -> Result<(), CommandError> {
-    let json = serde_json::to_string(settings).map_err(|_| CommandError::new("err.ioFailed"))?;
-    fs::write(app_settings_path(app)?, json)?;
-    Ok(())
-}
 
 // The "minimize to tray instead of closing" flag — shared by commands and window events.
 pub(crate) struct TrayState {
@@ -179,14 +149,20 @@ pub fn set_close_to_tray(
     lang: Option<String>,
 ) -> Result<(), CommandError> {
     let lang = lang.filter(|code| is_valid_lang(code)).unwrap_or_else(|| "ru".into());
-
+    let previous = app.state::<TrayState>().close_to_tray.load(Ordering::SeqCst);
     set_tray(&app, enabled, &lang)?;
+    if let Err(error) = app.state::<SettingsStore>().save(
+        [
+            ("ospanel.closeToTray".into(), if enabled { "1" } else { "0" }.into()),
+            ("ospanel.lang".into(), lang.clone()),
+        ]
+        .into(),
+        false,
+    ) {
+        let _ = set_tray(&app, previous, &lang);
+        return Err(error);
+    }
     app.state::<TrayState>().close_to_tray.store(enabled, Ordering::SeqCst);
-
-    let mut settings = read_app_settings(&app);
-    settings.close_to_tray = enabled;
-    settings.lang = lang;
-    write_app_settings(&app, &settings)?;
 
     Ok(())
 }

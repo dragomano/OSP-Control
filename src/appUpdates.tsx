@@ -1,3 +1,4 @@
+import { settingsStorage } from './settingsStorage';
 import './appUpdates.css';
 import { Download, RefreshCw, X } from 'lucide-react';
 import {
@@ -78,7 +79,7 @@ export function AppUpdatesProvider({
     let mounted = true;
     void appUpdateStartup()
       .then(async (result) => {
-        if (!result && localStorage.getItem('ospanel.checkAppUpdates') === '1') void check(false);
+        if (!result && settingsStorage.getItem('ospanel.checkAppUpdates') === '1') void check(false);
         if (mounted && result) {
           setMessage(t(`appUpdates.${result}`));
           setVisible(true);
@@ -326,7 +327,9 @@ export function AppUpdateButton() {
 
 export function AppUpdateSettings() {
   const { t } = useI18n();
-  const [automatic, setAutomatic] = useState(() => localStorage.getItem('ospanel.checkAppUpdates') === '1');
+  const [automatic, setAutomatic] = useState(
+    () => settingsStorage.getItem('ospanel.checkAppUpdates') === '1',
+  );
   return (
     <div className="setting-block">
       <div>
@@ -341,7 +344,7 @@ export function AppUpdateSettings() {
         onClick={() => {
           const next = !automatic;
           setAutomatic(next);
-          localStorage.setItem('ospanel.checkAppUpdates', next ? '1' : '0');
+          settingsStorage.setItem('ospanel.checkAppUpdates', next ? '1' : '0');
         }}
       >
         <span />

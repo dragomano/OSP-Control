@@ -665,5 +665,9 @@
   "projects.sortTagsHint": "Los proyectos sin etiquetas al final; las etiquetas se comparan alfabéticamente",
   "err.invalidProjectTag": "Una etiqueta debe contener entre 1 y 32 caracteres imprimibles",
   "err.projectTagLimit": "Un proyecto puede tener hasta 12 etiquetas",
-  "err.projectTagsSaveFailed": "No se pudieron guardar las etiquetas de los proyectos"
+  "err.projectTagsSaveFailed": "No se pudieron guardar las etiquetas de los proyectos",
+  "err.settingsInvalid": "El archivo de ajustes no es válido o usa una versión no compatible: {path}. Corríjalo y reintente. No se ha sobrescrito el archivo.",
+  "err.settingsSaveFailed": "No se pudieron leer o guardar los ajustes junto a la aplicación: {path}. Compruebe los permisos de la carpeta y reintente.",
+  "settings.storageFailed": "No se pudieron cargar o guardar los ajustes. Los cambios no se han guardado en disco.",
+  "settings.storageRetry": "Reintentar"
 }

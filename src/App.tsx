@@ -36,6 +36,7 @@ import {
 import { type BackupFilter, Backups } from './components/tables/Backups';
 import { buildActivityRows, Logs, logAliasesFromTranslator } from './components/tables/Logs';
 import { RowMenu } from './components/widgets/RowMenu';
+import { SettingsStorageError } from './components/widgets/SettingsStorageError';
 import {
   BASE_LANG,
   type Dict,
@@ -78,6 +79,7 @@ import {
   saveProjectSettings,
   waitForPanelReady,
 } from './ospanel';
+import { settingsStorage } from './settingsStorage';
 import { applyAccentTheme, applyFont, applyUiScale, type ThemeMode, useSystemPrefersLight } from './theme';
 
 export { buildActivityRows } from './components/tables/Logs';
@@ -91,7 +93,7 @@ const MenuEditor = lazy(() =>
 );
 
 const initialLang = (): string =>
-  localStorage.getItem('ospanel.lang') ?? preferredLang(EMBEDDED_LANGS) ?? BASE_LANG;
+  settingsStorage.getItem('ospanel.lang') ?? preferredLang(EMBEDDED_LANGS) ?? BASE_LANG;
 
 const DISCUSSIONS_URL = 'https://github.com/dragomano/OSP-Control/discussions';
 
@@ -120,15 +122,15 @@ function App() {
   const [query, setQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; action?: ToastAction } | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    const stored = localStorage.getItem('ospanel.theme');
+    const stored = settingsStorage.getItem('ospanel.theme');
     return stored === 'dark' || stored === 'light' ? stored : 'system';
   });
   const systemLight = useSystemPrefersLight();
   // Effective theme: the explicit choice, or the system setting for the 'system' mode.
   const isLight = themeMode === 'light' || (themeMode === 'system' && systemLight);
-  const [accent, setAccent] = useState(() => localStorage.getItem('ospanel.accent') ?? 'blue');
-  const [font, setFont] = useState(() => localStorage.getItem('ospanel.font') ?? 'dm-sans');
-  const [scale, setScale] = useState(() => Number(localStorage.getItem('ospanel.scale') ?? 100));
+  const [accent, setAccent] = useState(() => settingsStorage.getItem('ospanel.accent') ?? 'blue');
+  const [font, setFont] = useState(() => settingsStorage.getItem('ospanel.font') ?? 'dm-sans');
+  const [scale, setScale] = useState(() => Number(settingsStorage.getItem('ospanel.scale') ?? 100));
   const [lang, setLang] = useState(() => initialLang());
   // The current language code for async checks (refreshLocales) that need the
   // current selection without crossing callback dependencies.
@@ -143,7 +145,7 @@ function App() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('connection');
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem('ospanel.sidebar') === '1',
+    () => settingsStorage.getItem('ospanel.sidebar') === '1',
   );
   // A narrow window (in the desktop app also at an increased scale) forces the sidebar
   // into the icon rail so the main area does not shrink into horizontal scrolling.
@@ -217,7 +219,7 @@ function App() {
     [logAliases, logLines],
   );
   const notify = useCallback((message: string, action?: ToastAction) => {
-    if (localStorage.getItem('ospanel.notify') === '0') return;
+    if (settingsStorage.getItem('ospanel.notify') === '0') return;
     if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
     setToast({ message, action });
     toastTimerRef.current = window.setTimeout(() => {
@@ -564,7 +566,7 @@ function App() {
       if (list.length > 0 && !list.some((item) => item.code === current)) {
         const fallback = preferredLang(list.map((item) => item.code)) ?? BASE_LANG;
         setLang(fallback);
-        localStorage.setItem('ospanel.lang', fallback);
+        settingsStorage.setItem('ospanel.lang', fallback);
       }
     } catch {
       /* keeping the embedded ru/en */
@@ -657,11 +659,11 @@ function App() {
 
   const changeLang = useCallback((code: string) => {
     setLang(code);
-    localStorage.setItem('ospanel.lang', code);
+    settingsStorage.setItem('ospanel.lang', code);
   }, []);
   const changeTheme = useCallback((mode: ThemeMode) => {
     setThemeMode(mode);
-    localStorage.setItem('ospanel.theme', mode);
+    settingsStorage.setItem('ospanel.theme', mode);
   }, []);
 
   const reloadLocales = useCallback(async () => {
@@ -784,7 +786,7 @@ function App() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: project autostart runs once at app startup
   useEffect(() => {
-    if (!isDesktopApp() || localStorage.getItem('ospanel.autostartProjects') !== '1') return;
+    if (!isDesktopApp() || settingsStorage.getItem('ospanel.autostartProjects') !== '1') return;
 
     // Let the initial snapshot load pass without competing for osp.bat.
     const timer = window.setTimeout(() => void runProjectAutostart(), 1500);
@@ -825,7 +827,7 @@ function App() {
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((collapsed) => {
       const next = !collapsed;
-      localStorage.setItem('ospanel.sidebar', next ? '1' : '0');
+      settingsStorage.setItem('ospanel.sidebar', next ? '1' : '0');
       return next;
     });
   }, []);
@@ -991,6 +993,7 @@ function App() {
               </div>
             </aside>
             <main className="main-content">
+              <SettingsStorageError />
               <header className="topbar">
                 <div className="breadcrumbs">
                   <span>{APP_NAME}</span>
@@ -1141,7 +1144,7 @@ function App() {
                     notify={notify}
                     installationPath={snapshot?.source === 'tauri' ? snapshot.path : null}
                     onPathSaved={(path) => {
-                      localStorage.setItem('ospanel.path', path);
+                      settingsStorage.setItem('ospanel.path', path);
                       void loadSnapshot();
                     }}
                     tab={settingsTab}
@@ -1155,16 +1158,16 @@ function App() {
                     font={font}
                     onAccentChange={(id: string) => {
                       setAccent(id);
-                      localStorage.setItem('ospanel.accent', id);
+                      settingsStorage.setItem('ospanel.accent', id);
                     }}
                     onFontChange={(id: string) => {
                       setFont(id);
-                      localStorage.setItem('ospanel.font', id);
+                      settingsStorage.setItem('ospanel.font', id);
                     }}
                     scale={scale}
                     onScaleChange={(value: number) => {
                       setScale(value);
-                      localStorage.setItem('ospanel.scale', String(value));
+                      settingsStorage.setItem('ospanel.scale', String(value));
                     }}
                     lang={lang}
                     onLangChange={changeLang}

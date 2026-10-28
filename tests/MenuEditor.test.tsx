@@ -59,6 +59,12 @@ afterEach(() => {
 });
 
 describe('MenuEditor', () => {
+  it('does not persist default categories merely by opening the page', async () => {
+    mount();
+    await screen.findByRole('textbox', { name: 'Name' });
+    expect(localStorage.getItem('ospanel.menuTree.c:/panel')).toBeNull();
+  });
+
   it('remembers bulk and manual expansion, including nested categories, without editing the menu', async () => {
     const items = [
       ...structuredClone(original),

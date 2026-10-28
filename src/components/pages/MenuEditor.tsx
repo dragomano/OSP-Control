@@ -50,6 +50,7 @@ import {
 } from '../../menu';
 import { MenuIcon } from '../../menuIcons';
 import { askConfirm, isDesktopApp, openFileExternally, readMenu, writeMenu } from '../../ospanel';
+import { settingsStorage } from '../../settingsStorage';
 import { MenuIconPicker } from '../dialogs/MenuIconPicker';
 import { type Notify, useDismiss } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
@@ -73,7 +74,7 @@ const treeStorageKey = (path: string | null) =>
 
 function readCollapsedCategories(key: string, categories: string[], fallback: string[]): string[] {
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const stored: unknown = JSON.parse(settingsStorage.getItem(key) ?? 'null');
     if (Array.isArray(stored) && stored.every((path) => typeof path === 'string'))
       return [...new Set(stored)].filter((path) => categories.includes(path));
   } catch {
@@ -119,6 +120,7 @@ export function MenuEditor({
   const [drag, setDrag] = useState<Drag | null>(null);
   const requestRef = useRef(0);
   const loadedTreeKeyRef = useRef<string | null>(null);
+  const savedCollapsedRef = useRef('');
   const editBatchRef = useRef('');
   const dragRef = useRef<Drag | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -178,13 +180,13 @@ export function MenuEditor({
       const first = document.items.find((item) => !categoryOf(item)) ?? document.items[0];
       setSelection(first ? { kind: 'item', id: first.id } : { kind: 'category', path: '' });
       setQuery('');
-      setCollapsed(
-        readCollapsedCategories(
-          storageKey,
-          menuCategories(nextDraft),
-          MENU_SPECIAL_CATEGORIES.filter((path) => path !== (first ? categoryOf(first) : '')),
-        ),
+      const nextCollapsed = readCollapsedCategories(
+        storageKey,
+        menuCategories(nextDraft),
+        MENU_SPECIAL_CATEGORIES.filter((path) => path !== (first ? categoryOf(first) : '')),
       );
+      savedCollapsedRef.current = JSON.stringify(nextCollapsed);
+      setCollapsed(nextCollapsed);
       loadedTreeKeyRef.current = storageKey;
       setIconOpen(false);
       setCategoryDialog(false);
@@ -205,8 +207,11 @@ export function MenuEditor({
   }, [installationPath, reloadVersion]);
   useEffect(() => {
     if (loading || loadedTreeKeyRef.current !== storageKey) return;
+    const serialized = JSON.stringify(collapsed);
+    if (serialized === savedCollapsedRef.current) return;
     try {
-      localStorage.setItem(storageKey, JSON.stringify(collapsed));
+      settingsStorage.setItem(storageKey, serialized);
+      savedCollapsedRef.current = serialized;
     } catch {
       // The current view remains usable if preference storage is unavailable.
     }

@@ -14,3 +14,6 @@ demo/
 .env
 .DS_Store
 Thumbs.db
+settings.toml
+settings.toml.bak
+settings.toml.*.tmp

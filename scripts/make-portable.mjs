@@ -129,6 +129,8 @@ const publish = async (source, destination) => {
   }
   const expected = new Set(entries.map((entry) => entry.name));
   for (const name of await readdir(destination)) {
+    // Runtime preferences belong to the portable copy and survive local rebuilds.
+    if (destination === target && ['settings.toml', 'settings.toml.bak'].includes(name)) continue;
     if (!expected.has(name)) await removeOutput(path.join(destination, name));
   }
 };

@@ -1,5 +1,6 @@
 import type { OsPanelMenuDocument, OsPanelMenuItem, OsPanelMenuSaveResult } from './menu';
 import { matchesProjectSearch, type ProjectTags, tagsForProject } from './projectTags';
+import { settingsStorage } from './settingsStorage';
 
 export type ServiceStatus = 'running' | 'stopped' | 'warning' | 'unknown';
 
@@ -230,12 +231,12 @@ export function isDesktopApp() {
 }
 
 export function persistOsPanelPath(path: string) {
-  localStorage.setItem('ospanel.path', path);
+  settingsStorage.setItem('ospanel.path', path);
 }
 
 // Custom installation path from the settings: passed to every command that resolves
 // the OSPanel root (the Rust side validates it itself — resolve_installation).
-const customPathArgs = () => ({ customPath: localStorage.getItem('ospanel.path') });
+const customPathArgs = () => ({ customPath: settingsStorage.getItem('ospanel.path') });
 
 const browserMenu = (): OsPanelMenuItem[] => [
   {
@@ -306,7 +307,7 @@ export async function writeMenu(
 }
 
 export async function discoverOsPanel(): Promise<OsPanelSnapshot> {
-  const customPath = localStorage.getItem('ospanel.path');
+  const customPath = settingsStorage.getItem('ospanel.path');
 
   if (!isTauri()) {
     return { ...mockSnapshot, path: customPath ?? mockSnapshot.path, checkedAt: new Date().toISOString() };

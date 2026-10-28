@@ -1,4 +1,5 @@
 import type { OsPanelProject } from './ospanel';
+import { settingsStorage } from './settingsStorage';
 
 export type ProjectTags = Record<string, string[]>;
 export type ProjectSort = 'recent' | 'domain' | 'tags' | 'tags-desc';
@@ -30,7 +31,7 @@ export function tagsForProject(tags: ProjectTags, domain: string): string[] {
 
 export function readProjectTags(key: string): ProjectTags {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const parsed: unknown = JSON.parse(settingsStorage.getItem(key) ?? 'null');
     if (
       !parsed ||
       typeof parsed !== 'object' ||
@@ -60,7 +61,7 @@ export function readProjectTags(key: string): ProjectTags {
 
 export function writeProjectTags(key: string, tags: ProjectTags): void {
   try {
-    localStorage.setItem(key, JSON.stringify({ version: 1, projects: tags }));
+    settingsStorage.setItem(key, JSON.stringify({ version: 1, projects: tags }));
   } catch {
     throw new Error('err.projectTagsSaveFailed');
   }

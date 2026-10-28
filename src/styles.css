@@ -3419,3 +3419,17 @@ button {
 body:has(.app-shell.light) {
   background: #f9fafb;
 }
+.settings-storage-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}

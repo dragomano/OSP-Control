@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getProjectActivity, type OsPanelProject, type ProjectActivity } from '../../ospanel';
+import { settingsStorage } from '../../settingsStorage';
 
 export type ActivityGroup = {
   key: string;
@@ -54,7 +55,7 @@ export function useProjectActivity(projects: OsPanelProject[]) {
   // Snapshot refreshes replace the project objects; only a changed domain/path
   // list or installation should restart the scan, never a search or SSL toggle.
   const requestKey = JSON.stringify({
-    installation: localStorage.getItem('ospanel.path'),
+    installation: settingsStorage.getItem('ospanel.path'),
     projects: projects
       .map(({ domain, path }) => ({ domain, path }))
       .sort((a, b) => a.domain.localeCompare(b.domain)),

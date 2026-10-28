@@ -84,6 +84,47 @@ pnpm test             # Vitest (jsdom)
 
 `pnpm tauri:build` produces the portable version only — no installers (MSI/NSIS) are created. The result is the folder `dist-portable/OSP_Control_<version>_<arch>/`: `osp-control.exe` with the editable `locales/` folder next to it. The app needs the WebView2 Runtime, as any Tauri app on Windows does; if the system has none, install the Evergreen WebView2 Runtime from Microsoft.
 
+## Portable settings
+
+Application preferences, project tags and collapsed menu categories are stored in `settings.toml` beside the executable, independently of the working directory. A fresh portable distribution contains no settings file: defaults are used until the first preference change or metadata save. The application directory must be writable; there is no fallback to AppData for settings.
+
+On the first launch after upgrading, existing WebView localStorage preferences and the old AppData `settings.json` are migrated automatically. The TOML file takes precedence when present. Migration sources are retained until writing succeeds; the native JSON is then renamed to `settings.json.migrated` and migrated localStorage keys are removed.
+
+The file uses `toml_edit` to retain comments, unrelated formatting and unknown keys. Updates are serialized, written to a temporary sibling and replaced atomically; the previous valid file is kept as `settings.toml.bak`. Invalid TOML or unsupported schema versions are reported in the interface and never overwritten automatically. Correct the file or restore the backup, then retry. Manual edits are loaded on the next application start. Changes to a value can reformat that value.
+
+```toml
+schema_version = 1
+
+[interface]
+language = "ru"
+theme = "dark"
+accent = "blue"
+font = "dm-sans"
+scale = 100
+sidebar_collapsed = false
+
+[behavior]
+close_to_tray = true
+notifications = true
+autostart_projects = false
+
+[updates]
+application = false
+modules = false
+
+[connection]
+installation = "main"
+
+[installations.main]
+path = 'D:\OSPanel6'
+collapsed_menu_categories = ["Development"]
+
+[installations.main.projects."shop.test"]
+tags = ["Client", "Laravel"]
+```
+
+Missing fields use built-in defaults. Installation IDs keep metadata attached when the active installation path changes. Windows autostart still uses the Windows registry, and WebView2 keeps its technical profile/cache in AppData; neither is a second settings store. Browser preview mode continues to use localStorage. A portable build does not copy development settings into the release folder.
+
 ## Application updates
 
 To check for updates manually, use the icon button to the right of **OSP Control** in the left sidebar header, styled like the **Open OSPanel folder** button below it. The update button is also available when the sidebar is collapsed and opens the application-update dialog. **Settings → Autostart & notifications** retains only the separate **Check for application updates at startup** toggle (off by default).
