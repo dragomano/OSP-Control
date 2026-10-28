@@ -62,7 +62,6 @@ import {
   discoverOsPanel,
   fetchLogTail,
   fetchOverviewMetrics,
-  filterProjects,
   getProjectSettings,
   getUserInfo,
   isDesktopApp,
@@ -695,7 +694,6 @@ function App() {
     }
   }, [refreshLocales, notify, t, reportLocaleIssues]);
 
-  const filteredProjects = useMemo(() => filterProjects(projects, query), [projects, query]);
   // Mirrors one service into the pending set that drives the busy state in the UI.
   const setServicePending = (name: string, pending: boolean) => {
     setPendingServices((current) => {
@@ -1074,8 +1072,9 @@ function App() {
                 )}
                 {page === 'projects' && (
                   <Projects
-                    projects={filteredProjects}
+                    projects={projects}
                     allProjects={projects}
+                    installationPath={snapshot?.path ?? null}
                     query={query}
                     setQuery={setQuery}
                     notify={notify}

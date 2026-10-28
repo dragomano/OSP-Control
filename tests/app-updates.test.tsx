@@ -80,7 +80,7 @@ it('automatically announces a release and opens its details without interpreting
   setup();
   fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
   expect(screen.getByRole('dialog')).toBeVisible();
-  expect(screen.getByText('<script>unsafe</script>')).toBeVisible();
+  expect(await screen.findByText('<script>unsafe</script>')).toBeVisible();
   expect(document.querySelector('script')).toBeNull();
 });
 

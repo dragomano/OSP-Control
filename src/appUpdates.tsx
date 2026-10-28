@@ -1,9 +1,18 @@
 import './appUpdates.css';
 import { Download, RefreshCw, X } from 'lucide-react';
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { version } from '../package.json';
 import { formatSize, useDismiss } from './components/shared';
-import { ReleaseNotes } from './components/widgets/ReleaseNotes';
 import { errorText, useI18n } from './i18n';
 import {
   type AppUpdate,
@@ -13,6 +22,11 @@ import {
   installAppUpdate,
   isDesktopApp,
 } from './ospanel';
+
+// Load the Markdown and GFM parsers only when a release description is displayed.
+const ReleaseNotes = lazy(() =>
+  import('./components/widgets/ReleaseNotes').then((module) => ({ default: module.ReleaseNotes })),
+);
 
 const Context = createContext({ open: () => {} });
 export const useAppUpdates = () => useContext(Context);
@@ -241,7 +255,9 @@ function UpdateDialog({
             <h4>{t('appUpdates.notes')}</h4>
             <div className="app-update-notes">
               {update.notes.trim() ? (
-                <ReleaseNotes notes={update.notes} onLinkError={onLinkError} />
+                <Suspense fallback={<span role="status">{t('common.loading')}</span>}>
+                  <ReleaseNotes notes={update.notes} onLinkError={onLinkError} />
+                </Suspense>
               ) : (
                 t('appUpdates.noNotes')
               )}

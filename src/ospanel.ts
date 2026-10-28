@@ -1,4 +1,5 @@
 import type { OsPanelMenuDocument, OsPanelMenuItem, OsPanelMenuSaveResult } from './menu';
+import { matchesProjectSearch, type ProjectTags, tagsForProject } from './projectTags';
 
 export type ServiceStatus = 'running' | 'stopped' | 'warning' | 'unknown';
 
@@ -58,13 +59,14 @@ export async function getProjectActivity(domains: string[]): Promise<ProjectActi
   });
 }
 
-export function filterProjects(projects: OsPanelProject[], query: string): OsPanelProject[] {
-  const needle = query.trim().toLowerCase();
-
-  if (!needle) return projects;
-
-  return projects.filter(
-    (project) => project.domain.toLowerCase().includes(needle) || project.path.toLowerCase().includes(needle),
+export function filterProjects(
+  projects: OsPanelProject[],
+  query: string,
+  tags: ProjectTags = {},
+): OsPanelProject[] {
+  if (!query.trim()) return projects;
+  return projects.filter((project) =>
+    matchesProjectSearch(project, query, tagsForProject(tags, project.domain)),
   );
 }
 
