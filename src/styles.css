@@ -1146,15 +1146,21 @@ button {
   color: var(--text);
 }
 .project-table {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 0.7fr) auto;
+  column-gap: 15px;
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 9px;
   overflow: hidden;
 }
+.project-table > * {
+  grid-column: 1 / -1;
+}
 .table-head,
 .project-row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 0.7fr) auto;
+  grid-template-columns: subgrid;
   align-items: center;
   gap: 15px;
   padding: 11px 15px;
@@ -1815,6 +1821,9 @@ button {
   }
   .table-head {
     display: none;
+  }
+  .project-table {
+    display: block;
   }
   .project-row {
     grid-template-columns: minmax(0, 1fr) auto;
