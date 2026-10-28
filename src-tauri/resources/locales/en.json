@@ -600,6 +600,8 @@
   "menu.moveItemsFirst": "Move or delete the category items before deleting the category.",
   "menu.expand": "Expand {name}",
   "menu.collapse": "Collapse {name}",
+  "menu.expandAll": "Expand all",
+  "menu.collapseAll": "Collapse all",
   "menu.itemCount": "Items: {n}",
   "menu.noCommand": "OSPanel ignores items without a command.",
   "menu.loadFailed": "Unable to read the menu template.",

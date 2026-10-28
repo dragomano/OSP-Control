@@ -600,6 +600,8 @@
   "menu.moveItemsFirst": "Mueva o elimine los elementos antes de eliminar la categoría.",
   "menu.expand": "Expandir {name}",
   "menu.collapse": "Contraer {name}",
+  "menu.expandAll": "Expandir todo",
+  "menu.collapseAll": "Contraer todo",
   "menu.itemCount": "Elementos: {n}",
   "menu.noCommand": "OSPanel ignora los elementos sin comando.",
   "menu.loadFailed": "No se pudo leer la plantilla del menú.",

@@ -600,6 +600,8 @@
   "menu.moveItemsFirst": "Перед видаленням категорії перенесіть або видаліть її пункти.",
   "menu.expand": "Розгорнути {name}",
   "menu.collapse": "Згорнути {name}",
+  "menu.expandAll": "Розгорнути все",
+  "menu.collapseAll": "Згорнути все",
   "menu.itemCount": "Пунктів: {n}",
   "menu.noCommand": "OSPanel не показує пункти без команди.",
   "menu.loadFailed": "Не вдалося прочитати шаблон меню.",

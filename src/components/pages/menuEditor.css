@@ -63,21 +63,78 @@
   border: 1px solid var(--line);
   border-radius: 10px;
 }
+.menu-tree-panel {
+  container: menu-tree / inline-size;
+}
 .menu-panel-head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 15px 17px;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   font-size: 12px;
 }
-.menu-panel-head strong {
+.menu-panel-title {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.menu-panel-title strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   font-weight: 600;
 }
-.menu-panel-head > span {
-  margin-left: auto;
+.menu-panel-title > span {
   font-size: 11px;
   color: var(--muted);
+  white-space: nowrap;
+}
+.menu-tree-actions {
+  display: flex;
+  gap: 6px;
+}
+.menu-tree-actions .secondary-button {
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 7px;
+  font-weight: 400;
+}
+.menu-tree-actions svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+@container menu-tree (max-width: 480px) {
+  .menu-panel-title {
+    flex-basis: 100%;
+    justify-content: space-between;
+  }
+  .menu-tree-actions {
+    flex-basis: 100%;
+  }
+  .menu-tree-actions .secondary-button {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 12px;
+    white-space: normal;
+  }
+  .menu-tree-actions span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+@container menu-tree (max-width: 300px) {
+  .menu-tree-actions .secondary-button {
+    padding: 6px 4px;
+  }
+  .menu-tree-actions svg {
+    display: none;
+  }
 }
 .menu-tree,
 .menu-tree ul {

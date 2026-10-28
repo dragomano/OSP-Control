@@ -30,22 +30,23 @@ const original: OsPanelMenuItem[] = [
 const notify = vi.fn();
 const onRestart = vi.fn();
 const onOpenBackups = vi.fn();
-const mount = (path = 'C:/Panel') =>
-  render(
-    <I18nContext.Provider value={{ lang: 'en', t, plural }}>
-      <MenuEditor
-        notify={notify}
-        installationPath={path}
-        active
-        blocked={false}
-        onRestart={onRestart}
-        onOpenBackups={onOpenBackups}
-      />
-    </I18nContext.Provider>,
-  );
+const editor = (path = 'C:/Panel') => (
+  <I18nContext.Provider value={{ lang: 'en', t, plural }}>
+    <MenuEditor
+      notify={notify}
+      installationPath={path}
+      active
+      blocked={false}
+      onRestart={onRestart}
+      onOpenBackups={onOpenBackups}
+    />
+  </I18nContext.Provider>
+);
+const mount = (path = 'C:/Panel') => render(editor(path));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   vi.mocked(readMenu).mockResolvedValue({ items: structuredClone(original), revision: 'initial' });
   vi.mocked(writeMenu).mockImplementation(async (items) => ({
     document: { items, revision: 'saved' },
@@ -58,6 +59,130 @@ afterEach(() => {
 });
 
 describe('MenuEditor', () => {
+  it('remembers bulk and manual expansion, including nested categories, without editing the menu', async () => {
+    const items = [
+      ...structuredClone(original),
+      { id: 'nested', fields: { caption: 'Nested editor', category: 'Tools\\Editors', command: 'code.exe' } },
+    ];
+    vi.mocked(readMenu).mockResolvedValue({ items, revision: 'initial' });
+    let view = mount();
+    await screen.findByRole('textbox', { name: 'Name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+    expect(screen.queryByRole('button', { name: 'Nested editor' })).not.toBeInTheDocument();
+    view.unmount();
+    view = mount();
+    expect(await screen.findByRole('button', { name: 'Expand Tools' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.getByRole('button', { name: 'Expand Data' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+    expect(screen.getByRole('button', { name: 'Collapse Tools / Editors' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Nested editor' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Tools / Editors' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Data' }));
+    view.unmount();
+    mount();
+    expect(await screen.findByRole('button', { name: 'Collapse Tools' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Expand Tools / Editors' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.getByRole('button', { name: 'Expand Data' })).toHaveAttribute('aria-expanded', 'false');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Reload menu' })));
+    expect(await screen.findByRole('button', { name: 'Expand Data' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+    expect(writeMenu).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('keeps expansion preferences separate when switching installations', async () => {
+    const view = mount('C:/Panel');
+    await screen.findByRole('textbox', { name: 'Name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+    view.rerender(editor('C:/Other'));
+    expect(await screen.findByRole('button', { name: 'Collapse Tools' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Data' }));
+    view.rerender(editor('c:\\PANEL\\'));
+    expect(await screen.findByRole('button', { name: 'Expand Tools' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    view.rerender(editor('C:/Other'));
+    expect(await screen.findByRole('button', { name: 'Collapse Tools' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Expand Data' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('temporarily reveals search matches without overwriting the remembered tree', async () => {
+    const view = mount();
+    await screen.findByRole('textbox', { name: 'Name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+    const search = screen.getByRole('textbox', { name: 'Find an item or category' });
+    fireEvent.change(search, { target: { value: 'My editor' } });
+    expect(screen.getByRole('button', { name: 'My editor' })).toBeVisible();
+    fireEvent.change(search, { target: { value: '' } });
+    expect(screen.getByRole('button', { name: 'Expand Tools' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.change(search, { target: { value: 'My editor' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Tools' }));
+    expect(search).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Expand Tools' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.change(search, { target: { value: 'My editor' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+    expect(search).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Expand Tools' })).toHaveAttribute('aria-expanded', 'false');
+    view.unmount();
+    mount();
+    expect(await screen.findByRole('button', { name: 'Expand Tools' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  });
+
+  it.each(['invalid JSON', '{}', '[null]'])(
+    'uses the default tree when saved preferences are invalid: %s',
+    async (stored) => {
+      localStorage.setItem('ospanel.menuTree.c:/panel', stored);
+      mount();
+      expect(await screen.findByRole('button', { name: 'Collapse Tools' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    },
+  );
+
+  it('keeps tree controls usable when preference storage is unavailable', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    mount();
+    await screen.findByRole('textbox', { name: 'Name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+    expect(screen.getByRole('button', { name: 'Expand Tools' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+    expect(screen.getByRole('button', { name: 'My editor' })).toBeVisible();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
   it('opens backups without discarding the draft and reloads after a confirmed restore', async () => {
     const onStateChange = vi.fn();
     const view = render(

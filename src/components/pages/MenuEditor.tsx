@@ -4,6 +4,8 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Copy,
   FileCode2,
   Folder,
@@ -66,6 +68,19 @@ type Drag = {
   before?: string;
 };
 const emptyHistory = (draft: MenuDraft): History => ({ past: [], present: draft, future: [] });
+const treeStorageKey = (path: string | null) =>
+  `ospanel.menuTree.${path?.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase() || 'default'}`;
+
+function readCollapsedCategories(key: string, categories: string[], fallback: string[]): string[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(key) ?? 'null');
+    if (Array.isArray(stored) && stored.every((path) => typeof path === 'string'))
+      return [...new Set(stored)].filter((path) => categories.includes(path));
+  } catch {
+    // Unavailable or invalid view preferences must not prevent editing the menu.
+  }
+  return fallback;
+}
 
 export function MenuEditor({
   notify,
@@ -87,6 +102,7 @@ export function MenuEditor({
   reloadVersion?: number;
 }) {
   const { t } = useI18n();
+  const storageKey = treeStorageKey(installationPath);
   const [saved, setSaved] = useState<OsPanelMenuDocument | null>(null);
   const [history, setHistory] = useState<History>(() => emptyHistory(menuDraft([])));
   const [selection, setSelection] = useState<Selection>({ kind: 'category', path: '' });
@@ -102,6 +118,7 @@ export function MenuEditor({
   const [categoryEdit, setCategoryEdit] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
   const requestRef = useRef(0);
+  const loadedTreeKeyRef = useRef<string | null>(null);
   const editBatchRef = useRef('');
   const dragRef = useRef<Drag | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -149,17 +166,26 @@ export function MenuEditor({
   };
   const load = useCallback(async () => {
     const request = ++requestRef.current;
+    loadedTreeKeyRef.current = null;
     setLoading(true);
     setLoadError('');
     try {
       const document = await readMenu(installationPath);
       if (request !== requestRef.current) return;
+      const nextDraft = menuDraft(document.items);
       setSaved(document);
-      setHistory(emptyHistory(menuDraft(document.items)));
+      setHistory(emptyHistory(nextDraft));
       const first = document.items.find((item) => !categoryOf(item)) ?? document.items[0];
       setSelection(first ? { kind: 'item', id: first.id } : { kind: 'category', path: '' });
       setQuery('');
-      setCollapsed(MENU_SPECIAL_CATEGORIES.filter((path) => path !== (first ? categoryOf(first) : '')));
+      setCollapsed(
+        readCollapsedCategories(
+          storageKey,
+          menuCategories(nextDraft),
+          MENU_SPECIAL_CATEGORIES.filter((path) => path !== (first ? categoryOf(first) : '')),
+        ),
+      );
+      loadedTreeKeyRef.current = storageKey;
       setIconOpen(false);
       setCategoryDialog(false);
     } catch (error) {
@@ -167,7 +193,7 @@ export function MenuEditor({
     } finally {
       if (request === requestRef.current) setLoading(false);
     }
-  }, [installationPath, t]);
+  }, [installationPath, storageKey, t]);
   // The locale may hot-reload while a draft is edited; it must never trigger a disk reload.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reload only for installation changes or a confirmed restore
   useEffect(() => {
@@ -177,6 +203,14 @@ export function MenuEditor({
       requestRef.current++;
     };
   }, [installationPath, reloadVersion]);
+  useEffect(() => {
+    if (loading || loadedTreeKeyRef.current !== storageKey) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(collapsed));
+    } catch {
+      // The current view remains usable if preference storage is unavailable.
+    }
+  }, [collapsed, loading, storageKey]);
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -350,11 +384,12 @@ export function MenuEditor({
             className="icon-button menu-collapse"
             aria-label={t(closed ? 'menu.expand' : 'menu.collapse', { name: categoryLabel(path, t) })}
             aria-expanded={!closed}
-            onClick={() =>
+            onClick={() => {
+              setQuery('');
               setCollapsed((previous) =>
-                closed ? previous.filter((category) => category !== path) : [...previous, path],
-              )
-            }
+                closed ? previous.filter((category) => category !== path) : [...new Set([...previous, path])],
+              );
+            }}
           >
             {closed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </button>
@@ -590,9 +625,37 @@ export function MenuEditor({
           <div className="menu-editor-layout">
             <section className="menu-tree-panel" aria-label={t('menu.structure')}>
               <div className="menu-panel-head">
-                <ListTree size={16} />
-                <strong>{t('menu.structure')}</strong>
-                <span>{t('menu.itemCount', { n: draft.items.length })}</span>
+                <div className="menu-panel-title">
+                  <strong>
+                    <ListTree size={16} />
+                    {t('menu.structure')}
+                  </strong>
+                  <span>{t('menu.itemCount', { n: draft.items.length })}</span>
+                </div>
+                <div className="menu-tree-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setQuery('');
+                      setCollapsed(categories);
+                    }}
+                  >
+                    <ChevronsDownUp size={14} aria-hidden="true" />
+                    <span>{t('menu.collapseAll')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setQuery('');
+                      setCollapsed([]);
+                    }}
+                  >
+                    <ChevronsUpDown size={14} aria-hidden="true" />
+                    <span>{t('menu.expandAll')}</span>
+                  </button>
+                </div>
               </div>
               <ul className="menu-tree">
                 {categories.filter((path) => !path.includes('\\')).map((path) => renderCategory(path))}
