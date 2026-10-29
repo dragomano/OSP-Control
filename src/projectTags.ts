@@ -14,15 +14,8 @@ export const normalizeProjectTag = (value: string) =>
 const validTag = (tag: string) =>
   tag.length > 0 && [...tag].length <= MAX_PROJECT_TAG_LENGTH && !/\p{Cc}/u.test(tag);
 
-// Installation-scoped UI metadata never changes OSPanel's project.ini or API data.
-export function projectTagsStorageKey(installation: string | null): string {
-  const root = installation
-    ?.trim()
-    .replace(/[\\/]+/g, '/')
-    .replace(/\/+$/, '')
-    .toLowerCase();
-  return `ospanel.projectTags.v1:${root || 'default'}`;
-}
+// UI metadata only: it never changes OSPanel's project.ini or API data.
+export { PROJECT_TAGS_KEY } from './settingsStorage';
 
 export function tagsForProject(tags: ProjectTags, domain: string): string[] {
   const value = tags[domainKey(domain)];

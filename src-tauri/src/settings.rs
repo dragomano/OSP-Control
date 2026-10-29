@@ -13,8 +13,10 @@ use tauri::Manager;
 use toml_edit::{Array, DocumentMut, Item, Table, value};
 
 type Values = BTreeMap<String, String>;
-const TAG_PREFIX: &str = "ospanel.projectTags.v1:";
-const MENU_PREFIX: &str = "ospanel.menuTree.";
+const MENU_KEY: &str = "ospanel.menuTree";
+const TAG_KEY: &str = "ospanel.projectTags";
+const MAX_TAGS: usize = 12;
+const MAX_TAG_LENGTH: usize = 32;
 const FIELDS: &[(&str, &str, &str, &str)] = &[
     ("ospanel.lang", "interface", "language", "string"),
     ("ospanel.theme", "interface", "theme", "string"),
@@ -44,9 +46,6 @@ pub(crate) struct SettingsStore {
 
 fn invalid() -> CommandError {
     CommandError::new("err.settingsInvalid")
-}
-fn normalized(path: &str) -> String {
-    path.trim().replace('\\', "/").trim_end_matches('/').to_lowercase()
 }
 fn array(strings: &[String]) -> Item {
     let mut result = Array::new();
@@ -88,29 +87,6 @@ fn valid_scalar(key: &str, v: &str) -> bool {
         _ => ["0", "1"].contains(&v),
     }
 }
-fn active(doc: &DocumentMut) -> Option<&str> {
-    doc.get("connection")?.get("installation")?.as_str()
-}
-fn installation(doc: &mut DocumentMut, root: &str) -> Result<String, CommandError> {
-    section(doc, "installations")?;
-    let target = normalized(root);
-    let table = doc["installations"].as_table().ok_or_else(invalid)?;
-    if let Some((id, _)) = table
-        .iter()
-        .find(|(_, item)| item.get("path").and_then(Item::as_str).is_some_and(|p| normalized(p) == target))
-    {
-        return Ok(id.into());
-    }
-    let mut id = "main".to_string();
-    let mut n = 2;
-    while doc["installations"].get(&id).is_some() {
-        id = format!("installation_{n}");
-        n += 1;
-    }
-    doc["installations"][&id] = Item::Table(Table::new());
-    doc["installations"][&id]["path"] = value(root);
-    Ok(id)
-}
 fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), CommandError> {
     if let Some((_, group, field, kind)) = FIELDS.iter().find(|(k, ..)| *k == key) {
         if !valid_scalar(key, text) {
@@ -127,36 +103,20 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
         if text.trim().is_empty() || text.chars().any(char::is_control) {
             return Err(invalid());
         }
-        section(doc, "connection")?;
-        // Rebinding the active installation keeps its identity (and project metadata) stable.
-        let matching = doc.get("installations").and_then(Item::as_table).and_then(|t| {
-            t.iter()
-                .find(|(_, i)| {
-                    i.get("path").and_then(Item::as_str).is_some_and(|p| normalized(p) == normalized(text))
-                })
-                .map(|(id, _)| id.to_owned())
-        });
-        let id = if let Some(id) = matching {
-            id
-        } else if let Some(id) = active(doc).map(str::to_owned) {
-            put(&mut doc["installations"][&id], "path", value(text));
-            id
-        } else {
-            installation(doc, text)?
-        };
-        put(&mut doc["connection"], "installation", value(id));
-    } else if let Some(root) = key.strip_prefix(TAG_PREFIX) {
+        section(doc, "panel")?;
+        put(&mut doc["panel"], "path", value(text));
+    } else if key == MENU_KEY {
+        let collapsed: Vec<String> = serde_json::from_str(text).map_err(|_| invalid())?;
+        section(doc, "menu")?;
+        put(&mut doc["menu"], "collapsed_categories", array(&collapsed));
+    } else if key == TAG_KEY {
         let parsed: serde_json::Value = serde_json::from_str(text).map_err(|_| invalid())?;
         if parsed["version"] != 1 {
             return Err(invalid());
         }
         let projects = parsed["projects"].as_object().ok_or_else(invalid)?;
-        let id = installation(doc, root)?;
-        let metadata = &mut doc["installations"][&id];
-        if metadata.get("projects").is_none() {
-            metadata["projects"] = Item::Table(Table::new());
-        }
-        let existing = metadata["projects"]
+        section(doc, "projects")?;
+        let existing = doc["projects"]
             .as_table()
             .ok_or_else(invalid)?
             .iter()
@@ -164,7 +124,7 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
             .collect::<Vec<_>>();
         for domain in existing {
             if !projects.contains_key(&domain) {
-                metadata["projects"][&domain].as_table_mut().ok_or_else(invalid)?.remove("tags");
+                doc["projects"][&domain].as_table_mut().ok_or_else(invalid)?.remove("tags");
             }
         }
         for (domain, tags) in projects {
@@ -177,30 +137,17 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
                 .iter()
                 .map(|v| v.as_str().map(str::to_owned).ok_or_else(invalid))
                 .collect::<Result<Vec<_>, _>>()?;
-            if tags.len() > 12
-                || tags
-                    .iter()
-                    .any(|t| t.is_empty() || t.chars().count() > 32 || t.chars().any(char::is_control))
+            if tags.len() > MAX_TAGS
+                || tags.iter().any(|t| {
+                    t.is_empty() || t.chars().count() > MAX_TAG_LENGTH || t.chars().any(char::is_control)
+                })
             {
                 return Err(invalid());
             }
-            if metadata["projects"].get(domain).is_none() {
-                metadata["projects"][domain] = Item::Table(Table::new());
+            if doc["projects"].get(domain).is_none() {
+                doc["projects"][domain] = Item::Table(Table::new());
             }
-            put(&mut metadata["projects"][domain], "tags", array(&tags));
-        }
-        // Metadata discovered with the default OSPanel path also defines the initial active installation.
-        if active(doc).is_none() {
-            section(doc, "connection")?;
-            doc["connection"]["installation"] = value(id);
-        }
-    } else if let Some(root) = key.strip_prefix(MENU_PREFIX) {
-        let collapsed: Vec<String> = serde_json::from_str(text).map_err(|_| invalid())?;
-        let id = installation(doc, root)?;
-        put(&mut doc["installations"][&id], "collapsed_menu_categories", array(&collapsed));
-        if active(doc).is_none() {
-            section(doc, "connection")?;
-            doc["connection"]["installation"] = value(id);
+            put(&mut doc["projects"][domain], "tags", array(&tags));
         }
     } else {
         return Err(invalid());
@@ -231,55 +178,51 @@ fn values(doc: &DocumentMut) -> Result<Values, CommandError> {
             }
         }
     }
-    if let Some(connection) = doc.get("connection") {
-        if !connection.is_table() || connection.get("installation").is_some_and(|v| v.as_str().is_none()) {
+    if let Some(panel) = doc.get("panel") {
+        if !panel.is_table() {
             return Err(invalid());
         }
-    }
-    if let Some(installations) = doc.get("installations") {
-        for (id, entry) in installations.as_table().ok_or_else(invalid)?.iter() {
-            if !entry.is_table() {
+        if let Some(item) = panel.get("path") {
+            let path = item.as_str().ok_or_else(invalid)?;
+            if path.trim().is_empty() || path.chars().any(char::is_control) {
                 return Err(invalid());
             }
-            let root = entry.get("path").and_then(Item::as_str).ok_or_else(invalid)?;
-            if Some(id) == active(doc) && root != "default" {
-                result.insert("ospanel.path".into(), root.into());
-            }
-            if let Some(collapsed) = entry.get("collapsed_menu_categories") {
-                result.insert(
-                    format!("{MENU_PREFIX}{}", normalized(root)),
-                    serde_json::to_string(&strings(collapsed)?).map_err(|_| invalid())?,
-                );
-            }
-            if let Some(projects) = entry.get("projects") {
-                let mut tags = BTreeMap::new();
-                for (domain, project) in projects.as_table().ok_or_else(invalid)?.iter() {
-                    if !project.is_table() {
-                        return Err(invalid());
-                    }
-                    if let Some(list) = project.get("tags") {
-                        let list = strings(list)?;
-                        if list.len() > 12
-                            || list.iter().any(|t| {
-                                t.is_empty() || t.chars().count() > 32 || t.chars().any(char::is_control)
-                            })
-                        {
-                            return Err(invalid());
-                        }
-                        tags.insert(domain, list);
-                    }
-                }
-                result.insert(
-                    format!("{TAG_PREFIX}{}", normalized(root)),
-                    serde_json::json!({"version":1,"projects":tags}).to_string(),
-                );
-            }
+            result.insert("ospanel.path".into(), path.into());
         }
     }
-    if let Some(id) = active(doc) {
-        if doc.get("installations").and_then(|i| i.get(id)).is_none() {
+    if let Some(menu) = doc.get("menu") {
+        if !menu.is_table() {
             return Err(invalid());
         }
+        if let Some(collapsed) = menu.get("collapsed_categories") {
+            result.insert(
+                MENU_KEY.into(),
+                serde_json::to_string(&strings(collapsed)?).map_err(|_| invalid())?,
+            );
+        }
+    }
+    if let Some(projects) = doc.get("projects") {
+        let mut tags = BTreeMap::new();
+        for (domain, project) in projects.as_table().ok_or_else(invalid)?.iter() {
+            if !project.is_table() {
+                return Err(invalid());
+            }
+            if let Some(list) = project.get("tags") {
+                let list = strings(list)?;
+                if list.len() > MAX_TAGS
+                    || list.iter().any(|t| {
+                        t.is_empty() || t.chars().count() > MAX_TAG_LENGTH || t.chars().any(char::is_control)
+                    })
+                {
+                    return Err(invalid());
+                }
+                tags.insert(domain, list);
+            }
+        }
+        result.insert(
+            TAG_KEY.into(),
+            serde_json::json!({"version":1,"projects":tags}).to_string(),
+        );
     }
     Ok(result)
 }
@@ -356,8 +299,6 @@ impl SettingsStore {
                 updates.entry(key).or_insert(value);
             }
         }
-        // Path migration follows metadata migration, so the selected installation can be matched.
-        let root = updates.remove("ospanel.path");
         for (key, text) in updates {
             if values(&doc)?.get(&key) == Some(&text) {
                 continue;
@@ -369,16 +310,6 @@ impl SettingsStore {
                 }
             } else {
                 set_value(&mut doc, &key, &text).map_err(|e| self.error(e))?;
-            }
-        }
-        if let Some(root) = root {
-            if migration {
-                let id = installation(&mut doc, &root).map_err(|e| self.error(e))?;
-                put(&mut doc["installations"][&id], "path", value(&root));
-                section(&mut doc, "connection")?;
-                doc["connection"]["installation"] = value(id);
-            } else if values(&doc)?.get("ospanel.path") != Some(&root) {
-                set_value(&mut doc, "ospanel.path", &root).map_err(|e| self.error(e))?;
             }
         }
         let snapshot = values(&doc).map_err(|e| self.error(e))?;
@@ -536,7 +467,9 @@ mod tests {
             "schema_version = 2",
             "[interface]\nscale = 'big'",
             "[behavior]\nclose_to_tray = 1",
-            "[connection]\ninstallation = 'missing'",
+            "[panel]\npath = 1",
+            "[menu]\ncollapsed_categories = 'x'",
+            "[projects]\nadminer = 1",
         ] {
             fs::write(&f.store.path, raw).unwrap();
             assert_eq!(f.store.load().unwrap_err().code, "err.settingsInvalid");
@@ -545,19 +478,17 @@ mod tests {
         }
     }
     #[test]
-    fn migration_merges_native_and_webview_data_once_and_keeps_scopes() {
+    fn migration_merges_native_and_webview_data_once() {
         let f = Fixture::new();
         fs::write(f.store.legacy.as_ref().unwrap(), r#"{"lang":"ru","close_to_tray":true}"#).unwrap();
         assert_eq!(f.store.load().unwrap().values["ospanel.closeToTray"], "1");
-        let tags_a = r#"{"version":1,"projects":{"shop.test":{"invalid":true}}}"#;
-        let tags_b = r#"{"version":1,"projects":{"api.test":["Laravel","Клиент"]}}"#;
+        let tags = r#"{"version":1,"projects":{"api.test":["Laravel","Клиент"]}}"#;
         let old = [
             ("ospanel.lang", "en"),
             ("ospanel.theme", "light"),
             ("ospanel.path", r"D:\OSPanel6"),
-            ("ospanel.projectTags.v1:c:/osp", tags_a),
-            ("ospanel.projectTags.v1:d:/ospanel6", tags_b),
-            ("ospanel.menuTree.d:/ospanel6", r#"["Development"]"#),
+            ("ospanel.projectTags", tags),
+            ("ospanel.menuTree", r#"["Development"]"#),
             ("ospanel.demoMenu", "ignored"),
         ]
         .map(|(k, v)| (k.into(), v.into()))
@@ -566,61 +497,56 @@ mod tests {
         assert_eq!(snapshot.values["ospanel.lang"], "en");
         assert_eq!(snapshot.values["ospanel.closeToTray"], "1");
         assert_eq!(snapshot.values["ospanel.path"], r"D:\OSPanel6");
-        assert!(snapshot.values["ospanel.projectTags.v1:d:/ospanel6"].contains("Laravel"));
+        assert!(snapshot.values["ospanel.projectTags"].contains("Laravel"));
+        assert_eq!(snapshot.values["ospanel.menuTree"], r#"["Development"]"#);
+        assert!(!snapshot.values.contains_key("ospanel.demoMenu"));
         assert!(!f.store.legacy.as_ref().unwrap().exists());
         assert!(f.root.join("settings.json.migrated").exists());
+        let text = f.text();
+        assert!(text.contains("[panel]"));
+        assert!(text.contains("[menu]"));
+        assert!(text.contains("[projects."));
+        assert!(!text.contains("[installations"));
         let before = f.text();
         f.store.save([("ospanel.lang".into(), "es".into())].into(), true).unwrap();
         assert_eq!(f.text(), before);
     }
     #[test]
-    fn path_change_keeps_installation_identity_and_tags() {
+    fn path_change_keeps_project_tags() {
         let f = Fixture::new();
         f.save("ospanel.path", r"D:\OSPanel6");
-        f.save("ospanel.projectTags.v1:d:/ospanel6", r#"{"version":1,"projects":{"shop.test":["Клиент"]}}"#);
-        let before = f.text().parse::<DocumentMut>().unwrap()["connection"]["installation"]
-            .as_str()
-            .unwrap()
-            .to_string();
+        f.save("ospanel.projectTags", r#"{"version":1,"projects":{"shop.test":["Клиент"]}}"#);
         let snapshot = f.save("ospanel.path", r"E:\MovedPanel");
-        assert_eq!(
-            f.text().parse::<DocumentMut>().unwrap()["connection"]["installation"].as_str(),
-            Some(before.as_str())
-        );
-        assert!(snapshot.values["ospanel.projectTags.v1:e:/movedpanel"].contains("Клиент"));
-        assert!(!snapshot.values.contains_key("ospanel.projectTags.v1:d:/ospanel6"));
+        assert_eq!(snapshot.values["ospanel.path"], r"E:\MovedPanel");
+        assert!(snapshot.values["ospanel.projectTags"].contains("Клиент"));
     }
-
     #[test]
-    fn migration_selects_custom_path_without_rebinding_another_installation() {
+    fn menu_preferences_and_panel_path_use_their_own_sections() {
         let f = Fixture::new();
-        let data = r#"{"version":1,"projects":{"shop.test":["Client"]}}"#;
-        let snapshot = f
-            .store
-            .save(
-                [
-                    ("ospanel.path".into(), r"E:\SelectedPanel".into()),
-                    ("ospanel.projectTags.v1:c:/oldpanel".into(), data.into()),
-                    ("ospanel.projectTags.v1:d:/ospanel6".into(), data.into()),
-                ]
-                .into(),
-                true,
-            )
-            .unwrap();
-        assert_eq!(snapshot.values["ospanel.path"], r"E:\SelectedPanel");
-        assert!(snapshot.values.contains_key("ospanel.projectTags.v1:c:/oldpanel"));
-        assert!(snapshot.values.contains_key("ospanel.projectTags.v1:d:/ospanel6"));
-        assert_eq!(f.text().parse::<DocumentMut>().unwrap()["installations"].as_table().unwrap().len(), 3);
+        fs::write(&f.store.path, "schema_version=1\n# Hand written\n[custom]\nanswer = 42\n").unwrap();
+        f.save("ospanel.menuTree", r#"["Development","Tools"]"#);
+        assert_eq!(f.store.load().unwrap().values["ospanel.menuTree"], r#"["Development","Tools"]"#);
+        let text = f.text();
+        assert!(text.contains("[menu]"));
+        assert!(text.contains("collapsed_categories"));
+        assert!(text.contains("# Hand written"));
+        assert!(text.contains("answer = 42"));
+        assert!(!text.contains("[panel]"));
+        assert!(!text.contains("[projects"));
+        f.save("ospanel.path", r"D:\OSPanel6");
+        assert_eq!(f.store.load().unwrap().values["ospanel.path"], r"D:\OSPanel6");
+        assert!(f.text().contains("[panel]"));
+        assert!(!f.text().contains("[installations"));
     }
     #[test]
     fn tag_update_retains_project_notes_and_unrelated_metadata() {
         let f = Fixture::new();
-        fs::write(&f.store.path, "schema_version=1\n[installations.main]\npath='D:\\OSPanel6'\n[installations.main.projects.'shop.test']\n# important\ntags=['Old'] # tags comment\nnote='Keep'\n").unwrap();
-        f.save("ospanel.projectTags.v1:d:/ospanel6", r#"{"version":1,"projects":{"shop.test":["New"]}}"#);
+        fs::write(&f.store.path, "schema_version=1\n[panel]\npath='D:\\OSPanel6'\n[projects.'shop.test']\n# important\ntags=['Old'] # tags comment\nnote='Keep'\n").unwrap();
+        f.save("ospanel.projectTags", r#"{"version":1,"projects":{"shop.test":["New"]}}"#);
         assert!(f.text().contains("# important"));
         assert!(f.text().contains("# tags comment"));
         assert!(f.text().contains("note='Keep'"));
-        f.save("ospanel.projectTags.v1:d:/ospanel6", r#"{"version":1,"projects":{}}"#);
+        f.save("ospanel.projectTags", r#"{"version":1,"projects":{}}"#);
         assert!(f.text().contains("note='Keep'"));
     }
     #[test]

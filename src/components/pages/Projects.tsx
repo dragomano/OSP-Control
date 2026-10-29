@@ -35,15 +35,14 @@ import {
   editProjectTags,
   knownProjectTags,
   matchesProjectTags,
+  PROJECT_TAGS_KEY,
   type ProjectSort,
-  projectTagsStorageKey,
   readProjectTags,
   sortTaggedProjects,
   type TagMatch,
   tagsForProject,
   writeProjectTags,
 } from '../../projectTags';
-import { settingsStorage } from '../../settingsStorage';
 import { CreateProjectDialog } from '../dialogs/CreateProjectDialog';
 import { ProjectModulesDialog } from '../dialogs/ProjectModulesDialog';
 import { copyText, type Notify } from '../shared';
@@ -56,7 +55,6 @@ import { activityDate, groupProjectActivity, useProjectActivity } from './projec
 type ProjectsProps = {
   projects: OsPanelProject[];
   allProjects: OsPanelProject[];
-  installationPath?: string | null;
   query: string;
   setQuery: (value: string) => void;
   notify: Notify;
@@ -67,8 +65,7 @@ type ProjectsProps = {
 };
 
 export function Projects(props: ProjectsProps) {
-  const key = projectTagsStorageKey(props.installationPath ?? settingsStorage.getItem('ospanel.path'));
-  return <ProjectsContent {...props} tagStorageKey={key} />;
+  return <ProjectsContent {...props} tagStorageKey={PROJECT_TAGS_KEY} />;
 }
 
 function ProjectsContent({

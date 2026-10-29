@@ -1077,7 +1077,6 @@ function App() {
                   <Projects
                     projects={projects}
                     allProjects={projects}
-                    installationPath={snapshot?.path ?? null}
                     query={query}
                     setQuery={setQuery}
                     notify={notify}

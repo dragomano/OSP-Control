@@ -50,7 +50,7 @@ import {
 } from '../../menu';
 import { MenuIcon } from '../../menuIcons';
 import { askConfirm, isDesktopApp, openFileExternally, readMenu, writeMenu } from '../../ospanel';
-import { settingsStorage } from '../../settingsStorage';
+import { MENU_TREE_KEY, settingsStorage } from '../../settingsStorage';
 import { MenuIconPicker } from '../dialogs/MenuIconPicker';
 import { type Notify, useDismiss } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
@@ -69,12 +69,10 @@ type Drag = {
   before?: string;
 };
 const emptyHistory = (draft: MenuDraft): History => ({ past: [], present: draft, future: [] });
-const treeStorageKey = (path: string | null) =>
-  `ospanel.menuTree.${path?.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase() || 'default'}`;
 
-function readCollapsedCategories(key: string, categories: string[], fallback: string[]): string[] {
+function readCollapsedCategories(categories: string[], fallback: string[]): string[] {
   try {
-    const stored: unknown = JSON.parse(settingsStorage.getItem(key) ?? 'null');
+    const stored: unknown = JSON.parse(settingsStorage.getItem(MENU_TREE_KEY) ?? 'null');
     if (Array.isArray(stored) && stored.every((path) => typeof path === 'string'))
       return [...new Set(stored)].filter((path) => categories.includes(path));
   } catch {
@@ -103,7 +101,6 @@ export function MenuEditor({
   reloadVersion?: number;
 }) {
   const { t } = useI18n();
-  const storageKey = treeStorageKey(installationPath);
   const [saved, setSaved] = useState<OsPanelMenuDocument | null>(null);
   const [history, setHistory] = useState<History>(() => emptyHistory(menuDraft([])));
   const [selection, setSelection] = useState<Selection>({ kind: 'category', path: '' });
@@ -119,7 +116,7 @@ export function MenuEditor({
   const [categoryEdit, setCategoryEdit] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
   const requestRef = useRef(0);
-  const loadedTreeKeyRef = useRef<string | null>(null);
+  const loadedRef = useRef(false);
   const savedCollapsedRef = useRef('');
   const editBatchRef = useRef('');
   const dragRef = useRef<Drag | null>(null);
@@ -168,7 +165,7 @@ export function MenuEditor({
   };
   const load = useCallback(async () => {
     const request = ++requestRef.current;
-    loadedTreeKeyRef.current = null;
+    loadedRef.current = false;
     setLoading(true);
     setLoadError('');
     try {
@@ -181,13 +178,12 @@ export function MenuEditor({
       setSelection(first ? { kind: 'item', id: first.id } : { kind: 'category', path: '' });
       setQuery('');
       const nextCollapsed = readCollapsedCategories(
-        storageKey,
         menuCategories(nextDraft),
         MENU_SPECIAL_CATEGORIES.filter((path) => path !== (first ? categoryOf(first) : '')),
       );
       savedCollapsedRef.current = JSON.stringify(nextCollapsed);
       setCollapsed(nextCollapsed);
-      loadedTreeKeyRef.current = storageKey;
+      loadedRef.current = true;
       setIconOpen(false);
       setCategoryDialog(false);
     } catch (error) {
@@ -195,7 +191,7 @@ export function MenuEditor({
     } finally {
       if (request === requestRef.current) setLoading(false);
     }
-  }, [installationPath, storageKey, t]);
+  }, [installationPath, t]);
   // The locale may hot-reload while a draft is edited; it must never trigger a disk reload.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reload only for installation changes or a confirmed restore
   useEffect(() => {
@@ -206,16 +202,16 @@ export function MenuEditor({
     };
   }, [installationPath, reloadVersion]);
   useEffect(() => {
-    if (loading || loadedTreeKeyRef.current !== storageKey) return;
+    if (loading || !loadedRef.current) return;
     const serialized = JSON.stringify(collapsed);
     if (serialized === savedCollapsedRef.current) return;
     try {
-      settingsStorage.setItem(storageKey, serialized);
+      settingsStorage.setItem(MENU_TREE_KEY, serialized);
       savedCollapsedRef.current = serialized;
     } catch {
       // The current view remains usable if preference storage is unavailable.
     }
-  }, [collapsed, loading, storageKey]);
+  }, [collapsed, loading]);
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {

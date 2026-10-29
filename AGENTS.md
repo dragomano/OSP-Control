@@ -2,7 +2,7 @@
 
 ## Project
 
-Tauri 2 + React 19 + TypeScript (no Tailwind, custom CSS) — desktop control panel for OSPanel 6, installed at `D:\OSPanel6` (CLI: `bin/osp.bat`).
+Tauri 2 + React 19 + TypeScript (no Tailwind, custom CSS) — desktop control panel for OSPanel 6 (CLI: `bin/osp.bat`).
 
 ## Commands
 

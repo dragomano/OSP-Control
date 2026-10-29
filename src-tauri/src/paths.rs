@@ -7,12 +7,14 @@ use std::process::Command;
 
 use crate::error::{CommandError, spawn_failed};
 
+// Detection only: the first existing candidate wins, so the conventional installation
+// location comes first. The remaining entries are fallbacks for non-default drives.
 fn candidate_paths() -> Vec<PathBuf> {
     let mut paths = vec![
-        PathBuf::from(r"D:\OSPanel6"),
-        PathBuf::from(r"C:\OSPanel6"),
         PathBuf::from(r"C:\OSPanel"),
+        PathBuf::from(r"C:\OSPanel6"),
         PathBuf::from(r"D:\OSPanel"),
+        PathBuf::from(r"D:\OSPanel6"),
     ];
     if let Ok(program_data) = std::env::var("PROGRAMDATA") {
         paths.push(PathBuf::from(program_data).join("OSPanel"));
@@ -196,6 +198,11 @@ mod tests {
             external_path(Path::new(&format!(r"\\?\D:\{name}"))),
             PathBuf::from(format!(r"D:\{name}"))
         );
+    }
+
+    #[test]
+    fn the_conventional_location_is_the_default_candidate() {
+        assert_eq!(candidate_paths().first(), Some(&PathBuf::from(r"C:\OSPanel")));
     }
 
     #[test]

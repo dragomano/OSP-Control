@@ -96,7 +96,7 @@ The file uses `toml_edit` to retain comments, unrelated formatting and unknown k
 schema_version = 1
 
 [interface]
-language = "ru"
+language = "en"
 theme = "dark"
 accent = "blue"
 font = "dm-sans"
@@ -112,18 +112,17 @@ autostart_projects = false
 application = false
 modules = false
 
-[connection]
-installation = "main"
+[panel]
+path = 'C:\OSPanel'
 
-[installations.main]
-path = 'D:\OSPanel6'
-collapsed_menu_categories = ["Development"]
+[menu]
+collapsed_categories = ["Development"]
 
-[installations.main.projects."shop.test"]
+[projects."shop.test"]
 tags = ["Client", "Laravel"]
 ```
 
-Missing fields use built-in defaults. Installation IDs keep metadata attached when the active installation path changes. Windows autostart still uses the Windows registry, and WebView2 keeps its technical profile/cache in AppData; neither is a second settings store. Browser preview mode continues to use localStorage. A portable build does not copy development settings into the release folder.
+Missing fields use built-in defaults. Windows autostart still uses the Windows registry, and WebView2 keeps its technical profile/cache in AppData; neither is a second settings store. Browser preview mode continues to use localStorage. A portable build does not copy development settings into the release folder.
 
 ## Application updates
 

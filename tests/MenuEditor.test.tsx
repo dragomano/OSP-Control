@@ -62,7 +62,7 @@ describe('MenuEditor', () => {
   it('does not persist default categories merely by opening the page', async () => {
     mount();
     await screen.findByRole('textbox', { name: 'Name' });
-    expect(localStorage.getItem('ospanel.menuTree.c:/panel')).toBeNull();
+    expect(localStorage.getItem('ospanel.menuTree')).toBeNull();
   });
 
   it('remembers bulk and manual expansion, including nested categories, without editing the menu', async () => {
@@ -112,27 +112,26 @@ describe('MenuEditor', () => {
     expect(notify).not.toHaveBeenCalled();
   });
 
-  it('keeps expansion preferences separate when switching installations', async () => {
+  it('keeps the remembered tree when the installation path changes', async () => {
     const view = mount('C:/Panel');
     await screen.findByRole('textbox', { name: 'Name' });
     fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
     view.rerender(editor('C:/Other'));
-    expect(await screen.findByRole('button', { name: 'Collapse Tools' })).toHaveAttribute(
+    expect(await screen.findByRole('button', { name: 'Expand Tools' })).toHaveAttribute(
       'aria-expanded',
-      'true',
+      'false',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse Data' }));
+    expect(screen.getByRole('button', { name: 'Expand Data' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Data' }));
     view.rerender(editor('c:\\PANEL\\'));
     expect(await screen.findByRole('button', { name: 'Expand Tools' })).toHaveAttribute(
       'aria-expanded',
       'false',
     );
-    view.rerender(editor('C:/Other'));
-    expect(await screen.findByRole('button', { name: 'Collapse Tools' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
-    expect(screen.getByRole('button', { name: 'Expand Data' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Collapse Data' })).toHaveAttribute('aria-expanded', 'true');
+    const stored: unknown = JSON.parse(localStorage.getItem('ospanel.menuTree') ?? '[]');
+    expect(stored).toContain('Tools');
+    expect(stored).not.toContain('Data');
   });
 
   it('temporarily reveals search matches without overwriting the remembered tree', async () => {
@@ -163,7 +162,7 @@ describe('MenuEditor', () => {
   it.each(['invalid JSON', '{}', '[null]'])(
     'uses the default tree when saved preferences are invalid: %s',
     async (stored) => {
-      localStorage.setItem('ospanel.menuTree.c:/panel', stored);
+      localStorage.setItem('ospanel.menuTree', stored);
       mount();
       expect(await screen.findByRole('button', { name: 'Collapse Tools' })).toHaveAttribute(
         'aria-expanded',

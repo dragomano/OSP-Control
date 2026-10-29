@@ -8,7 +8,7 @@ import {
   editProjectTags,
   MAX_PROJECT_TAGS,
   matchesProjectTags,
-  projectTagsStorageKey,
+  PROJECT_TAGS_KEY,
   readProjectTags,
   sortTaggedProjects,
   tagsForProject,
@@ -27,18 +27,17 @@ const projects: OsPanelProject[] = [
   { domain: 'empty.local', path: 'D:/OSPanel6/home/empty.local', php: '8.4', type: 'Apache', ssl: false },
 ];
 const initial = { 'shop.local': ['Client', 'Laravel'], 'api.local': ['Client', 'API'] };
-const key = projectTagsStorageKey('D:/OSPanel6');
+const key = PROJECT_TAGS_KEY;
 const t = makeTranslator(embeddedDict('en'), embeddedDict('en'));
 const plural = makePlural(t, 'en', embeddedDict('en'));
 const notify = vi.fn();
-function Harness({ installationPath = 'D:/OSPanel6' }: { installationPath?: string }) {
+function Harness() {
   const [query, setQuery] = useState('');
   return (
     <I18nContext.Provider value={{ lang: 'en', t, plural }}>
       <Projects
         projects={projects}
         allProjects={projects}
-        installationPath={installationPath}
         query={query}
         setQuery={setQuery}
         notify={notify}
@@ -76,12 +75,10 @@ afterEach(() => {
 });
 
 describe('project tag metadata', () => {
-  it('isolates installations and normalizes Windows path and domain casing', () => {
-    expect(projectTagsStorageKey('D:\\OSPANEL6\\')).toBe(key);
+  it('normalizes Windows domain casing on write and read', () => {
     const next = editProjectTags({}, ['SHOP.local'], ' #Client ', 'add');
     writeProjectTags(key, next);
     expect(tagsForProject(readProjectTags(key), 'shop.LOCAL')).toEqual(['Client']);
-    expect(readProjectTags(projectTagsStorageKey('E:/OSPanel6'))).toEqual({});
   });
 
   it('ignores corrupt and future data, sanitizes stored tags, and handles prototype-like domains', () => {
@@ -157,7 +154,7 @@ describe('project tag metadata', () => {
 });
 
 describe('project tags UI', () => {
-  it('adds and removes tags, persists remounts and switches installations without leaking metadata', async () => {
+  it('adds and removes tags and keeps them across remounts', async () => {
     const view = render(<Harness />);
     fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
     const editor = screen.getByRole('region', { name: 'Tags for shop.local' });
@@ -166,11 +163,8 @@ describe('project tags UI', () => {
     expect(row('shop.local').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
     fireEvent.click(within(editor).getByRole('button', { name: 'Done' }));
     view.unmount();
-    const next = render(<Harness />);
+    render(<Harness />);
     expect(row('shop.local').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
-    next.rerender(<Harness installationPath="E:/OSPanel6" />);
-    expect(row('shop.local').queryByRole('button', { name: 'Filter by tag Client' })).not.toBeInTheDocument();
-    next.rerender(<Harness />);
     fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove tag Client' }));
     expect(readProjectTags(key)).toEqual({});

@@ -16,8 +16,23 @@ const keys = new Set([
   'ospanel.checkServiceUpdates',
   'ospanel.closeToTray',
 ]);
-const migratedKey = (key: string) =>
-  keys.has(key) || key.startsWith('ospanel.projectTags.v1:') || key.startsWith('ospanel.menuTree.');
+export const MENU_TREE_KEY = 'ospanel.menuTree';
+export const PROJECT_TAGS_KEY = 'ospanel.projectTags';
+// Earlier releases scoped both keys by the installation path (`ospanel.menuTree.<path>` and
+// `ospanel.projectTags.v1:<path>`); the flat names replace them.
+const scopedKey = (key: string) => {
+  if (key === MENU_TREE_KEY || key.startsWith(`${MENU_TREE_KEY}.`)) return MENU_TREE_KEY;
+  if (key === PROJECT_TAGS_KEY || key.startsWith(`${PROJECT_TAGS_KEY}.`)) return PROJECT_TAGS_KEY;
+  return key;
+};
+const scopeSuffix = (path: string | undefined) =>
+  path
+    ?.trim()
+    .replace(/[\\/]+/g, '/')
+    .replace(/\/+$/, '')
+    .toLowerCase() || 'default';
+const scopeName = (name: string) => name.replace(/^v1:/, '');
+const migratedKey = (key: string) => keys.has(key) || scopedKey(key) !== key;
 let desktopValues: Record<string, string> | null = null;
 const pending: Record<string, string> = {};
 let running: Promise<boolean> | null = null;
@@ -42,20 +57,36 @@ function report(error: SettingsError | null) {
 }
 function legacyValues(): Record<string, string> {
   const result: Record<string, string> = {};
+  const scoped: Record<string, Record<string, string>> = { [MENU_TREE_KEY]: {}, [PROJECT_TAGS_KEY]: {} };
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && migratedKey(key)) {
-      const value = localStorage.getItem(key);
-      if (value !== null) result[key] = value;
-    }
+    if (!key || !migratedKey(key)) continue;
+    const value = localStorage.getItem(key);
+    if (value === null) continue;
+    const flat = scopedKey(key);
+    if (flat === key) result[key] = value;
+    else scoped[flat][key.slice(flat.length + 1)] = value;
+  }
+  // The path-scoped sources may hold one entry per installation; the selected one wins.
+  const selected = scopeSuffix(result['ospanel.path']);
+  for (const [flat, entries] of Object.entries(scoped)) {
+    const names = Object.keys(entries).sort();
+    const name =
+      names.find((item) => scopeName(item) === selected) ??
+      names.find((item) => scopeName(item) === 'default') ??
+      names[0];
+    if (name !== undefined) result[flat] = entries[name];
   }
   return result;
 }
 function clearLegacy(values: Record<string, string>) {
   // Never remove source data until the native migration has succeeded.
   try {
-    for (const key of Object.keys(legacyValues()))
-      if (Object.keys(values).includes(key)) localStorage.removeItem(key);
+    const known = Object.keys(values);
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && migratedKey(key) && known.includes(scopedKey(key))) localStorage.removeItem(key);
+    }
   } catch {
     /* A later launch can retry cleanup. */
   }

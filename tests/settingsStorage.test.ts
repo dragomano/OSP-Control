@@ -36,11 +36,16 @@ describe('portable settings bridge', () => {
     expect(invoke.mock.calls.map(([command]) => command)).toEqual(['load_settings']);
   });
 
-  it('migrates preferences, menu state and project tags together, leaving demo data alone', async () => {
+  it('migrates preferences, flattening path-scoped menu and tag keys, leaving demo data alone', async () => {
     desktop();
     const tags = '{"version":1,"projects":{"api.test":["Client"]}}';
     localStorage.setItem('ospanel.lang', 'ru');
+    localStorage.setItem('ospanel.path', 'D:\\OSPanel6');
     localStorage.setItem('ospanel.projectTags.v1:d:/ospanel6', tags);
+    localStorage.setItem(
+      'ospanel.projectTags.v1:c:/oldpanel',
+      '{"version":1,"projects":{"old.test":["Old"]}}',
+    );
     localStorage.setItem('ospanel.menuTree.d:/ospanel6', '["Development"]');
     localStorage.setItem('ospanel.demoMenu', '{}');
     invoke
@@ -51,12 +56,17 @@ describe('portable settings bridge', () => {
     expect(invoke).toHaveBeenLastCalledWith('migrate_settings', {
       legacy: {
         'ospanel.lang': 'ru',
-        'ospanel.projectTags.v1:d:/ospanel6': tags,
-        'ospanel.menuTree.d:/ospanel6': '["Development"]',
+        'ospanel.path': 'D:\\OSPanel6',
+        'ospanel.projectTags': tags,
+        'ospanel.menuTree': '["Development"]',
       },
     });
-    expect(settingsStorage.getItem('ospanel.projectTags.v1:d:/ospanel6')).toBe(tags);
+    expect(settingsStorage.getItem('ospanel.projectTags')).toBe(tags);
+    expect(settingsStorage.getItem('ospanel.menuTree')).toBe('["Development"]');
     expect(localStorage.getItem('ospanel.lang')).toBeNull();
+    expect(localStorage.getItem('ospanel.projectTags.v1:d:/ospanel6')).toBeNull();
+    expect(localStorage.getItem('ospanel.projectTags.v1:c:/oldpanel')).toBeNull();
+    expect(localStorage.getItem('ospanel.menuTree.d:/ospanel6')).toBeNull();
     expect(localStorage.getItem('ospanel.demoMenu')).toBe('{}');
   });
 
