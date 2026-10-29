@@ -3314,7 +3314,7 @@ button {
   .modal-window {
     box-shadow: 0 24px 60px var(--dark-shadow);
   }
-  :is(.modal-input, .modal-select, .module-select, .quick-search-input) {
+  :is(.modal-input, .modal-select, .module-select select, .quick-search-input) {
     background: var(--panel2);
     color: var(--text);
     border-color: var(--line);
