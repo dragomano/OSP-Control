@@ -2482,7 +2482,7 @@ dependencies = [
 
 [[package]]
 name = "osp-control"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ignore",
  "reqwest 0.12.28",
