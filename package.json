@@ -23,6 +23,7 @@
     "@tauri-apps/plugin-dialog": "^2.8.4",
     "highlight.js": "^11.12.0",
     "lucide-react": "^1.63.0",
+    "preact": "^11.1.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",
     "@fortawesome/fontawesome-free-ospanel": "npm:@fortawesome/fontawesome-free@6.5.2",
+    "@preact/preset-vite": "^2.10.6",
     "@tauri-apps/cli": "^2.12.4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

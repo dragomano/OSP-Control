@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import react from '@vitejs/plugin-react';
+import { preact } from '@preact/preset-vite';
 import { defineConfig } from 'vite';
 
 // The single source of the product name is productName in tauri.conf.json.
@@ -10,16 +10,14 @@ const { productName } = JSON.parse(
 ) as { productName: string };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [preact()],
   define: { 'import.meta.env.VITE_APP_NAME': JSON.stringify(productName) },
   build: {
     rolldownOptions: {
       output: {
         codeSplitting: {
-          // Cache the React runtime independently of application code and dictionaries.
-          groups: [
-            { name: 'react-vendor', test: /[\\/]node_modules[\\/](?:react|react-dom|scheduler)[\\/]/ },
-          ],
+          // Cache the Preact (React-compat) runtime independently of application code and dictionaries.
+          groups: [{ name: 'preact-vendor', test: /[\\/]node_modules[\\/](?:preact)[\\/]/ }],
         },
       },
     },
