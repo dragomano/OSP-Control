@@ -219,10 +219,10 @@
   "configs.folder": "Folder",
   "configs.copy": "Copy",
   "configs.viewerHint": "Pick a file in the list on the left",
-  "configs.toastBackupDone.one": "Backup created: {count} file",
-  "configs.toastBackupDone.few": "Backup created: {count} files",
-  "configs.toastBackupDone.many": "Backup created: {count} files",
-  "configs.toastBackupDone.other": "Backup created: {count} files",
+  "configs.toastBackupDone": {
+    "one": "Backup created: {count} file",
+    "other": "Backup created: {count} files"
+  },
   "configs.toastBackupFailed": "Failed to create backup",
   "configs.toastListFailed": "Failed to list configuration files",
   "configs.toastReadFailed": "Failed to read file",
@@ -288,10 +288,10 @@
   "settings.sourcesInvalidUrl": "Line {line}: enter a complete HTTPS address without credentials or a fragment.",
   "settings.sourcesDuplicate": "Line {line}: this address is already in the list.",
   "settings.sourcesTooMany": "Use no more than 32 addresses per module.",
-  "settings.sourcesCount.one": "{count} address",
-  "settings.sourcesCount.few": "{count} addresses",
-  "settings.sourcesCount.many": "{count} addresses",
-  "settings.sourcesCount.other": "{count} addresses",
+  "settings.sourcesCount": {
+    "one": "{count} address",
+    "other": "{count} addresses"
+  },
   "settings.subtitle": "Application and OSPanel connection settings.",
   "settings.navConnection": "OSPanel connection",
   "settings.navAutostart": "Autostart & notifications",
@@ -368,10 +368,10 @@
   "settings.backupsLoadFailed": "Could not load backups",
   "settings.backupsRetry": "Try again",
   "settings.backupsAll": "All",
-  "settings.backupsFiles.one": "{count} file · {size}",
-  "settings.backupsFiles.few": "{count} files · {size}",
-  "settings.backupsFiles.many": "{count} files · {size}",
-  "settings.backupsFiles.other": "{count} files · {size}",
+  "settings.backupsFiles": {
+    "one": "{count} file · {size}",
+    "other": "{count} files · {size}"
+  },
   "settings.backupsOpenFolder": "Open folder",
   "settings.backupsOpenFolderFailed": "Failed to open the folder",
   "settings.backupsRestore": "Restore",
@@ -387,19 +387,19 @@
   "settings.backupsDbNone": "No running database modules",
   "settings.backupsDbCreate": "Create dump",
   "settings.backupsDbCreated": "Database dump saved: {module}",
-  "settings.backupsDbCreatedCount.one": "Created {count} dump",
-  "settings.backupsDbCreatedCount.few": "Created {count} dumps",
-  "settings.backupsDbCreatedCount.many": "Created {count} dumps",
-  "settings.backupsDbCreatedCount.other": "Created {count} dumps",
+  "settings.backupsDbCreatedCount": {
+    "one": "Created {count} dump",
+    "other": "Created {count} dumps"
+  },
   "settings.backupsProjectTitle": "Project backups",
   "settings.backupsProjectText": "A zip archive of the project folder; node_modules and vendor are excluded. The current folder is archived automatically before restore.",
   "settings.backupsProjectNone": "No projects",
   "settings.backupsProjectCreate": "Create archive",
   "settings.backupsProjectCreated": "Project archive saved: {domain}",
-  "settings.backupsProjectCreatedCount.one": "Created {count} archive",
-  "settings.backupsProjectCreatedCount.few": "Created {count} archives",
-  "settings.backupsProjectCreatedCount.many": "Created {count} archives",
-  "settings.backupsProjectCreatedCount.other": "Created {count} archives",
+  "settings.backupsProjectCreatedCount": {
+    "one": "Created {count} archive",
+    "other": "Created {count} archives"
+  },
   "settings.backupsKindConfig": "Configurations",
   "settings.backupsKindDb": "Database: {module}",
   "settings.backupsKindProject": "Project: {domain}",

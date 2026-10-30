@@ -7,18 +7,51 @@ import ukJson from '../src-tauri/resources/locales/uk.json';
 import { isDesktopApp } from './ospanel';
 
 export type Dict = Record<string, string>;
+// A dictionary file: plain keys with a string value and plural families with an
+// object of CLDR forms.
+export type RawDict = Record<string, string | Record<string, string>>;
 export type LocaleInfo = { code: string; name: string };
 export type Translator = (key: string, vars?: Record<string, string | number>) => string;
+
+// Plural forms live in a dictionary file as a nested object under the family key:
+//
+//   "settings.sourcesCount": { "one": "{count} address", "other": "{count} addresses" }
+//
+// The app works with a flat map, so a family is flattened into "<key>.<form>"
+// entries — the names the old flat files used. A file written in the old flat
+// style is therefore still read correctly: its "<key>.<form>" keys are plain
+// strings and stay as they are. The flat map is what makes the lookup, the
+// fallback and the file check work the same for both formats.
+export function flattenDict(raw: unknown): Dict {
+  const dict: Dict = {};
+
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return dict;
+
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string') {
+      dict[key] = value;
+      continue;
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+
+    for (const [form, text] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof text === 'string') dict[`${key}.${form}`] = text;
+    }
+  }
+
+  return dict;
+}
 
 // The base language is English: it doubles as the placeholder for incomplete
 // user-supplied files and for locale codes Intl does not know. Russian is not
 // used in that role — otherwise Russian strings would leak into other translations.
 const EMBEDDED: Record<string, Dict> = {
-  en: enJson as Dict,
-  ru: ruJson as Dict,
-  be: beJson as Dict,
-  es: esJson as Dict,
-  uk: ukJson as Dict,
+  en: flattenDict(enJson),
+  ru: flattenDict(ruJson),
+  be: flattenDict(beJson),
+  es: flattenDict(esJson),
+  uk: flattenDict(ukJson),
 };
 
 export const BASE_LANG = 'en';
@@ -31,13 +64,7 @@ function parseDict(raw: string): Dict {
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid locale file');
 
-  const dict: Dict = {};
-
-  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (typeof value === 'string') dict[key] = value;
-  }
-
-  return dict;
+  return flattenDict(parsed);
 }
 
 // Reads locales/<lang>.json next to the exe; on a missing/broken file — the embedded dictionary.
@@ -95,7 +122,8 @@ export function makeTranslator(dict: Dict, fallback: Dict): Translator {
   };
 }
 
-// Plural forms live in dictionaries as <key>.one/.few/.many/.other (CLDR suffixes).
+// Plural forms live in dictionaries as a nested object under the family key; in the
+// flat map they are <key>.one/.few/.many/.other (CLDR suffixes).
 // The category is chosen by Intl.PluralRules, not by a manual denominator check: uk/pl/cs/lt
 // have their own category sets, Arabic has six (zero/one/two/few/many/other), and any such
 // locale is picked up from the locales folder without code changes. The objects are cached —

@@ -49,6 +49,7 @@ Consider the task complete only when all commands pass without errors. For chang
 ## Known specifics
 
 - dev copy of the locales: `src-tauri/target/debug/locales/` (created by Tauri automatically)
+- Plural forms in a locale dictionary are a nested object under the family key (`"settings.sourcesCount": { "one": "...", "other": "..." }`), one form per CLDR category of the language. `flattenDict()` in `i18n.ts` flattens them into `<key>.<form>` for the runtime, so a hand-written file in the old flat style still reads.
 - Module and project state comes from the panel's HTTP API: `GET /getmodules` and `/getprojects` (address from `system/program.dat` → `general.api_ip`/`api_port`, factory default `127.0.1.0:80`; the panel must be running). Do not parse the text tables of `osp.bat` — they are localized and break when the panel interface language changes.
 - The panel's JSON is not strictly valid: raw control bytes appear inside strings (NULs from env blocks) — parse it only via `parse_osp_json()` in `main.rs`.
 - Machine-readable sources: JSON API (modules/projects), `config/<module>/module.ini` (`enabled = 1`), `bin/osp.bat` (`OSP_VERSION=`).

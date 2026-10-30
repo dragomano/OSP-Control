@@ -143,12 +143,13 @@ A power loss can require manual recovery. Close all application processes and, b
 Translations live in `src-tauri/resources/locales/*.json` and are embedded into the binary. The portable build ships a copy in `locales/` next to the exe: edit the files there and the changes are picked up when the window regains focus, or via the "Reload translations" button in the settings.
 
 A new language is a single `<code>.json` file (for example `de.json` or `pt_BR.json`) in `locales/` next to the exe; in a dev build — `src-tauri/target/debug/locales/`. The code is 2–8 characters: Latin letters, digits, `-` and `_`. The language appears in the settings on its own — no rebuild needed. File format:
-- a flat JSON object "key — non-empty string", no nesting;
+- a JSON object of "key — non-empty string" entries; a plural family is a nested object (see below);
+- the keys are listed in the order of `en.json` (the base language), so two dictionaries can be compared line by line;
 - `lang.name` — the language name in itself ("Deutsch"); without it the language will not appear in the settings list;
 - `lang.code` — the code matching the file name; no other `lang.*` keys are allowed;
-- the full set of keys from `en.json` (the base language): missing keys silently render in English, extra keys are never translated (the exception is plural forms unneeded by the language, see below);
+- the full set of keys from `en.json`: missing keys silently render in English, extra keys are never translated;
 - `{var}` placeholders — the same names as in `en.json`;
-- plural forms — `<key>.one/.few/.many/.other`; the required set is the CLDR categories of the language itself (`Intl.PluralRules`): English and German need `.one`/`.other` only, Russian needs all four, Arabic would additionally need `.zero`/`.two`. Forms the language does not need can be omitted; the embedded dictionaries do include them — the key sets are synchronized (a parity test checks this), and such forms are filled with a copy of `.other`.
+- plural forms — a nested object under the family key, for example `"settings.sourcesCount": { "one": "{count} address", "other": "{count} addresses" }`. The forms are the CLDR categories of the language itself (`Intl.PluralRules`): English and German need `one`/`other` only, Russian needs all four, Arabic would additionally need `zero`/`two`. Only the forms the language needs have to be present. The old flat style (`"settings.sourcesCount.one"`) is still read, so a file written that way keeps working. In Russian, Ukrainian and Belarusian `other` covers fractions, where the noun takes the genitive singular (“1,5 файла”).
 
 When a file is loaded the app validates it and lists the found issues in a toast; the same rules are enforced in the repository by parity tests (`pnpm test`). To embed a language into the distribution, add the same file to `src-tauri/resources/locales/`, an import to `src/i18n.ts` and a fallback to `src-tauri/src/locales.rs` — the tests pick up the new dictionary automatically.
 

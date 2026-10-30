@@ -5,6 +5,7 @@ import {
   EMBEDDED_LANGS,
   embeddedDict,
   errorText,
+  flattenDict,
   LANG_NAMES,
   langDisplayName,
   loadLocaleDict,
@@ -30,6 +31,59 @@ const t = makeTranslator(
   },
   { 'greet.bye': 'Пока' },
 );
+
+describe('flattenDict', () => {
+  it('flattens a plural family into <key>.<form> entries', () => {
+    expect(
+      flattenDict({
+        'nav.overview': 'Overview',
+        'settings.sourcesCount': { one: '{count} address', other: '{count} addresses' },
+      }),
+    ).toEqual({
+      'nav.overview': 'Overview',
+      'settings.sourcesCount.one': '{count} address',
+      'settings.sourcesCount.other': '{count} addresses',
+    });
+  });
+
+  it('reads a file written in the old flat style unchanged', () => {
+    // Hand-written files in the locales folder may still use <key>.<form> keys:
+    // they are plain strings and must stay as they are.
+    expect(
+      flattenDict({
+        'nav.overview': 'Обзор',
+        'settings.sourcesCount.one': '{count} адрес',
+        'settings.sourcesCount.other': '{count} адреса',
+      }),
+    ).toEqual({
+      'nav.overview': 'Обзор',
+      'settings.sourcesCount.one': '{count} адрес',
+      'settings.sourcesCount.other': '{count} адреса',
+    });
+  });
+
+  it('drops values that are neither a string nor a plural family', () => {
+    expect(
+      flattenDict({
+        'nav.overview': 'Обзор',
+        'nav.broken': 42,
+        'nav.list': ['a', 'b'],
+        'nav.null': null,
+        'nav.empty': {},
+        'settings.sourcesCount': { one: '{count} адрес', broken: 7 },
+      }),
+    ).toEqual({
+      'nav.overview': 'Обзор',
+      'settings.sourcesCount.one': '{count} адрес',
+    });
+  });
+
+  it('returns an empty dictionary for a broken file', () => {
+    expect(flattenDict(null)).toEqual({});
+    expect(flattenDict('text')).toEqual({});
+    expect(flattenDict(['a'])).toEqual({});
+  });
+});
 
 describe('makeTranslator', () => {
   it('substitutes variables, including repeated occurrences', () => {
@@ -435,13 +489,24 @@ describe('loadLocaleDict in Tauri', () => {
     invokeMock.mockReset();
   });
 
-  it('reads locales/<lang>.json via read_locale and filters out non-strings', async () => {
+  it('reads locales/<lang>.json via read_locale and flattens plural families', async () => {
     (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
-    invokeMock.mockResolvedValueOnce(JSON.stringify({ 'a.key': 'ok', bad: 42, list: ['x'] }));
+    invokeMock.mockResolvedValueOnce(
+      JSON.stringify({
+        'a.key': 'ok',
+        bad: 42,
+        list: ['x'],
+        'settings.sourcesCount': { one: '{count} address', other: '{count} addresses' },
+      }),
+    );
     const { dict, fileUsed } = await loadLocaleDict('de');
     expect(invokeMock).toHaveBeenCalledWith('read_locale', { lang: 'de', allowFile: true });
     expect(fileUsed).toBe(true);
-    expect(dict).toEqual({ 'a.key': 'ok' });
+    expect(dict).toEqual({
+      'a.key': 'ok',
+      'settings.sourcesCount.one': '{count} address',
+      'settings.sourcesCount.other': '{count} addresses',
+    });
   });
 
   it('falls back to the embedded dictionary when file reading fails', async () => {
@@ -453,6 +518,45 @@ describe('loadLocaleDict in Tauri', () => {
     expect(invokeMock).toHaveBeenLastCalledWith('read_locale', { lang: 'de', allowFile: false });
     expect(fileUsed).toBe(false);
     expect(dict).toEqual({ 'b.key': 'fallback' });
+  });
+});
+
+describe('a locale file in the old flat style', () => {
+  // The locales folder is edited by hand, and the dictionaries are not rewritten on
+  // an update: a file written in the old flat style must keep working against the
+  // new base dictionary.
+  const base = embeddedDict(BASE_LANG);
+  // The old shape of a Russian file: every key is a string, the plural forms carry
+  // the suffix in the key itself. The base carries one/other only now, so the forms
+  // the language needs and the base does not have are added back.
+  const familyBases = Object.keys(base)
+    .filter((key) => key.endsWith('.one') && `${key.slice(0, -'.one'.length)}.other` in base)
+    .map((key) => key.slice(0, -'.one'.length));
+  const legacy: Record<string, string> = { ...base };
+  for (const family of familyBases) {
+    legacy[`${family}.few`] = base[`${family}.one`];
+    legacy[`${family}.many`] = base[`${family}.one`];
+  }
+  legacy['settings.sourcesCount.few'] = '{count} адреса';
+  legacy['settings.sourcesCount.many'] = '{count} адресов';
+
+  it('keeps the plural forms of the file', () => {
+    const own = flattenDict(legacy);
+    const plural = makePlural(makeTranslator(own, base), 'ru', own);
+    expect(plural('settings.sourcesCount', 1)).toBe('1 address');
+    expect(plural('settings.sourcesCount', 3)).toBe('3 адреса');
+    expect(plural('settings.sourcesCount', 7)).toBe('7 адресов');
+  });
+
+  it('is not reported as an issue against the new base dictionary', () => {
+    // The base carries one/other only now — the forms the language needs and the
+    // base does not have are legitimate, not unknown keys.
+    expect(localeIssues(flattenDict(legacy), base, 'ru')).toEqual({
+      missingKeys: [],
+      unknownKeys: [],
+      placeholderMismatches: [],
+      incompletePlurals: [],
+    });
   });
 });
 
