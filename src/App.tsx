@@ -14,7 +14,7 @@ import {
   Sun,
   X,
 } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { version as appVersion } from '../package.json';
 import { AppUpdateButton, AppUpdatesProvider } from './appUpdates';
 import { APP_NAME } from './brand';
@@ -537,17 +537,14 @@ function App() {
     })();
   }, []);
 
-  useEffect(() => {
+  // Apply the saved look (accent, font, UI scale) before the first paint, so the
+  // initial frame already matches the user's settings instead of flashing the
+  // defaults and then re-laying-out (zoom) after the first frame.
+  useLayoutEffect(() => {
     applyAccentTheme(accent);
-  }, [accent]);
-
-  useEffect(() => {
     applyFont(font);
-  }, [font]);
-
-  useEffect(() => {
     applyUiScale(scale);
-  }, [scale]);
+  }, [accent, font, scale]);
 
   const refreshLocales = useCallback(async () => {
     const request = ++localeListRequestRef.current;

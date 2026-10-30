@@ -171,14 +171,29 @@ pub async fn project_activity(
         let root = resolve_installation(custom_path.as_deref())?;
         let projects = projects_from_api(&root);
         let mut seen = HashSet::new();
-        Ok(domains
+        let unique: Vec<&String> = domains
             .iter()
             .filter(|domain| seen.insert(domain.to_lowercase()))
-            .map(|domain| match project_directory(&root, domain, &projects) {
-                Ok(path) => scan_project(domain, &path),
-                Err(_) => ProjectActivity::unavailable(domain),
-            })
-            .collect())
+            .collect();
+        // Scan the (typically disjoint) project trees in parallel instead of walking
+        // them one after another — the filesystem walk dominates the total time.
+        let results: Vec<ProjectActivity> = std::thread::scope(|scope| {
+            let handles: Vec<_> = unique
+                .iter()
+                .map(|domain| {
+                    let domain: &str = domain;
+                    scope.spawn(|| match project_directory(&root, domain, &projects) {
+                        Ok(path) => scan_project(domain, &path),
+                        Err(_) => ProjectActivity::unavailable(domain),
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().expect("activity scan thread panicked"))
+                .collect()
+        });
+        Ok(results)
     })
     .await
     .map_err(|error| CommandError::new("err.ioFailed").with("detail", error.to_string()))?

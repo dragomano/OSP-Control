@@ -51,6 +51,15 @@ export function groupProjectActivity(
   return [...groups.values()];
 }
 
+// Session-scoped cache of activity scans, keyed by the same requestKey the hook
+// uses. Re-entering the Projects page reuses the previous result instead of
+// showing a blank "scanning" state until the disk walk completes again, which
+// made the page feel sluggish on every visit.
+type ActivityCacheEntry = { entries: Record<string, ProjectActivity>; at: number };
+const activityCache = new Map<string, ActivityCacheEntry>();
+
+const hasEntries = (entries: Record<string, ProjectActivity>): boolean => Object.keys(entries).length > 0;
+
 export function useProjectActivity(projects: OsPanelProject[]) {
   // Snapshot refreshes replace the project objects; only a changed domain/path
   // list or installation should restart the scan, never a search or SSL toggle.
@@ -65,7 +74,12 @@ export function useProjectActivity(projects: OsPanelProject[]) {
     entries: Record<string, ProjectActivity>;
     loading: boolean;
     error: unknown;
-  }>({ key: '', entries: {}, loading: true, error: null });
+  }>(() => {
+    const hit = activityCache.get(requestKey);
+    return hit
+      ? { key: requestKey, entries: hit.entries, loading: false, error: null }
+      : { key: '', entries: {}, loading: true, error: null };
+  });
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -83,21 +97,23 @@ export function useProjectActivity(projects: OsPanelProject[]) {
         return;
       }
       running = true;
-      setState((current) => ({
-        key: requestKey,
-        entries: current.key === requestKey ? current.entries : {},
-        loading: true,
-        error: null,
-      }));
+      // Keep showing cached entries while refreshing; only a cold first scan
+      // (no cache yet) should flip the UI into the scanning state.
+      setState((current) => {
+        const seeded = current.key === requestKey && hasEntries(current.entries);
+        return {
+          key: requestKey,
+          entries: seeded ? current.entries : {},
+          loading: !seeded,
+          error: null,
+        };
+      });
       try {
         const result = await getProjectActivity(domains);
         if (!disposed) {
-          setState({
-            key: requestKey,
-            entries: Object.fromEntries(result.map((entry) => [entry.domain, entry])),
-            loading: false,
-            error: null,
-          });
+          const entries = Object.fromEntries(result.map((entry) => [entry.domain, entry]));
+          activityCache.set(requestKey, { entries, at: Date.now() });
+          setState({ key: requestKey, entries, loading: false, error: null });
         }
       } catch (error) {
         if (!disposed) setState((current) => ({ ...current, loading: false, error }));
