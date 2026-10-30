@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 // Tests run against React, not the Preact production runtime: the Vitest
 // environment externalizes node_modules, so a react -> preact/compat alias
 // would not reach @testing-library/react's react-dom (and React-based libs
-// like lucide-react / react-markdown), mixing two runtimes. The Preact swap
+// like lucide-react), mixing two runtimes. The Preact swap
 // is validated by the production build and a manual smoke test.
 export default defineConfig({
   plugins: [react()],
