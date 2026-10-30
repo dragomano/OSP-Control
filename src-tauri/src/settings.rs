@@ -29,6 +29,8 @@ const FIELDS: &[(&str, &str, &str, &str)] = &[
     ("ospanel.closeToTray", "behavior", "close_to_tray", "bool"),
     ("ospanel.checkAppUpdates", "updates", "application", "bool"),
     ("ospanel.checkServiceUpdates", "updates", "modules", "bool"),
+    ("ospanel.windowWidth", "window", "width", "integer"),
+    ("ospanel.windowHeight", "window", "height", "integer"),
 ];
 
 #[derive(Debug, Serialize)]
@@ -77,6 +79,9 @@ fn strings(item: &Item) -> Result<Vec<String>, CommandError> {
         .map(|v| v.as_str().map(str::to_owned).ok_or_else(invalid))
         .collect()
 }
+fn valid_dimension(v: &str, minimum: i64, maximum: i64) -> bool {
+    v.parse::<i64>().is_ok_and(|n| (minimum..=maximum).contains(&n))
+}
 fn valid_scalar(key: &str, v: &str) -> bool {
     match key {
         "ospanel.lang" => crate::paths::is_valid_lang(v),
@@ -84,6 +89,8 @@ fn valid_scalar(key: &str, v: &str) -> bool {
         "ospanel.accent" => ["orange", "blue", "green", "purple", "red", "pink"].contains(&v),
         "ospanel.font" => ["dm-sans", "segoe", "arial", "tahoma", "verdana", "consolas"].contains(&v),
         "ospanel.scale" => v.parse::<i64>().is_ok_and(|n| (80..=130).contains(&n)),
+        "ospanel.windowWidth" => valid_dimension(v, 980, 100_000),
+        "ospanel.windowHeight" => valid_dimension(v, 680, 100_000),
         _ => ["0", "1"].contains(&v),
     }
 }
@@ -345,6 +352,17 @@ impl SettingsStore {
             }
         }
         Ok(Snapshot { values: snapshot, migration_needed: false })
+    }
+    // Persists the window's inner size (in logical pixels) so a manual resize can
+    // be restored on the next launch. Both keys are validated like any other
+    // setting before being written.
+    pub(crate) fn save_window_size(&self, width: f64, height: f64) -> Result<(), CommandError> {
+        let updates = [
+            ("ospanel.windowWidth".into(), format!("{}", width.round() as i64)),
+            ("ospanel.windowHeight".into(), format!("{}", height.round() as i64)),
+        ]
+        .into();
+        self.save(updates, false).map(|_| ())
     }
     fn write(&self, text: &str) -> Result<(), CommandError> {
         // A unique, exclusively created sibling prevents partial writes and stale-temp collisions.
@@ -624,5 +642,19 @@ mod tests {
         f.save("ospanel.theme", "light");
         f.save("ospanel.scale", "110");
         assert_eq!(fs::read_to_string(&external).unwrap(), before);
+    }
+
+    #[test]
+    fn window_size_is_persisted_validated_and_read_back() {
+        let f = Fixture::new();
+        f.store.save_window_size(1440.0, 900.0).unwrap();
+        let snapshot = f.store.load().unwrap();
+        assert_eq!(snapshot.values["ospanel.windowWidth"], "1440");
+        assert_eq!(snapshot.values["ospanel.windowHeight"], "900");
+        assert!(f.text().contains("[window]"));
+        // A width below the minimum is rejected and the file is left untouched.
+        let before = f.text();
+        assert!(f.store.save([("ospanel.windowWidth".into(), "10".into())].into(), false).is_err());
+        assert_eq!(f.text(), before);
     }
 }

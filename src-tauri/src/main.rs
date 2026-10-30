@@ -23,8 +23,9 @@ mod update_files;
 mod update_sources;
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
-use tauri::{Manager, WindowEvent};
+use tauri::{Manager, PhysicalPosition, PhysicalSize, Position, Size, WindowEvent};
 
 use app::{TrayState, set_tray};
 use settings::SettingsStore;
@@ -45,8 +46,6 @@ const MAX_WINDOW_WIDTH_LOGICAL: f64 = 1560.0;
 // factor. The window config only provides fallback defaults for when no monitor
 // can be queried.
 fn size_window_to_work_area(window: &tauri::WebviewWindow) {
-    use tauri::{PhysicalPosition, PhysicalSize, Position, Size};
-
     let Some(monitor) = window.primary_monitor().ok().flatten() else {
         return;
     };
@@ -80,7 +79,16 @@ fn size_window_to_work_area(window: &tauri::WebviewWindow) {
         eprintln!("initial window resize failed: {error}");
         return;
     }
-    // Center using the real outer size so the decorated frame is accounted for.
+    center_window(window);
+}
+
+// Centers the window on the primary monitor's working area using its real outer
+// size, so the decorated frame is accounted for.
+fn center_window(window: &tauri::WebviewWindow) {
+    let Some(monitor) = window.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let work = monitor.work_area();
     if let Ok(outer) = window.outer_size() {
         let center = PhysicalPosition::new(
             work.position.x + work.size.width as i32 / 2,
@@ -96,6 +104,58 @@ fn size_window_to_work_area(window: &tauri::WebviewWindow) {
     }
 }
 
+#[derive(Clone, Copy)]
+struct LogicalWindowSize {
+    width: f64,
+    height: f64,
+}
+
+// Window-geometry bookkeeping. The window is initially sized by the app; until the
+// user resizes it nothing is persisted. Manual resizes are recorded here and written
+// to settings.toml by a short debounced worker so dragging does not hammer the disk.
+struct WindowGeometry {
+    suppress_resize: AtomicBool,
+    saver_waiting: AtomicBool,
+    pending: Mutex<Option<LogicalWindowSize>>,
+}
+
+fn record_window_size(
+    app: &tauri::AppHandle,
+    window: &tauri::Window,
+    size: tauri::PhysicalSize<u32>,
+) {
+    let geometry = app.state::<WindowGeometry>();
+    if geometry.suppress_resize.load(Ordering::SeqCst) {
+        return;
+    }
+    let scale = window.scale_factor().unwrap_or(1.0);
+    *geometry.pending.lock().unwrap() = Some(LogicalWindowSize {
+        width: size.width as f64 / scale,
+        height: size.height as f64 / scale,
+    });
+    if !geometry.saver_waiting.swap(true, Ordering::SeqCst) {
+        let app = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            let geometry = app.state::<WindowGeometry>();
+            geometry.saver_waiting.store(false, Ordering::SeqCst);
+            let snapshot = *geometry.pending.lock().unwrap();
+            if let Some(LogicalWindowSize { width, height }) = snapshot {
+                let store = app.state::<SettingsStore>();
+                let _ = store.save_window_size(width, height);
+            }
+        });
+    }
+}
+
+fn flush_window_size(app: &tauri::AppHandle) {
+    let geometry = app.state::<WindowGeometry>();
+    if let Some(LogicalWindowSize { width, height }) = *geometry.pending.lock().unwrap() {
+        let store = app.state::<SettingsStore>();
+        let _ = store.save_window_size(width, height);
+    }
+}
+
 fn main() {
     if app_updates::early_mode() {
         return;
@@ -107,18 +167,6 @@ fn main() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // The window title comes from productName in tauri.conf.json (via
-            // package_info), so the product name does not have to be duplicated in
-            // the window config: the title field is deliberately omitted there.
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_title(&app.package_info().name);
-                // The window starts hidden; size and center it before showing so
-                // there is no flash of the default-size window.
-                size_window_to_work_area(&window);
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-
             // The tray icon is needed right at startup if the setting was enabled.
             let store = SettingsStore::for_app(app.handle()).map_err(|e| std::io::Error::other(e.code))?;
             // Invalid settings are reported by the frontend; startup itself remains usable.
@@ -126,6 +174,44 @@ fn main() {
             let close_to_tray = settings.get("ospanel.closeToTray").is_some_and(|v| v == "1");
             app.manage(store);
             app.manage(TrayState { close_to_tray: AtomicBool::new(close_to_tray) });
+            // State for geometry bookkeeping must exist before the window fires its
+            // initial resize events. It starts with resize recording suppressed.
+            app.manage(WindowGeometry {
+                suppress_resize: AtomicBool::new(true),
+                saver_waiting: AtomicBool::new(false),
+                pending: Mutex::new(None),
+            });
+
+            // The window title comes from productName in tauri.conf.json (via
+            // package_info), so the product name does not have to be duplicated in
+            // the window config: the title field is deliberately omitted there.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title(&app.package_info().name);
+                // The window starts hidden; restore the saved size or choose a
+                // sensible one for this display before showing so there is no
+                // flash of the default-size window. Programmatic resizes are
+                // still suppressed here, so they are never persisted.
+                let saved_width = settings.get("ospanel.windowWidth").and_then(|s| s.parse::<f64>().ok());
+                let saved_height = settings.get("ospanel.windowHeight").and_then(|s| s.parse::<f64>().ok());
+                match (saved_width, saved_height) {
+                    (Some(width), Some(height)) => {
+                        let scale = window.scale_factor().unwrap_or(1.0);
+                        let physical = PhysicalSize::new(
+                            (width * scale).round() as u32,
+                            (height * scale).round() as u32,
+                        );
+                        let _ = window.set_size(Size::Physical(physical));
+                        center_window(&window);
+                    }
+                    _ => {
+                        size_window_to_work_area(&window);
+                    }
+                }
+                let _ = window.show();
+                let _ = window.set_focus();
+                app.state::<WindowGeometry>().suppress_resize.store(false, Ordering::SeqCst);
+            }
+
             if close_to_tray {
                 let lang = settings.get("ospanel.lang").map(String::as_str).unwrap_or("ru");
                 if let Err(error) = set_tray(app.handle(), true, lang) {
@@ -137,17 +223,26 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // With the setting enabled, the close button hides the window to the tray instead of exiting.
-            let WindowEvent::CloseRequested { api, .. } = event else {
-                return;
-            };
             if window.label() != "main" {
                 return;
             }
             let app = window.app_handle();
-            if app.state::<TrayState>().close_to_tray.load(Ordering::SeqCst) {
-                api.prevent_close();
-                let _ = window.hide();
+            match event {
+                // With the setting enabled, the close button hides the window to the
+                // tray instead of exiting. Either way the latest size is flushed
+                // first so a quick close does not lose a recent manual resize.
+                WindowEvent::CloseRequested { api, .. } => {
+                    flush_window_size(&app);
+                    if app.state::<TrayState>().close_to_tray.load(Ordering::SeqCst) {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+                // Remember manual resizes; the debounced background saver persists them.
+                WindowEvent::Resized(size) => {
+                    record_window_size(&app, window, *size);
+                }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
