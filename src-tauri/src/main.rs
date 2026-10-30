@@ -29,6 +29,73 @@ use tauri::{Manager, WindowEvent};
 use app::{TrayState, set_tray};
 use settings::SettingsStore;
 
+// Fraction of the primary monitor working area the window occupies on its first
+// launch. The working area already excludes the taskbar and other reserved space.
+const INITIAL_WINDOW_AREA_RATIO: f64 = 0.86;
+
+// Natural layout width in logical pixels: 248px sidebar + 1190px content maximum
+// (.content-wrap) + ~120px of breathing room so the centered content does not
+// touch the window edges. Wider windows only add empty side space, so this caps
+// the initial width even on ultrawide monitors.
+const MAX_WINDOW_WIDTH_LOGICAL: f64 = 1560.0;
+
+// On first launch the window is sized relative to the primary monitor's working
+// area (which excludes the taskbar) and centered on it. Sizes and positions are
+// physical pixels, so the result is correct regardless of the display scaling
+// factor. The window config only provides fallback defaults for when no monitor
+// can be queried.
+fn size_window_to_work_area(window: &tauri::WebviewWindow) {
+    use tauri::{PhysicalPosition, PhysicalSize, Position, Size};
+
+    let Some(monitor) = window.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let work = monitor.work_area();
+
+    // Decorated-frame thickness. Measured from the default window so the outer
+    // size can be kept inside the working area.
+    let decoration = match (window.outer_size(), window.inner_size()) {
+        (Ok(outer), Ok(inner)) => PhysicalSize::new(
+            outer.width.saturating_sub(inner.width),
+            outer.height.saturating_sub(inner.height),
+        ),
+        _ => PhysicalSize::default(),
+    };
+    let scale = monitor.scale_factor();
+    let mut target = PhysicalSize::new(
+        (work.size.width as f64 * INITIAL_WINDOW_AREA_RATIO).round() as u32,
+        (work.size.height as f64 * INITIAL_WINDOW_AREA_RATIO).round() as u32,
+    );
+    // Cap the width at the UI's natural layout width (scaled for this display).
+    // Past this point the content is centered and further width only adds empty
+    // space on the sides, which is pointless on wide monitors.
+    let width_cap = (MAX_WINDOW_WIDTH_LOGICAL * scale).round() as u32;
+    target.width = target.width.min(width_cap);
+    // Never exceed the working area, so the taskbar and other reserved space stay
+    // visible even on small screens.
+    target.width = target.width.min(work.size.width.saturating_sub(decoration.width));
+    target.height = target.height.min(work.size.height.saturating_sub(decoration.height));
+
+    if let Err(error) = window.set_size(Size::Physical(target)) {
+        eprintln!("initial window resize failed: {error}");
+        return;
+    }
+    // Center using the real outer size so the decorated frame is accounted for.
+    if let Ok(outer) = window.outer_size() {
+        let center = PhysicalPosition::new(
+            work.position.x + work.size.width as i32 / 2,
+            work.position.y + work.size.height as i32 / 2,
+        );
+        let origin = PhysicalPosition::new(
+            center.x - outer.width as i32 / 2,
+            center.y - outer.height as i32 / 2,
+        );
+        if let Err(error) = window.set_position(Position::Physical(origin)) {
+            eprintln!("initial window centering failed: {error}");
+        }
+    }
+}
+
 fn main() {
     if app_updates::early_mode() {
         return;
@@ -45,6 +112,11 @@ fn main() {
             // the window config: the title field is deliberately omitted there.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_title(&app.package_info().name);
+                // The window starts hidden; size and center it before showing so
+                // there is no flash of the default-size window.
+                size_window_to_work_area(&window);
+                let _ = window.show();
+                let _ = window.set_focus();
             }
 
             // The tray icon is needed right at startup if the setting was enabled.
