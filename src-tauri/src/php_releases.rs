@@ -34,10 +34,12 @@ pub(crate) fn version(value: &str) -> Option<(u32, u32, u32)> {
     }
     Some((parts[0].parse().ok()?, parts[1].parse().ok()?, parts[2].parse().ok()?))
 }
-// Windows package revisions are stable rebuilds, not PHP prereleases.
-pub(crate) fn package_version(value: &str) -> Option<(u32, u32, u32, u32)> {
-    let (base, revision) = match value.split_once('-') {
+// Windows rebuilds and explicitly numbered security patch levels are stable packages.
+pub(crate) fn package_version(value: &str) -> Option<(u32, u32, u32, u32, u32)> {
+    let (base, security, revision) = match value.split_once('-') {
         Some((base, revision)) => {
+            let security = revision.starts_with("pl");
+            let revision = revision.strip_prefix("pl").unwrap_or(revision);
             if revision.is_empty() || !revision.bytes().all(|c| c.is_ascii_digit()) {
                 return None;
             }
@@ -45,12 +47,12 @@ pub(crate) fn package_version(value: &str) -> Option<(u32, u32, u32, u32)> {
             if revision == 0 {
                 return None;
             }
-            (base, revision)
+            if security { (base, revision, 0) } else { (base, 0, revision) }
         }
-        None => (value, 0),
+        None => (value, 0, 0),
     };
     let (major, minor, patch) = version(base)?;
-    Some((major, minor, patch, revision))
+    Some((major, minor, patch, security, revision))
 }
 pub(crate) fn branch(name: &str) -> Option<&str> {
     let value = name.strip_prefix("PHP-")?;
@@ -91,7 +93,11 @@ fn parse_build(output: &[u8]) -> Result<Build, CommandError> {
     let v = info[0].as_str().ok_or_else(invalid)?.to_string();
     // PHP_ZTS changed from int to bool in PHP 8.4; both NTS representations are valid.
     let nts = info[1].as_i64() == Some(0) || info[1].as_bool() == Some(false);
-    if version(&v).is_none() || !nts || info[3].as_str() != Some("") {
+    let extra = info[3].as_str().ok_or_else(invalid)?;
+    let stable_patch = extra.strip_prefix("-pl").is_some_and(|n| {
+        !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) && n.parse::<u32>().is_ok_and(|n| n > 0)
+    });
+    if package_version(&v).is_none() || !nts || (!extra.is_empty() && !stable_patch) {
         return Err(invalid());
     }
     let extension_build = info[4].as_str().ok_or_else(invalid)?;
@@ -235,6 +241,17 @@ pub(crate) fn select(
 mod tests {
     use super::*;
     use std::fs;
+    #[test]
+    fn stable_security_patch_levels_are_identified_without_accepting_prereleases() {
+        assert!(package_version("7.4.33-pl2").unwrap() > package_version("7.4.33-pl1").unwrap());
+        assert!(package_version("7.4.33-pl1").unwrap() > package_version("7.4.33").unwrap());
+        assert!(package_version("7.4.33-pl1").unwrap() > package_version("7.4.33-100").unwrap());
+        let build = parse_build(br#"["7.4.33-pl2",0,8,"-pl2","API20190902,NTS,VC15"]"#).unwrap();
+        assert_eq!(build.version, "7.4.33-pl2");
+        for version in ["7.4.33-pl0", "7.4.33-pl", "7.4.33-RC1", "7.4.33-pl2-dev"] {
+            assert!(package_version(version).is_none());
+        }
+    }
     #[test]
     fn windows_revisions_sort_after_the_base_release_and_before_the_next_patch() {
         let versions = ["8.5.11-10", "8.5.12", "8.5.12-1", "8.5.12-2", "8.5.12-10", "8.5.13"];

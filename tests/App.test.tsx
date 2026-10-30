@@ -73,7 +73,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     expect(await screen.findByRole('dialog', { name: 'Обновление приложения' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
     fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Автозапуск и уведомления' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Обновления' }));
     const card = document.querySelector<HTMLElement>('.settings-card');
     expect(card).not.toBeNull();
     if (!card) throw new Error('Settings card not found');
@@ -116,7 +116,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     it('updates after a switch in the settings menu', async () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Внешний вид' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Русский' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
       await waitFor(() => expect(document.documentElement.lang).toBe('en'));
@@ -384,7 +384,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       it('keeps the topbar and appearance settings synchronized', async () => {
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Внешний вид' }));
+        fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
         expect(screen.getByRole('button', { name: labels.system })).toHaveClass('selected');
         chooseTheme('dark');
         expect(screen.getByRole('button', { name: labels.dark })).toHaveClass('selected');
@@ -412,7 +412,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     it('persists the appearance settings chosen on the Settings page', async () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Внешний вид' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
 
       fireEvent.click(await screen.findByRole('button', { name: 'Синяя' }));
       await waitFor(() => expect(localStorage.getItem('ospanel.accent')).toBe('blue'));
@@ -441,7 +441,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     it('reloads translations and reports success', async () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Внешний вид' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
 
       fireEvent.click(await screen.findByRole('button', { name: 'Перечитать переводы' }));
 
@@ -451,7 +451,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     it('switches the interface language from the Settings page', async () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Внешний вид' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
 
       fireEvent.click(await screen.findByRole('button', { name: 'Русский' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));

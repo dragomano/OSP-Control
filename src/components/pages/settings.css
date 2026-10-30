@@ -1,0 +1,195 @@
+.settings-layout > .settings-nav {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-layout > .settings-nav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-section-head {
+  margin: 3px 0 18px;
+}
+.settings-section-head h2 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.settings-section-head p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.settings-layout .settings-card {
+  padding: 0 17px;
+}
+.settings-layout .settings-card + .settings-card {
+  margin-top: 16px;
+}
+.settings-card > .setting-block:last-child {
+  border-bottom: 0;
+}
+.settings-card > .settings-path {
+  display: block;
+}
+.settings-path .path-field {
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.settings-path .path-field input {
+  flex: 1 1 180px;
+  min-width: 0;
+  width: auto;
+}
+.module-sources {
+  padding: 17px 0 5px;
+}
+.module-sources h3 {
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.module-sources > p {
+  color: var(--muted);
+  font-size: 10px;
+  margin: 0 0 5px;
+}
+.module-source-row {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.module-source-row:last-child {
+  border-bottom: 0;
+}
+.module-source-row > b {
+  font-size: 11px;
+  font-weight: 600;
+}
+.module-source-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.module-source-summary > span {
+  overflow-wrap: anywhere;
+  font:
+    10px / 1.6 "Cascadia Code",
+    Consolas,
+    monospace;
+  color: var(--muted);
+}
+.module-source-summary > small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.modal-window.module-sources-dialog {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+.module-sources-dialog .modal-title {
+  font-size: 16px;
+}
+.module-sources-dialog .modal-foot {
+  justify-content: flex-end;
+}
+.module-sources-dialog .modal-hint {
+  font-size: 11px;
+}
+.module-source-tabs {
+  padding-bottom: 12px;
+  margin: 10px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.module-sources-dialog .module-source-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.module-source-tabs button span {
+  font-size: 10px;
+  opacity: 0.8;
+}
+.module-source-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.module-source-label label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.module-source-label small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.module-sources-dialog textarea {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel2);
+  color: var(--text);
+  font:
+    12px / 1.8 "Cascadia Code",
+    Consolas,
+    monospace;
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+.module-sources-dialog textarea:focus-visible {
+  outline: 2px solid var(--k-b0762a);
+  outline-offset: 2px;
+}
+.module-sources-dialog textarea[aria-invalid="true"] {
+  border-color: var(--k-b0762a);
+}
+.module-source-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.module-source-hint svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.module-source-error {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.module-source-error[role="alert"] {
+  color: var(--k-e8b877);
+}
+@media (max-width: 600px) {
+  .settings-layout > .settings-nav button {
+    flex: 1;
+    padding: 9px 5px;
+  }
+  .settings-layout > .settings-nav button svg {
+    display: none;
+  }
+  .module-source-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .module-source-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .module-sources .module-source-row > button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}

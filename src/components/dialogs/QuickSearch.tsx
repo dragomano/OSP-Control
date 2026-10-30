@@ -10,6 +10,7 @@ import {
   ListTree,
   Moon,
   Power,
+  RefreshCw,
   Search,
   Settings2,
   SlidersHorizontal,
@@ -73,7 +74,7 @@ const searchEntries: SearchEntry[] = [
   {
     id: 'settings.connection',
     page: 'settings',
-    settingsTab: 'connection',
+    settingsTab: 'general',
     titleKey: 'settings.connectionTitle',
     sectionKey: 'nav.settings',
     icon: Globe2,
@@ -81,7 +82,7 @@ const searchEntries: SearchEntry[] = [
   {
     id: 'settings.autostart',
     page: 'settings',
-    settingsTab: 'autostart',
+    settingsTab: 'general',
     titleKey: 'settings.autostartTitle',
     sectionKey: 'nav.settings',
     icon: Power,
@@ -89,15 +90,23 @@ const searchEntries: SearchEntry[] = [
   {
     id: 'settings.notifications',
     page: 'settings',
-    settingsTab: 'autostart',
+    settingsTab: 'general',
     titleKey: 'settings.notificationsTitle',
     sectionKey: 'nav.settings',
     icon: Activity,
   },
   {
+    id: 'settings.updateSources',
+    page: 'settings',
+    settingsTab: 'updates',
+    titleKey: 'settings.sourcesTitle',
+    sectionKey: 'nav.settings',
+    icon: RefreshCw,
+  },
+  {
     id: 'settings.theme',
     page: 'settings',
-    settingsTab: 'appearance',
+    settingsTab: 'interface',
     titleKey: 'settings.themeTitle',
     sectionKey: 'nav.settings',
     icon: Moon,
@@ -105,7 +114,7 @@ const searchEntries: SearchEntry[] = [
   {
     id: 'settings.accent',
     page: 'settings',
-    settingsTab: 'appearance',
+    settingsTab: 'interface',
     titleKey: 'settings.accentTitle',
     sectionKey: 'nav.settings',
     icon: Sun,
@@ -113,7 +122,7 @@ const searchEntries: SearchEntry[] = [
   {
     id: 'settings.language',
     page: 'settings',
-    settingsTab: 'appearance',
+    settingsTab: 'interface',
     titleKey: 'settings.languageTitle',
     sectionKey: 'nav.settings',
     icon: Globe2,
@@ -121,7 +130,7 @@ const searchEntries: SearchEntry[] = [
   {
     id: 'settings.font',
     page: 'settings',
-    settingsTab: 'appearance',
+    settingsTab: 'interface',
     titleKey: 'settings.fontTitle',
     sectionKey: 'nav.settings',
     icon: Code2,
@@ -129,7 +138,7 @@ const searchEntries: SearchEntry[] = [
   {
     id: 'settings.scale',
     page: 'settings',
-    settingsTab: 'appearance',
+    settingsTab: 'interface',
     titleKey: 'settings.sizeTitle',
     sectionKey: 'nav.settings',
     icon: Gauge,

@@ -1,0 +1,9 @@
+{
+  "php": [
+    "https://downloads.php.net/~windows/releases/",
+    "https://github.com/Jamalofski/php-eol-security/releases"
+  ],
+  "apache": ["https://www.apachelounge.com/download/"],
+  "nginx": ["https://github.com/OSPanel/nginx/releases"],
+  "caddy": ["https://github.com/OSPanel/caddy/releases"]
+}

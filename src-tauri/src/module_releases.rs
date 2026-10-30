@@ -2,6 +2,7 @@
 use crate::{
     error::CommandError,
     php_releases::{self as php, Build},
+    update_sources::{self, Sources},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -78,14 +79,24 @@ fn allowed_url(url: &reqwest::Url) -> bool {
             )
         )
 }
-fn client() -> Result<reqwest::blocking::Client, CommandError> {
+fn allowed_redirect(base: &reqwest::Url, target: &reqwest::Url) -> bool {
+    update_sources::source_url(target.as_str()).is_some()
+        && (base.origin() == target.origin()
+            || (matches!(base.host_str(), Some("github.com" | "api.github.com"))
+                && matches!(
+                    target.host_str(),
+                    Some("release-assets.githubusercontent.com" | "objects.githubusercontent.com")
+                )))
+}
+fn client(base: &reqwest::Url) -> Result<reqwest::blocking::Client, CommandError> {
+    let base = base.clone();
     reqwest::blocking::Client::builder()
         .https_only(true)
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(180))
         .user_agent(concat!("OSP-Control/", env!("CARGO_PKG_VERSION")))
-        .redirect(reqwest::redirect::Policy::custom(|attempt| {
-            if attempt.previous().len() >= 5 || !allowed_url(attempt.url()) {
+        .redirect(reqwest::redirect::Policy::custom(move |attempt| {
+            if attempt.previous().len() >= 5 || !allowed_redirect(&base, attempt.url()) {
                 attempt.error("Untrusted release redirect")
             } else {
                 attempt.follow()
@@ -117,10 +128,10 @@ fn metadata(url: &str, force: bool) -> Result<Vec<u8>, CommandError> {
         return Ok(old.body.clone());
     }
     let url = reqwest::Url::parse(url).map_err(|_| catalog_error())?;
-    if !allowed_url(&url) {
+    if update_sources::source_url(url.as_str()).is_none() {
         return Err(catalog_error());
     }
-    let mut request = client()?.get(url.clone()).header("Accept", "application/vnd.github+json");
+    let mut request = client(&url)?.get(url.clone()).header("Accept", "application/vnd.github+json");
     if let Some(etag) = old.as_ref().and_then(|v| v.etag.as_ref()) {
         request = request.header("If-None-Match", etag);
     }
@@ -188,8 +199,10 @@ pub(crate) fn receipt(dir: &Path) -> Result<Option<Receipt>, CommandError> {
 pub(crate) fn installed_version(kind: Kind, dir: &Path, build: &Build) -> Result<String, CommandError> {
     if kind == Kind::Php
         && let Some(receipt) = receipt(dir)?
-        && let Some((major, minor, patch, _)) = php::package_version(&receipt.version)
-        && php::version(&build.version) == Some((major, minor, patch))
+        && let Some((major, minor, patch, ..)) = php::package_version(&receipt.version)
+        && php::package_version(&build.version).is_some_and(|v| (v.0, v.1, v.2) == (major, minor, patch))
+        && ((!receipt.version.contains("-pl") && !build.version.contains("-pl"))
+            || receipt.version == build.version)
     {
         // PHP_VERSION does not include the Windows archive revision.
         return Ok(receipt.version);
@@ -224,13 +237,22 @@ pub(crate) fn save_receipt(dir: &Path, release: &Release) -> Result<(), CommandE
     Ok(())
 }
 
+#[path = "release_sources.rs"]
+mod sources;
+
 pub(crate) struct Catalog {
     force: bool,
+    sources: Sources,
     php: Option<Result<serde_json::Value, CommandError>>,
+    github: BTreeMap<String, Result<Vec<serde_json::Value>, CommandError>>,
 }
 impl Catalog {
+    #[cfg(test)]
     pub(crate) fn new(force: bool) -> Self {
-        Self { force, php: None }
+        Self::with_sources(force, update_sources::defaults())
+    }
+    pub(crate) fn with_sources(force: bool, sources: Sources) -> Self {
+        Self { force, sources, php: None, github: BTreeMap::new() }
     }
     pub(crate) fn select(
         &mut self,
@@ -239,14 +261,70 @@ impl Catalog {
         dir: &Path,
     ) -> Result<Option<Release>, CommandError> {
         let kind = Kind::of(name)?;
-        if kind == Kind::Php {
-            let json = self
-                .php
-                .get_or_insert_with(|| php::catalog(self.force))
+        let key = match kind {
+            Kind::Php => "php",
+            Kind::Apache => "apache",
+            Kind::Nginx => "nginx",
+            Kind::Caddy => "caddy",
+        };
+        let urls = self.sources.get(key).cloned().unwrap_or_default();
+        let installed = receipt(dir)?;
+        let receipt = installed.as_ref().filter(|r| r.version == build.version);
+        let build = Build { version: installed_version(kind, dir, build)?, ..build.clone() };
+        first_available(&urls, |source| {
+            self.from_source(kind, name, &build, source).map(|candidate| {
+                candidate.filter(|r| {
+                    if kind == Kind::Php {
+                        php::package_version(&r.version) > php::package_version(&build.version)
+                    } else {
+                        newer(r, &build, receipt)
+                    }
+                })
+            })
+        })
+    }
+    fn from_source(
+        &mut self,
+        kind: Kind,
+        name: &str,
+        build: &Build,
+        source: &str,
+    ) -> Result<Option<Release>, CommandError> {
+        let url = update_sources::source_url(source).ok_or_else(catalog_error)?;
+        if let Some(repo) = update_sources::github_repo(&url) {
+            let force = self.force;
+            let entries = self
+                .github
+                .entry(repo.clone())
+                .or_insert_with(|| {
+                    let mut releases = Vec::new();
+                    for page in 1..=5 {
+                        let body = metadata(
+                            &format!("https://api.github.com/repos/{repo}/releases?per_page=100&page={page}"),
+                            force,
+                        )?;
+                        let entries: Vec<serde_json::Value> =
+                            serde_json::from_slice(&body).map_err(|_| catalog_error())?;
+                        let count = entries.len();
+                        releases.extend(entries);
+                        if count < 100 {
+                            break;
+                        }
+                    }
+                    Ok(releases)
+                })
                 .as_ref()
-                .map_err(|e| CommandError { code: e.code.clone(), params: e.params.clone() })?;
-            let build = Build { version: installed_version(kind, dir, build)?, ..build.clone() };
-            return php::select(json, php::branch(name).ok_or_else(unsupported)?, &build).map(|r| {
+                .map_err(copy_error)?;
+            return sources::github(kind, entries, build, &repo);
+        }
+        if kind == Kind::Php && source == PHP {
+            let json =
+                self.php.get_or_insert_with(|| php::catalog(self.force)).as_ref().map_err(copy_error)?;
+            let family = php::branch(name).ok_or_else(unsupported)?;
+            if json[family].is_null() {
+                return Ok(None);
+            }
+            return php::select(json, family, build).map(|r| {
                 r.map(|r| {
                     release(
                         r.version.clone(),
@@ -260,50 +338,31 @@ impl Catalog {
                 })
             });
         }
-        let installed = receipt(dir)?;
-        let installed = installed.as_ref().filter(|r| r.version == build.version);
-        let candidate = if kind == Kind::Apache {
-            let html = String::from_utf8(metadata(APACHE, self.force)?).map_err(|_| catalog_error())?;
-            let candidates = apache_links(&html)?;
-            let candidate = candidates
-                .into_iter()
-                .max_by_key(|r| (php::version(&r.version), r.revision.clone(), r.compiler));
-            match candidate {
-                Some(candidate) => {
-                    let sums = String::from_utf8(metadata(&format!("{}.txt", candidate.url), self.force)?)
-                        .map_err(|_| catalog_error())?;
-                    let hash = apache_checksum(&sums, &candidate.file)?;
-                    Some(release(
-                        candidate.version.clone(),
-                        format!("{} ({}, VS{})", candidate.version, candidate.revision, candidate.compiler),
-                        candidate.url,
-                        hash,
-                        candidate.revision,
-                        candidate.file,
-                        None,
-                    ))
-                }
-                None => return Err(unsupported()),
-            }
-        } else {
-            let repo = if kind == Kind::Nginx { "nginx" } else { "caddy" };
-            let mut releases = Vec::new();
-            for page in 1..=5 {
-                let body = metadata(
-                    &format!("https://api.github.com/repos/OSPanel/{repo}/releases?per_page=100&page={page}"),
-                    self.force,
-                )?;
-                let entries: Vec<serde_json::Value> =
-                    serde_json::from_slice(&body).map_err(|_| catalog_error())?;
-                let count = entries.len();
-                releases.extend(entries);
-                if count < 100 {
-                    break;
+        sources::catalog(kind, &url, build, self.force)
+    }
+}
+fn copy_error(error: &CommandError) -> CommandError {
+    CommandError { code: error.code.clone(), params: error.params.clone() }
+}
+fn first_available(
+    urls: &[String],
+    mut fetch: impl FnMut(&str) -> Result<Option<Release>, CommandError>,
+) -> Result<Option<Release>, CommandError> {
+    let mut error = None;
+    for url in urls {
+        match fetch(url) {
+            Ok(Some(release)) => return Ok(Some(release)),
+            Ok(None) => {}
+            Err(failure) => {
+                if error.is_none() {
+                    error = Some(failure);
                 }
             }
-            github_release(kind, &releases, build)?
-        };
-        Ok(candidate.filter(|r| newer(r, build, installed)))
+        }
+    }
+    match error {
+        Some(error) => Err(error),
+        None => Ok(None),
     }
 }
 fn newer(release: &Release, build: &Build, installed: Option<&Receipt>) -> bool {
@@ -404,7 +463,6 @@ struct ApacheArchive {
     version: String,
     revision: String,
     compiler: u32,
-    url: String,
 }
 // Only href attributes are relevant. Accept either quote style and resolve against the fixed origin.
 fn hrefs(html: &str) -> Vec<String> {
@@ -497,13 +555,7 @@ fn apache_links(html: &str) -> Result<Vec<ApacheArchive>, CommandError> {
             "vs18" => 18,
             _ => continue,
         };
-        out.push(ApacheArchive {
-            file,
-            version: version.into(),
-            revision: revision.into(),
-            compiler,
-            url: url.to_string(),
-        });
+        out.push(ApacheArchive { file, version: version.into(), revision: revision.into(), compiler });
     }
     Ok(out)
 }
@@ -524,10 +576,10 @@ fn apache_checksum(text: &str, file: &str) -> Result<String, CommandError> {
 pub(crate) fn download(release: &Release, target: &Path) -> Result<(), CommandError> {
     use sha2::{Digest, Sha256};
     let url = reqwest::Url::parse(&release.url).map_err(|_| catalog_error())?;
-    if !allowed_url(&url) {
+    if update_sources::source_url(url.as_str()).is_none() {
         return Err(catalog_error());
     }
-    let response = status(client()?.get(url).send().map_err(network)?)?;
+    let response = status(client(&url)?.get(url).send().map_err(network)?)?;
     let mut input = response.take(MAX_DOWNLOAD + 1);
     let mut output = fs::OpenOptions::new().write(true).create_new(true).open(target)?;
     let size = std::io::copy(&mut input, &mut output)?;
@@ -654,11 +706,21 @@ pub(crate) fn run(command: &mut std::process::Command) -> Result<std::process::O
 }
 
 pub(crate) fn payload(kind: Kind, staging: &Path) -> Result<PathBuf, CommandError> {
-    if kind == Kind::Apache {
-        crate::update_files::child(staging, "Apache24")
-    } else {
-        Ok(staging.to_path_buf())
+    if staging.join(kind.executable()).is_file() {
+        return Ok(staging.to_path_buf());
     }
+    if kind == Kind::Apache {
+        return crate::update_files::child(staging, "Apache24");
+    }
+    let mut matches = Vec::new();
+    for entry in fs::read_dir(staging)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() && entry.path().join(kind.executable()).is_file() {
+            let path = crate::update_files::child(staging, &entry.file_name().to_string_lossy())?;
+            matches.push(path);
+        }
+    }
+    if matches.len() == 1 { Ok(matches.remove(0)) } else { Ok(staging.to_path_buf()) }
 }
 pub(crate) fn validate_candidate(
     kind: Kind,
@@ -679,19 +741,25 @@ pub(crate) fn validate_candidate(
     Ok(fresh)
 }
 fn validate_version(kind: Kind, installed: &str, declared: &str, actual: &str) -> Result<(), CommandError> {
-    let old = php::version(installed).ok_or_else(unsupported)?;
+    let old = php::package_version(installed).map(|v| (v.0, v.1, v.2)).ok_or_else(unsupported)?;
     let expected = if kind == Kind::Php {
-        let (major, minor, patch, _) = php::package_version(declared).ok_or_else(unsupported)?;
+        let (major, minor, patch, ..) = php::package_version(declared).ok_or_else(unsupported)?;
         (major, minor, patch)
     } else {
         php::version(declared).ok_or_else(unsupported)?
     };
-    let found = php::version(actual).ok_or_else(unsupported)?;
+    let found = php::package_version(actual).map(|v| (v.0, v.1, v.2)).ok_or_else(unsupported)?;
     let corrected_patch = kind == Kind::Caddy
         && (found.0, found.1) == (expected.0, expected.1)
         && found.0 == 2
         && found > expected;
-    if found < old || (found != expected && !corrected_patch) {
+    if found < old
+        || (found != expected && !corrected_patch)
+        || (kind == Kind::Php && declared.contains("-pl") && declared != actual)
+        || (kind == Kind::Php
+            && installed.contains("-pl")
+            && php::package_version(actual) < php::package_version(installed))
+    {
         return Err(CommandError::new("err.updateVersionMismatch")
             .with("expected", declared)
             .with("actual", actual));
@@ -744,6 +812,74 @@ pub(crate) fn install_files(kind: Kind, source: &Path, destination: &Path) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn source_priority_falls_back_after_errors_and_empty_catalogs() {
+        let urls = ["broken", "empty", "preferred", "later"].map(str::to_string);
+        let mut visited = Vec::new();
+        let found = first_available(&urls, |url| {
+            visited.push(url.to_string());
+            match url {
+                "broken" => Err(catalog_error()),
+                "empty" => Ok(None),
+                _ => Ok(Some(release(
+                    "1.0.0".into(),
+                    url.into(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    None,
+                ))),
+            }
+        })
+        .unwrap()
+        .unwrap();
+        assert_eq!(found.display, "preferred");
+        assert_eq!(visited, ["broken", "empty", "preferred"]);
+        assert!(first_available(&[], |_| panic!("empty lists must not make requests")).unwrap().is_none());
+        assert!(first_available(&urls[..1], |_| Err(catalog_error())).is_err());
+    }
+    #[test]
+    fn configured_origins_do_not_authorize_cross_origin_redirects() {
+        let base = reqwest::Url::parse("https://mirror.example/modules/").unwrap();
+        assert!(allowed_redirect(&base, &base.join("php.zip").unwrap()));
+        for target in [
+            "https://other.example/php.zip",
+            "http://mirror.example/php.zip",
+            "https://mirror.example:444/php.zip",
+            "https://release-assets.githubusercontent.com/php.zip",
+        ] {
+            assert!(!allowed_redirect(&base, &reqwest::Url::parse(target).unwrap()));
+        }
+        let github = reqwest::Url::parse("https://github.com/team/php/releases").unwrap();
+        assert!(allowed_redirect(
+            &github,
+            &reqwest::Url::parse("https://release-assets.githubusercontent.com/php.zip?token=value").unwrap()
+        ));
+    }
+    #[test]
+    fn security_patch_validation_rejects_vanilla_binaries_and_patch_level_downgrades() {
+        validate_version(Kind::Php, "7.4.33-pl1", "7.4.33-pl2", "7.4.33-pl2").unwrap();
+        assert!(validate_version(Kind::Php, "7.4.33", "7.4.33-pl2", "7.4.33").is_err());
+        assert!(validate_version(Kind::Php, "7.4.33-pl2", "7.4.33-pl1", "7.4.33-pl1").is_err());
+        let dir = temporary("php-security");
+        fs::create_dir(dir.join("ospanel_data")).unwrap();
+        save_receipt(
+            &dir,
+            &release(
+                "7.4.33-1".into(),
+                String::new(),
+                String::new(),
+                "a".repeat(64),
+                String::new(),
+                String::new(),
+                None,
+            ),
+        )
+        .unwrap();
+        assert_eq!(installed_version(Kind::Php, &dir, &build("7.4.33-pl2")).unwrap(), "7.4.33-pl2");
+        fs::remove_dir_all(dir).unwrap();
+    }
     fn build(version: &str) -> Build {
         Build { version: version.into(), arch: "x64".into(), toolchain: "".into() }
     }
@@ -925,7 +1061,12 @@ mod tests {
         let json = serde_json::json!({"8.5": {"version": "8.5.12-1", "nts-vs17-x64": {"zip": {
             "path": "php-8.5.12-1-nts-Win32-vs17-x64.zip", "sha256": "a".repeat(64)
         }}}});
-        let mut catalog = Catalog { force: true, php: Some(Ok(json)) };
+        let mut catalog = Catalog {
+            force: true,
+            php: Some(Ok(json)),
+            github: BTreeMap::new(),
+            sources: [("php".into(), vec![PHP.into()])].into(),
+        };
         let release = catalog.select("PHP-8.5", &build, &dir).unwrap().unwrap();
         assert_eq!(release.version, "8.5.12-1");
         assert_eq!(release.display, "8.5.12-1");

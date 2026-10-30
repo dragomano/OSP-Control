@@ -171,7 +171,7 @@ describe('Overview navigation', () => {
     expect(props.onNavigate).toHaveBeenCalledWith('logs');
 
     fireEvent.click(screen.getByRole('button', { name: /Open settings/ }));
-    expect(props.onNavigate).toHaveBeenCalledWith('settings', 'autostart');
+    expect(props.onNavigate).toHaveBeenCalledWith('settings', 'general');
   });
 });
 

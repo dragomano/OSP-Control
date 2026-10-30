@@ -15,6 +15,7 @@ const keys = new Set([
   'ospanel.checkAppUpdates',
   'ospanel.checkServiceUpdates',
   'ospanel.closeToTray',
+  'ospanel.moduleUpdateSources',
 ]);
 export const MENU_TREE_KEY = 'ospanel.menuTree';
 export const PROJECT_TAGS_KEY = 'ospanel.projectTags';

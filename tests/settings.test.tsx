@@ -25,7 +25,7 @@ const baseProps = () => ({
   notify: vi.fn<Notify>(),
   onPathSaved: vi.fn(),
   installationPath: null as string | null,
-  tab: 'connection' as SettingsTab,
+  tab: 'general' as SettingsTab,
   onTabChange: vi.fn(),
   onProjectAutostartChange: vi.fn(),
   themeMode: 'system' as ThemeMode,
@@ -155,7 +155,7 @@ describe('Settings installation path', () => {
 });
 
 describe('Settings autostart tab', () => {
-  const openTab = (overrides: Partial<Props> = {}) => renderSettings({ tab: 'autostart', ...overrides });
+  const openTab = (overrides: Partial<Props> = {}) => renderSettings({ tab: 'general', ...overrides });
 
   it('switches Windows autostart on and reports a failure', async () => {
     const { props } = openTab();
@@ -188,24 +188,19 @@ describe('Settings autostart tab', () => {
     expect(props.notify).toHaveBeenCalledWith('Project module autostart enabled');
   });
 
-  it('places service update checks after project module autostart', () => {
+  it('keeps update checks on their own tab', () => {
     const connection = renderSettings();
-    expect(
-      screen.queryByRole('checkbox', { name: 'Check for service updates when the application starts' }),
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Check for module updates at startup' })).toBeNull();
     connection.view.unmount();
 
-    openTab();
+    renderSettings({ tab: 'updates' });
     const updateToggle = screen.getByRole('button', {
-      name: 'Check for service updates when the application starts',
+      name: 'Check for module updates at startup',
     });
-    const projectToggle = screen.getByRole('button', { name: 'Start modules per project' });
+    expect(screen.queryByRole('button', { name: 'Start modules per project' })).toBeNull();
 
     expect(updateToggle).toHaveClass('large-toggle');
     expect(updateToggle).not.toHaveClass('on');
-    expect(
-      projectToggle.compareDocumentPosition(updateToggle) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
     fireEvent.click(updateToggle);
     expect(updateToggle).toHaveClass('on');
     expect(localStorage.getItem('ospanel.checkServiceUpdates')).toBe('1');
@@ -239,7 +234,7 @@ describe('Settings autostart tab', () => {
 });
 
 describe('Settings appearance tab', () => {
-  const openTab = () => renderSettings({ tab: 'appearance' });
+  const openTab = () => renderSettings({ tab: 'interface' });
 
   it('switches the interface theme', () => {
     const { props } = openTab();
@@ -296,10 +291,44 @@ describe('Settings navigation', () => {
   it('propagates the tab selection', () => {
     const { props } = renderSettings();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Autostart & notifications' }));
-    expect(props.onTabChange).toHaveBeenCalledWith('autostart');
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }));
+    expect(props.onTabChange).toHaveBeenCalledWith('general');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Appearance' }));
-    expect(props.onTabChange).toHaveBeenCalledWith('appearance');
+    fireEvent.click(screen.getByRole('tab', { name: 'Interface' }));
+    expect(props.onTabChange).toHaveBeenCalledWith('interface');
+    fireEvent.click(screen.getByRole('tab', { name: 'Updates' }));
+    expect(props.onTabChange).toHaveBeenCalledWith('updates');
+  });
+});
+
+describe('module update source editor', () => {
+  it('keeps drafts per module, saves all lists in order and permits an empty list', async () => {
+    renderSettings({ tab: 'updates' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configure PHP sources' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'PHP' }), {
+      target: { value: 'https://mirror.example/php/\nhttps://github.com/team/php/releases' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: /Apache/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Apache' }), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('tab', { name: /PHP/ }));
+    expect(screen.getByRole('textbox', { name: 'PHP' })).toHaveValue(
+      'https://mirror.example/php/\nhttps://github.com/team/php/releases',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const saved = JSON.parse(localStorage.getItem('ospanel.moduleUpdateSources') ?? '{}');
+    expect(saved.php).toEqual(['https://mirror.example/php/', 'https://github.com/team/php/releases']);
+    expect(saved.apache).toEqual([]);
+  });
+  it('validates every list and preserves persisted values when cancelled', () => {
+    renderSettings({ tab: 'updates' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configure PHP sources' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'PHP' }), { target: { value: 'file:///secret' } });
+    fireEvent.click(screen.getByRole('tab', { name: /Caddy/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Line 1');
+    expect(screen.getByRole('textbox', { name: 'PHP' })).toHaveValue('file:///secret');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(localStorage.getItem('ospanel.moduleUpdateSources')).toBeNull();
   });
 });

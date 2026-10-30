@@ -105,6 +105,12 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
         }
         section(doc, "panel")?;
         put(&mut doc["panel"], "path", value(text));
+    } else if key == crate::update_sources::KEY {
+        let sources = crate::update_sources::parse(Some(text))?;
+        section(doc, "update_sources")?;
+        for (family, urls) in sources {
+            put(&mut doc["update_sources"], &family, array(&urls));
+        }
     } else if key == MENU_KEY {
         let collapsed: Vec<String> = serde_json::from_str(text).map_err(|_| invalid())?;
         section(doc, "menu")?;
@@ -190,15 +196,30 @@ fn values(doc: &DocumentMut) -> Result<Values, CommandError> {
             result.insert("ospanel.path".into(), path.into());
         }
     }
+    if let Some(sources) = doc.get("update_sources") {
+        if !sources.is_table() {
+            return Err(invalid());
+        }
+        let mut saved = BTreeMap::new();
+        for family in crate::update_sources::FAMILIES {
+            if let Some(item) = sources.get(family) {
+                saved.insert(family, strings(item)?);
+            }
+        }
+        let text = serde_json::to_string(&saved).map_err(|_| invalid())?;
+        let sources = crate::update_sources::parse(Some(&text))?;
+        result.insert(
+            crate::update_sources::KEY.into(),
+            serde_json::to_string(&sources).map_err(|_| invalid())?,
+        );
+    }
     if let Some(menu) = doc.get("menu") {
         if !menu.is_table() {
             return Err(invalid());
         }
         if let Some(collapsed) = menu.get("collapsed_categories") {
-            result.insert(
-                MENU_KEY.into(),
-                serde_json::to_string(&strings(collapsed)?).map_err(|_| invalid())?,
-            );
+            result
+                .insert(MENU_KEY.into(), serde_json::to_string(&strings(collapsed)?).map_err(|_| invalid())?);
         }
     }
     if let Some(projects) = doc.get("projects") {
@@ -219,10 +240,7 @@ fn values(doc: &DocumentMut) -> Result<Values, CommandError> {
                 tags.insert(domain, list);
             }
         }
-        result.insert(
-            TAG_KEY.into(),
-            serde_json::json!({"version":1,"projects":tags}).to_string(),
-        );
+        result.insert(TAG_KEY.into(), serde_json::json!({"version":1,"projects":tags}).to_string());
     }
     Ok(result)
 }
@@ -443,6 +461,20 @@ mod tests {
         f.save("ospanel.theme", "dark");
         assert_eq!(f.store.load().unwrap().values["ospanel.theme"], "dark");
         assert_eq!(f.text().parse::<DocumentMut>().unwrap()["schema_version"].as_integer(), Some(1));
+    }
+    #[test]
+    fn persists_ordered_source_lists_without_overwriting_other_settings_or_comments() {
+        let f = Fixture::new();
+        fs::write(&f.store.path, "[update_sources]\n# Keep priority\nphp = ['https://old.example/'] # custom\nunknown = 'keep'\n[interface]\ntheme = 'dark'\n").unwrap();
+        let text = r#"{"php":["https://second.example/","https://first.example/"],"apache":[]}"#;
+        let snapshot = f.save(crate::update_sources::KEY, text);
+        let sources =
+            crate::update_sources::parse(Some(&snapshot.values[crate::update_sources::KEY])).unwrap();
+        assert_eq!(sources["php"], ["https://second.example/", "https://first.example/"]);
+        assert!(sources["apache"].is_empty());
+        assert!(f.text().contains("# custom"));
+        assert!(f.text().contains("unknown = 'keep'"));
+        assert_eq!(snapshot.values["ospanel.theme"], "dark");
     }
     #[test]
     fn preserves_comments_unknown_keys_and_unmodified_formatting() {

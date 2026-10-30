@@ -258,7 +258,7 @@ export function Overview({
             <span className="eyebrow">{t('overview.tipKicker')}</span>
             <h3>{t('overview.tipTitle')}</h3>
             <p>{t('overview.tipText')}</p>
-            <button type="button" className="text-button" onClick={() => onNavigate('settings', 'autostart')}>
+            <button type="button" className="text-button" onClick={() => onNavigate('settings', 'general')}>
               {t('overview.tipSettings')} <ArrowUpRight size={15} />
             </button>
           </div>

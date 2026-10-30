@@ -1,4 +1,13 @@
-import { ChevronRight, FolderOpen, Monitor, Moon, RefreshCw, Sun } from 'lucide-react';
+import {
+  ChevronRight,
+  FolderOpen,
+  Monitor,
+  Moon,
+  Palette,
+  RefreshCw,
+  SlidersHorizontal,
+  Sun,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AppUpdateSettings } from '../../appUpdates';
 import { errorText, type LocaleInfo, useI18n } from '../../i18n';
@@ -14,14 +23,16 @@ import {
 import { settingsStorage } from '../../settingsStorage';
 import { ACCENT_THEMES, accentSwatch, FONT_OPTIONS, type ThemeMode } from '../../theme';
 import type { Notify, SettingsTab } from '../shared';
+import { ModuleUpdateSources } from '../widgets/ModuleUpdateSources';
 import { PageHeader } from '../widgets/PageHeader';
 import { RowMenu } from '../widgets/RowMenu';
+import './settings.css';
 
-const settingsTabs: { id: SettingsTab; key: string }[] = [
-  { id: 'connection', key: 'settings.navConnection' },
-  { id: 'autostart', key: 'settings.navAutostart' },
-  { id: 'appearance', key: 'settings.navAppearance' },
-];
+const settingsTabs = [
+  { id: 'general', key: 'settings.navGeneral', icon: SlidersHorizontal, description: 'settings.generalText' },
+  { id: 'updates', key: 'settings.navUpdates', icon: RefreshCw, description: 'settings.updatesText' },
+  { id: 'interface', key: 'settings.navInterface', icon: Palette, description: 'settings.interfaceText' },
+] as const;
 
 export function Settings({
   notify,
@@ -184,6 +195,7 @@ export function Settings({
     notify(t(next ? 'settings.notificationsOn' : 'settings.notificationsOff'));
   };
 
+  const currentTab = settingsTabs.find((item) => item.id === tab) ?? settingsTabs[0];
   return (
     <>
       <PageHeader
@@ -192,138 +204,158 @@ export function Settings({
         description={t('settings.subtitle')}
       />
       <div className="settings-layout">
-        <div className="settings-nav">
+        <div className="settings-nav" role="tablist" aria-label={t('nav.settings')}>
           {settingsTabs.map((item) => (
             <button
               type="button"
               key={item.id}
+              id={`settings-tab-${item.id}`}
+              role="tab"
+              aria-selected={tab === item.id}
+              aria-controls="settings-tab-panel"
               className={tab === item.id ? 'selected' : ''}
               onClick={() => onTabChange(item.id)}
             >
+              <item.icon size={14} />
               {t(item.key)}
             </button>
           ))}
         </div>
-        <div className="settings-card">
-          {tab === 'connection' && (
-            <div className="setting-block">
-              <div>
-                <h3>{t('settings.connectionTitle')}</h3>
-                <p>{t('settings.connectionText')}</p>
-              </div>
-              <div className="path-field">
-                <input
-                  value={osPath}
-                  disabled={updates.busy}
-                  onChange={(event) => {
-                    pathEditedRef.current = true;
-                    setOsPath(event.target.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      commitPath();
-                    } else if (event.key === 'Escape') {
-                      setOsPath(savedPathRef.current);
-                    }
-                  }}
-                  onBlur={commitPath}
-                  placeholder={t('settings.pathPlaceholder')}
-                  aria-label={t('settings.connectionTitle')}
-                />
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={updates.busy}
-                  onClick={choosePath}
-                >
-                  <FolderOpen size={14} />
-                  {t('settings.chooseFolder')}
-                </button>
-              </div>
-            </div>
-          )}
-          {tab === 'autostart' && (
+        <div role="tabpanel" id="settings-tab-panel" aria-labelledby={`settings-tab-${currentTab.id}`}>
+          <div className="settings-section-head">
+            <h2>{t(currentTab.key)}</h2>
+            <p>{t(currentTab.description)}</p>
+          </div>
+          {tab === 'general' && (
             <>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.autostartTitle')}</h3>
-                  <p>{t('settings.autostartText')}</p>
+              <div className="settings-card">
+                <div className="setting-block">
+                  <div>
+                    <h3>{t('settings.autostartTitle')}</h3>
+                    <p>{t('settings.autostartText')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`large-toggle ${autostart ? 'on' : ''}`}
+                    onClick={() => void toggleAutostart()}
+                    aria-label={t('settings.autostartTitle')}
+                  >
+                    <span />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className={`large-toggle ${autostart ? 'on' : ''}`}
-                  onClick={() => void toggleAutostart()}
-                  aria-label={t('settings.autostartTitle')}
-                >
-                  <span />
-                </button>
+                <div className="setting-block">
+                  <div>
+                    <h3>{t('settings.closeToTrayTitle')}</h3>
+                    <p>{t('settings.closeToTrayText')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`large-toggle ${closeToTray ? 'on' : ''}`}
+                    onClick={() => void toggleCloseToTray()}
+                    aria-label={t('settings.closeToTrayTitle')}
+                  >
+                    <span />
+                  </button>
+                </div>
+                <div className="setting-block">
+                  <div>
+                    <h3>{t('settings.notificationsTitle')}</h3>
+                    <p>{t('settings.notificationsText')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`large-toggle ${notifications ? 'on' : ''}`}
+                    onClick={toggleNotifications}
+                    aria-label={t('settings.notificationsTitle')}
+                  >
+                    <span />
+                  </button>
+                </div>
               </div>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.projectAutostartTitle')}</h3>
-                  <p>{t('settings.projectAutostartText')}</p>
+              <div className="settings-card">
+                <div className="setting-block settings-path">
+                  <div>
+                    <h3>{t('settings.connectionTitle')}</h3>
+                    <p>{t('settings.connectionText')}</p>
+                  </div>
+                  <div className="path-field">
+                    <input
+                      value={osPath}
+                      disabled={updates.busy}
+                      onChange={(event) => {
+                        pathEditedRef.current = true;
+                        setOsPath(event.target.value);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          commitPath();
+                        } else if (event.key === 'Escape') {
+                          setOsPath(savedPathRef.current);
+                        }
+                      }}
+                      onBlur={commitPath}
+                      placeholder={t('settings.pathPlaceholder')}
+                      aria-label={t('settings.connectionTitle')}
+                    />
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={updates.busy}
+                      onClick={choosePath}
+                    >
+                      <FolderOpen size={14} />
+                      {t('settings.chooseFolder')}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className={`large-toggle ${projectAutostart ? 'on' : ''}`}
-                  onClick={toggleProjectAutostart}
-                  aria-label={t('settings.projectAutostartTitle')}
-                >
-                  <span />
-                </button>
-              </div>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('updates.startup')}</h3>
-                  <p>{t('updates.description')}</p>
+                <div className="setting-block">
+                  <div>
+                    <h3>{t('settings.projectAutostartTitle')}</h3>
+                    <p>{t('settings.projectAutostartText')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`large-toggle ${projectAutostart ? 'on' : ''}`}
+                    onClick={toggleProjectAutostart}
+                    aria-label={t('settings.projectAutostartTitle')}
+                  >
+                    <span />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className={`large-toggle ${checkUpdates ? 'on' : ''}`}
-                  onClick={() => {
-                    const next = !checkUpdates;
-                    setCheckUpdates(next);
-                    settingsStorage.setItem('ospanel.checkServiceUpdates', next ? '1' : '0');
-                  }}
-                  aria-label={t('updates.startup')}
-                >
-                  <span />
-                </button>
-              </div>
-              <AppUpdateSettings />
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.closeToTrayTitle')}</h3>
-                  <p>{t('settings.closeToTrayText')}</p>
-                </div>
-                <button
-                  type="button"
-                  className={`large-toggle ${closeToTray ? 'on' : ''}`}
-                  onClick={() => void toggleCloseToTray()}
-                  aria-label={t('settings.closeToTrayTitle')}
-                >
-                  <span />
-                </button>
-              </div>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.notificationsTitle')}</h3>
-                  <p>{t('settings.notificationsText')}</p>
-                </div>
-                <button
-                  type="button"
-                  className={`large-toggle ${notifications ? 'on' : ''}`}
-                  onClick={toggleNotifications}
-                  aria-label={t('settings.notificationsTitle')}
-                >
-                  <span />
-                </button>
               </div>
             </>
           )}
-          {tab === 'appearance' && (
+          {tab === 'updates' && (
             <>
+              <div className="settings-card">
+                <AppUpdateSettings />
+              </div>
+              <div className="settings-card">
+                <div className="setting-block">
+                  <div>
+                    <h3>{t('settings.checkModuleUpdates')}</h3>
+                    <p>{t('settings.moduleUpdatesText')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`large-toggle ${checkUpdates ? 'on' : ''}`}
+                    onClick={() => {
+                      const next = !checkUpdates;
+                      setCheckUpdates(next);
+                      settingsStorage.setItem('ospanel.checkServiceUpdates', next ? '1' : '0');
+                    }}
+                    aria-label={t('settings.checkModuleUpdates')}
+                  >
+                    <span />
+                  </button>
+                </div>
+                <ModuleUpdateSources notify={notify} />
+              </div>
+            </>
+          )}
+          {tab === 'interface' && (
+            <div className="settings-card">
               <div className="setting-block">
                 <div>
                   <h3>{t('settings.themeTitle')}</h3>
@@ -453,7 +485,7 @@ export function Settings({
                   <b>{scale}%</b>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>

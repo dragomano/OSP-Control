@@ -20,6 +20,7 @@ mod services;
 mod settings;
 mod shell;
 mod update_files;
+mod update_sources;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 

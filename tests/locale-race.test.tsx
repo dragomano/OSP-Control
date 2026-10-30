@@ -47,7 +47,7 @@ describe('locale loading request ordering', () => {
     async (source) => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Внешний вид' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Интерфейс' }));
       await screen.findByRole('button', { name: 'Русский' });
 
       if (source === 'focus') fireEvent(window, new Event('focus'));

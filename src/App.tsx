@@ -142,7 +142,7 @@ function App() {
   // flashes in a Russian UI until the locale file is loaded.
   const [dict, setDict] = useState<Dict>(() => embeddedDict(initialLang()));
   const [locales, setLocales] = useState<LocaleInfo[]>([]);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('connection');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => settingsStorage.getItem('ospanel.sidebar') === '1',
@@ -899,7 +899,7 @@ function App() {
                     className="icon-button workspace-open"
                     aria-label={t('nav.openSettings')}
                     title={t('nav.openSettings')}
-                    onClick={() => navigateTo('settings', 'connection')}
+                    onClick={() => navigateTo('settings', 'general')}
                   >
                     <Settings2 size={16} />
                   </button>

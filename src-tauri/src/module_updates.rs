@@ -12,6 +12,7 @@ use std::{
     sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
     time::{Duration, Instant},
 };
+use tauri::Manager;
 struct UpdateLocks {
     gate: RwLock<()>,
     modules: Mutex<Vec<PathBuf>>,
@@ -313,13 +314,18 @@ pub(crate) fn processes(_: &Path) -> Result<bool, CommandError> {
 
 #[tauri::command]
 pub async fn check_module_updates(
+    app: tauri::AppHandle,
     custom_path: Option<String>,
     force: Option<bool>,
 ) -> Result<Vec<UpdateInfo>, CommandError> {
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = mutation()?;
         let root = root(custom_path.as_deref())?;
-        let mut catalog = releases::Catalog::new(force.unwrap_or(false));
+        let settings = app.state::<crate::settings::SettingsStore>().load()?;
+        let sources = crate::update_sources::parse(
+            settings.values.get(crate::update_sources::KEY).map(String::as_str),
+        )?;
+        let mut catalog = releases::Catalog::with_sources(force.unwrap_or(false), sources);
         let mut out = Vec::new();
         for entry in fs::read_dir(root.join("modules"))? {
             let name = entry?.file_name().to_string_lossy().into_owned();
@@ -398,8 +404,13 @@ pub async fn install_module_update(
         }
         progress(&app, &name, "preparing");
         let b = releases::identify(kind, &dir)?;
-        let mut release =
-            releases::Catalog::new(true).select(&name, &b, &dir)?.ok_or_else(releases::unsupported)?;
+        let settings = app.state::<crate::settings::SettingsStore>().load()?;
+        let sources = crate::update_sources::parse(
+            settings.values.get(crate::update_sources::KEY).map(String::as_str),
+        )?;
+        let mut release = releases::Catalog::with_sources(true, sources)
+            .select(&name, &b, &dir)?
+            .ok_or_else(releases::unsupported)?;
         if release.identity != expected {
             return Err(CommandError::new("err.updateChanged"));
         }

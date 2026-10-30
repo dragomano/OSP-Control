@@ -131,7 +131,7 @@ export type ToastAction = { label: string; run: () => void };
 export type Notify = (message: string, action?: ToastAction) => void;
 
 // The tabs of the Settings page — shared by the router, the palette and the page itself.
-export type SettingsTab = 'connection' | 'autostart' | 'appearance';
+export type SettingsTab = 'general' | 'updates' | 'interface';
 
 // The trigger is a render prop so the call site renders a real <button type="button"> without a wrapper,
 // while RowMenu passes it the state and the open handler.
