@@ -86,6 +86,17 @@ describe('dictionary parity across all locale files', () => {
     }
   });
 
+  // The dictionaries are edited by hand, so a new key usually lands at the end of
+  // the file instead of next to its neighbours. The order itself is irrelevant to the
+  // app, but a scattered order makes a side-by-side diff of two dictionaries unreadable
+  // — so every file follows the order of the base dictionary, key by key.
+  it('key order matches the base dictionary', () => {
+    for (const [name, dict] of Object.entries(dicts)) {
+      if (name === BASE_LANG) continue;
+      expect(Object.keys(dict), `key order of ${name}`).toEqual(Object.keys(base));
+    }
+  });
+
   it('{var} placeholders match the base dictionary', () => {
     for (const [name, dict] of Object.entries(dicts)) {
       if (name === BASE_LANG) continue;
