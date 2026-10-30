@@ -198,7 +198,7 @@ describe('Log cleanup', () => {
     await openLogs();
     fireEvent.click(screen.getByRole('button', { name: 'Clear current log' }));
     confirmCleanup();
-    fireEvent.click(screen.getByRole('button', { name: 'Services' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Modules' }));
     expect(
       screen.getByRole('button', { name: 'The panel is restarting — actions are temporarily paused' }),
     ).toBeDisabled();

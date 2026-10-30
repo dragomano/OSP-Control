@@ -60,7 +60,7 @@ describe('Services async actions', () => {
     expect(notify).not.toHaveBeenCalled();
 
     await act(async () => resolveSync(true));
-    expect(notify).toHaveBeenCalledWith('Service list refreshed');
+    expect(notify).toHaveBeenCalledWith('Module list refreshed');
   });
 
   it('runs the bulk restart callback once and disables it while pending', async () => {

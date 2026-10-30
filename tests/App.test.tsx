@@ -55,7 +55,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     render(<App />);
     // The brand also appears in the breadcrumbs — take the sidebar element specifically (<strong>).
     expect(screen.getByText(APP_NAME, { selector: 'strong' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Сервисы' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Модули' })).toBeInTheDocument();
     // The snapshot loads asynchronously: the version in the sidebar appears after discoverOsPanel.
     expect(screen.getByText('OSPanel', { selector: 'b' })).toBeInTheDocument();
     expect(await screen.findByText('6.0.0')).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
   describe('html lang follows the UI language', () => {
     it('is applied on mount from the saved language', async () => {
       render(<App />);
-      await screen.findByRole('button', { name: 'Сервисы' });
+      await screen.findByRole('button', { name: 'Модули' });
       expect(document.documentElement.lang).toBe('ru');
     });
 
@@ -143,28 +143,28 @@ describe('App (browser mode: adapter serves mocks)', () => {
       localStorage.clear();
       withSystemLang(['ru-RU', 'en-US']);
       render(<App />);
-      expect(await screen.findByRole('button', { name: 'Сервисы' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Модули' })).toBeInTheDocument();
     });
 
     it('falls back to English when the system language is unavailable', async () => {
       localStorage.clear();
       withSystemLang(['de-DE', 'ja-JP']);
       render(<App />);
-      expect(await screen.findByRole('button', { name: 'Services' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Modules' })).toBeInTheDocument();
     });
 
     it('keeps the stored choice over the system language', async () => {
       localStorage.setItem('ospanel.lang', 'es');
       withSystemLang(['ru-RU']);
       render(<App />);
-      expect(await screen.findByRole('button', { name: 'Servicios' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Módulos' })).toBeInTheDocument();
     });
 
     it('resets to system language when the stored language is missing', async () => {
       localStorage.setItem('ospanel.lang', 'deleted_lang');
       withSystemLang(['ru-RU']);
       render(<App />);
-      expect(await screen.findByRole('button', { name: 'Сервисы' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Модули' })).toBeInTheDocument();
       expect(localStorage.getItem('ospanel.lang')).toBe('ru');
     });
 
@@ -172,7 +172,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       localStorage.setItem('ospanel.lang', 'deleted_lang');
       withSystemLang(['de-DE']);
       render(<App />);
-      expect(await screen.findByRole('button', { name: 'Services' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Modules' })).toBeInTheDocument();
       expect(localStorage.getItem('ospanel.lang')).toBe('en');
     });
   });
@@ -195,7 +195,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
 
     it('gives the second toast its full duration when toasts follow quickly', async () => {
       render(<App />);
-      fireEvent.click(screen.getByRole('button', { name: 'Сервисы' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Модули' }));
       await screen.findByText('Apache');
 
       vi.useFakeTimers();
@@ -232,7 +232,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
 
     it('restarts the panel from Services and reports the desktop-only failure', async () => {
       render(<App />);
-      fireEvent.click(screen.getByRole('button', { name: 'Сервисы' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Модули' }));
 
       fireEvent.click(await screen.findByRole('button', { name: 'Перезапустить всё' }));
 
@@ -456,7 +456,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Русский' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
 
-      expect(await screen.findByRole('button', { name: 'Services' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Modules' })).toBeInTheDocument();
       expect(localStorage.getItem('ospanel.lang')).toBe('en');
     });
 

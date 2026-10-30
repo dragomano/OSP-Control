@@ -158,13 +158,13 @@ describe('Overview navigation', () => {
   it('routes the hero, quick-access and tip buttons', () => {
     const { props } = renderOverview();
 
-    fireEvent.click(screen.getByRole('button', { name: /Manage services/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Manage modules/ }));
     expect(props.onNavigate).toHaveBeenCalledWith('services');
 
     fireEvent.click(screen.getByRole('button', { name: /Open projects/ }));
     expect(props.onNavigate).toHaveBeenCalledWith('projects');
 
-    fireEvent.click(screen.getByRole('button', { name: /All services/ }));
+    fireEvent.click(screen.getByRole('button', { name: /All modules/ }));
     expect(props.onNavigate).toHaveBeenCalledWith('services');
 
     fireEvent.click(screen.getByRole('button', { name: 'Open logs' }));

@@ -40,7 +40,7 @@ afterEach(() => cleanup());
 describe('App service actions', () => {
   const openServices = async () => {
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Сервисы' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Модули' }));
     expect(await screen.findByText('Apache')).toBeInTheDocument();
   };
 
@@ -70,7 +70,7 @@ describe('App service actions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Перезапустить всё' }));
 
-    expect(await screen.findByText('Все активные сервисы перезапущены')).toBeInTheDocument();
+    expect(await screen.findByText('Все активные модули перезапущены')).toBeInTheDocument();
     expect(mocks.restartOsPanel).toHaveBeenCalledOnce();
     expect(mocks.refreshService).not.toHaveBeenCalled();
   });
@@ -122,7 +122,7 @@ describe('App service actions', () => {
     expect(mocks.refreshService).not.toHaveBeenCalled();
 
     // Returning to Services still shows busy until panel readiness resolves
-    fireEvent.click(screen.getByRole('button', { name: 'Сервисы' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Модули' }));
     expect(
       await screen.findByRole('button', {
         name: 'Панель перезапускается — действия временно приостановлены',
