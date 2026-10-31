@@ -162,7 +162,7 @@ describe('Backups creation', () => {
     const notify = vi.fn();
     renderBackups(notify);
     await screen.findByText('No saved backups yet');
-    fireEvent.click(screen.getByRole('button', { name: 'Back up menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create menu copy' }));
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Menu backup created'));
     expect(mocks.createMenuBackup).toHaveBeenCalledOnce();
     expect(mocks.listBackups).toHaveBeenCalledTimes(2);
