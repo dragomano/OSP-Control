@@ -149,7 +149,7 @@ export function Configs({ notify }: { notify: Notify }) {
           {selected ? (
             <>
               <div className="editor-top">
-                <div>
+                <div className="editor-file" title={`${selected.service} / ${selected.name}`}>
                   <span className="file-dot" />
                   {selected.service} / {selected.name}
                 </div>

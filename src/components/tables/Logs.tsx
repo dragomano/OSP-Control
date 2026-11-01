@@ -244,7 +244,7 @@ export function Logs({
               disabled={clearing}
               aria-pressed={auto}
             >
-              <RefreshCw size={15} />
+              <RefreshCw size={16} />
               {t('logs.autorefresh')}
             </button>
             <button
@@ -253,7 +253,7 @@ export function Logs({
               onClick={() => openClearDialog(null)}
               disabled={clearing || blocked || sources.length === 0}
             >
-              <Trash2 size={15} />
+              <Trash2 size={16} />
               {t('logs.clearAll')}
             </button>
           </div>

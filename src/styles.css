@@ -432,6 +432,14 @@ button {
   gap: 12px 24px;
   margin-bottom: 25px;
 }
+.page-header-copy {
+  flex: 1 1 min-content;
+  min-width: 0;
+}
+.page-header > :not(.page-header-copy) {
+  flex-shrink: 0;
+  max-width: 100%;
+}
 .eyebrow {
   font-size: 9px;
   text-transform: uppercase;
@@ -1414,9 +1422,16 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 0 13px;
   color: #c8cdd4;
   font-size: 10px;
+}
+.editor-file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .file-dot {
   display: inline-block;
@@ -1478,6 +1493,9 @@ button {
 .logs-header-actions {
   justify-content: flex-end;
   margin-left: auto;
+}
+.logs-header-actions .secondary-button {
+  padding: 10px 13px;
 }
 .log-tab-actions {
   margin-left: auto;
@@ -2218,6 +2236,7 @@ button {
 }
 .editor-actions {
   display: flex;
+  flex-shrink: 0;
   gap: 6px;
   margin-left: auto;
 }
