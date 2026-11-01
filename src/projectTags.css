@@ -276,7 +276,6 @@
     grid-row: 1;
   }
   .project-tags-table .project-row > .project-activity-identity {
-    display: block;
     grid-column: 2 / -1;
     grid-row: 1;
   }

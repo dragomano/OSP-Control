@@ -1209,26 +1209,35 @@ button {
   font-weight: 600;
 }
 .project-activity-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
   min-width: 0;
 }
 .project-activity-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 12px;
+  display: contents;
 }
 .project-activity-title > b {
+  grid-column: 1;
+  grid-row: 1;
   font-size: 10px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 .project-activity-path {
+  grid-column: 1;
+  grid-row: 2;
   display: block;
   margin-top: 4px;
   color: var(--muted);
   font-size: 9px;
   overflow-wrap: anywhere;
+}
+.project-last-change,
+.project-activity-unavailable {
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 .project-last-change {
   display: inline-flex;
