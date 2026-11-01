@@ -90,7 +90,7 @@ export function CreateProjectDialog({
       >
         <div className="modal-head">
           <div>
-            <span className="eyebrow">{t('projects.new')}</span>
+            <span className="eyebrow">{t('nav.projects')}</span>
             <h3 className="modal-title">{t('projects.createTitle')}</h3>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
