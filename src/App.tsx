@@ -372,6 +372,21 @@ function App() {
     }
   };
 
+  const projectRenamed = (domain: string, renamed: OsPanelProject) => {
+    const oldKey = domain.toLowerCase();
+    const newKey = renamed.domain.toLowerCase();
+    localDeletedRef.current.add(oldKey);
+    localDeletedRef.current.delete(newKey);
+    localAddedRef.current.delete(oldKey);
+    localAddedRef.current.set(newKey, renamed);
+    const ssl = localSslRef.current.get(oldKey);
+    localSslRef.current.delete(oldKey);
+    if (ssl !== undefined) localSslRef.current.set(newKey, ssl);
+    setProjects((current) =>
+      current.map((project) => (project.domain.toLowerCase() === oldKey ? renamed : project)),
+    );
+  };
+
   // Quick TLS toggle from the project row: write tls_enabled to .osp/project.ini, show the
   // new state optimistically, and offer a panel restart so the vhost is regenerated.
   const toggleProjectSsl = async (domain: string, next: boolean) => {
@@ -1079,6 +1094,7 @@ function App() {
                     notify={notify}
                     onProjectCreated={addProject}
                     onProjectDeleted={(domain) => void removeProject(domain)}
+                    onProjectRenamed={projectRenamed}
                     onToggleSsl={(domain, next) => void toggleProjectSsl(domain, next)}
                     onRestartPanel={() => void restartPanel()}
                   />

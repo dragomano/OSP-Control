@@ -1903,6 +1903,14 @@ button {
   box-shadow: 0 14px 38px #0007;
   z-index: 60;
 }
+.row-menu-separator {
+  align-self: stretch;
+  border: 0;
+  height: 1px;
+  flex-shrink: 0;
+  margin: 4px 5px;
+  background: var(--line);
+}
 .menu-item {
   display: flex;
   align-items: center;
@@ -1952,7 +1960,7 @@ button {
   color: #e6e9ee;
 }
 .menu-popover {
-  max-height: 320px;
+  max-height: min(440px, calc(100vh - 16px));
   overflow: auto;
 }
 .log-tab {

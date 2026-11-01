@@ -703,5 +703,12 @@
   "err.settingsInvalid": "El archivo de ajustes no es válido o usa una versión no compatible: {path}. Corríjalo y reintente. No se ha sobrescrito el archivo.",
   "err.settingsSaveFailed": "No se pudieron leer o guardar los ajustes junto a la aplicación: {path}. Compruebe los permisos de la carpeta y reintente.",
   "settings.storageFailed": "No se pudieron cargar o guardar los ajustes. Los cambios no se han guardado en disco.",
-  "settings.storageRetry": "Reintentar"
+  "settings.storageRetry": "Reintentar",
+  "projects.renameDomain": "Renombrar dominio",
+  "projects.renameNewDomain": "Nuevo dominio",
+  "projects.renameHint": "Se renombrarán la carpeta home/<dominio> y el dominio en los ajustes del proyecto; se conservarán las etiquetas y las versiones de los módulos. Primero se guardará una copia de project.ini. Se admiten proyectos con una sección de dominio en home/<dominio>. Revisa manualmente las rutas absolutas, los enlaces del código, las bases de datos y los certificados personalizados. Reinicia OSPanel para aplicar el cambio.",
+  "projects.toastRenamed": "Dominio {from} renombrado a {domain} — reinicia el panel para aplicar",
+  "projects.toastRenameFailed": "No se pudo renombrar el dominio",
+  "err.projectRenameLayout": "Para renombrar se requiere un proyecto en home/<dominio> con una sola sección del dominio correspondiente en .osp/project.ini, sin carpetas compartidas ni enlaces.",
+  "err.projectRenameRollbackFailed": "No se pudieron restaurar los ajustes tras el fallo. Restaura project.ini desde esta copia: {path}"
 }

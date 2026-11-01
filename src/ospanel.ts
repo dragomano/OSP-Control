@@ -811,6 +811,19 @@ export async function createProject(params: CreateProjectParams): Promise<Create
   };
 }
 
+export type RenamedProject = Pick<OsPanelProject, 'domain' | 'path'>;
+
+export async function renameProject(project: OsPanelProject, newDomain: string): Promise<RenamedProject> {
+  if (isTauri())
+    return invoke<RenamedProject>('rename_project', {
+      domain: project.domain,
+      newDomain,
+      path: project.path,
+      ...customPathArgs(),
+    });
+  throw new Error('err.desktopOnly');
+}
+
 // Panel restart: osp.bat exit, then ospanel.exe. At startup the panel
 // rescans home/ — the created domains make it into its project list.
 export async function restartOsPanel(): Promise<void> {

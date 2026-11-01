@@ -2,15 +2,20 @@
 
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::{
+    Mutex,
+    atomic::{AtomicU64, Ordering},
+};
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{CommandError, spawn_failed};
 use crate::panel_api::{
-    Service, dat_field, dat_node_map, dat_string_value, modules_from_api, parse_osp_json,
+    Service, dat_field, dat_node_map, dat_string_value, modules_from_api, parse_osp_json, projects_from_api,
 };
-use crate::paths::{hidden_command, is_valid_domain, resolve_installation};
+use crate::paths::{external_path, hidden_command, is_valid_domain, resolve_installation};
 
 // --- Per-project module versions (home/<domain>/.osp/project.ini) ---
 // The file is edited by the user: only the values of the needed keys are changed,
@@ -376,6 +381,171 @@ pub fn delete_project(domain: String, custom_path: Option<String>) -> Result<(),
     Ok(())
 }
 
+// --- Domain renaming ---
+// Keep this operation deliberately limited to one-domain home/<domain> projects:
+// moving a shared directory would silently invalidate other domains and API paths.
+static PROJECT_RENAME_LOCK: Mutex<()> = Mutex::new(());
+static PROJECT_RENAME_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RenamedProject {
+    domain: String,
+    path: String,
+}
+
+fn valid_rename_domain(domain: &str) -> bool {
+    is_valid_domain(domain)
+        && domain.len() <= 253
+        && domain.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label.as_bytes().first().is_some_and(u8::is_ascii_alphanumeric)
+                && label.as_bytes().last().is_some_and(u8::is_ascii_alphanumeric)
+        })
+        && ![
+            "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
+            "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+        ]
+        .contains(&domain.split('.').next().unwrap_or_default().to_ascii_lowercase().as_str())
+}
+
+fn rename_project_section(content: &str, domain: &str, new_domain: &str) -> Result<String, CommandError> {
+    let sections = ini_sections(content);
+    if sections.len() != 1 || !sections[0].0.eq_ignore_ascii_case(domain) {
+        return Err(CommandError::new("err.projectRenameLayout"));
+    }
+    // Replace only the section name; preserve all values, comments, BOM and line endings.
+    let mut updated = String::with_capacity(content.len() + new_domain.len());
+    for line in content.split_inclusive('\n') {
+        if is_section_header(line.trim_start_matches('\u{feff}').trim())
+            .is_some_and(|section| section.eq_ignore_ascii_case(domain))
+        {
+            let start = line.find('[').unwrap() + 1;
+            let end = line.rfind(']').unwrap();
+            updated.push_str(&line[..start]);
+            updated.push_str(new_domain);
+            updated.push_str(&line[end..]);
+        } else {
+            updated.push_str(line);
+        }
+    }
+    Ok(updated)
+}
+
+fn rename_project_directory(
+    root: &Path,
+    domain: &str,
+    new_domain: &str,
+    expected_path: &Path,
+    registered: &[crate::panel_api::Project],
+) -> Result<RenamedProject, CommandError> {
+    if !is_valid_domain(domain) || !valid_rename_domain(new_domain) || domain.eq_ignore_ascii_case(new_domain)
+    {
+        return Err(CommandError::new("err.invalidDomain"));
+    }
+    let home = fs::canonicalize(root.join("home"))?;
+    let source = fs::canonicalize(home.join(domain))
+        .map_err(|_| CommandError::new("err.projectNotFound").with("domain", domain))?;
+    // The displayed API path must identify this exact directory; never move a different project
+    // merely because its folder happens to match the selected domain.
+    if !source.starts_with(&home)
+        || source.parent() != Some(home.as_path())
+        || !source.file_name().is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case(domain))
+        || fs::canonicalize(expected_path)? != source
+        || !source.is_dir()
+        || registered.iter().any(|project| {
+            fs::canonicalize(&project.path).is_ok_and(|path| path == source)
+                && !project.domain.eq_ignore_ascii_case(domain)
+        })
+    {
+        return Err(CommandError::new("err.projectRenameLayout"));
+    }
+    let target = home.join(new_domain);
+    if fs::symlink_metadata(&target).is_ok()
+        || registered.iter().any(|project| project.domain.eq_ignore_ascii_case(new_domain))
+        || root.join("modules").join(new_domain).exists()
+    {
+        return Err(CommandError::new("err.projectExists").with("domain", new_domain));
+    }
+    // Include domains defined in other project.ini files before the panel has been restarted.
+    for entry in fs::read_dir(&home)? {
+        let path = entry?.path().join(".osp/project.ini");
+        if let Ok(content) = fs::read_to_string(&path) {
+            if ini_sections(&content).iter().any(|(section, _)| section.eq_ignore_ascii_case(new_domain)) {
+                return Err(CommandError::new("err.projectExists").with("domain", new_domain));
+            }
+        }
+    }
+    let osp = fs::canonicalize(source.join(".osp"))?;
+    let ini = fs::canonicalize(osp.join("project.ini"))?;
+    if !osp.starts_with(&source)
+        || osp != source.join(".osp")
+        || !ini.starts_with(&osp)
+        || ini != osp.join("project.ini")
+    {
+        return Err(CommandError::new("err.accessDenied"));
+    }
+    let original = fs::read_to_string(&ini)?;
+    let updated = rename_project_section(&original, domain, new_domain)?;
+    let id = format!(
+        "{}-{}-{}",
+        std::process::id(),
+        crate::paths::unix_now(),
+        PROJECT_RENAME_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    );
+    let backup = osp.join(format!("project.ini.before-rename-{id}.bak"));
+    let temporary = osp.join(format!("project.ini.rename-{id}.tmp"));
+    // create_new prevents overwriting existing files or following a planted backup/temp link.
+    let write_new = |path: &Path, content: &str| -> Result<(), CommandError> {
+        let mut file = fs::OpenOptions::new().write(true).create_new(true).open(path)?;
+        file.write_all(content.as_bytes())?;
+        file.sync_all()?;
+        Ok(())
+    };
+    write_new(&backup, &original)?;
+    write_new(&temporary, &updated)?;
+    if let Err(error) = fs::rename(&temporary, &ini) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error.into());
+    }
+    if let Err(error) = fs::rename(&source, &target) {
+        // Restore the exact original file if Windows denies moving a directory with open handles.
+        if fs::rename(&backup, &ini).is_err() {
+            return Err(CommandError::new("err.projectRenameRollbackFailed")
+                .with("path", external_path(&backup).to_string_lossy().into_owned()));
+        }
+        return Err(error.into());
+    }
+    Ok(RenamedProject {
+        domain: new_domain.into(),
+        path: external_path(&target).to_string_lossy().into_owned(),
+    })
+}
+
+#[tauri::command]
+pub async fn rename_project(
+    domain: String,
+    new_domain: String,
+    path: String,
+    custom_path: Option<String>,
+) -> Result<RenamedProject, CommandError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = PROJECT_RENAME_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let root = resolve_installation(custom_path.as_deref())?;
+        let registered = projects_from_api(&root);
+        rename_project_directory(
+            &root,
+            &domain,
+            &new_domain.trim().to_ascii_lowercase(),
+            Path::new(&path),
+            &registered,
+        )
+    })
+    .await
+    .map_err(|error| CommandError::new("err.ioFailed").with("detail", error.to_string()))?
+}
+
 // --- Global project engine values (the panel's own Settings → Projects) ---
 // Stored in system/program.dat (a JSON summary of the panel's settings) in the "projects" section.
 // Read-only: editing global settings must be done in OSPanel itself — the panel keeps the
@@ -610,6 +780,166 @@ mod tests {
 
     // Format and alignment are as in the panel's real home/<domain>/.osp/project.ini.
     const SAMPLE: &str = "\u{feff}[dune.loc]\r\n\r\nhttp_engine = Apache\r\nphp_engine  = PHP-8.2\r\nweb_root    = {base_dir}\\public\r\n";
+
+    struct RenameFixture(PathBuf);
+
+    impl RenameFixture {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "osp-rename-test-{}-{}",
+                std::process::id(),
+                PROJECT_RENAME_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+            ));
+            fs::create_dir_all(root.join("home/dune.loc/.osp")).unwrap();
+            fs::write(root.join("home/dune.loc/.osp/project.ini"), SAMPLE).unwrap();
+            fs::write(root.join("home/dune.loc/index.php"), "<?php echo 'unchanged';").unwrap();
+            Self(fs::canonicalize(root).unwrap())
+        }
+
+        fn rename(&self, new_domain: &str) -> Result<RenamedProject, CommandError> {
+            rename_project_directory(&self.0, "dune.loc", new_domain, &self.0.join("home/dune.loc"), &[])
+        }
+    }
+
+    impl Drop for RenameFixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn rename_moves_project_and_changes_only_domain_header_with_original_backup() {
+        let fixture = RenameFixture::new();
+        let renamed = fixture.rename("renamed.local").unwrap();
+        let target = fixture.0.join("home/renamed.local");
+        assert_eq!(renamed.domain, "renamed.local");
+        assert_eq!(fs::canonicalize(renamed.path).unwrap(), target);
+        assert!(!fixture.0.join("home/dune.loc").exists());
+        assert_eq!(
+            fs::read_to_string(target.join(".osp/project.ini")).unwrap(),
+            SAMPLE.replacen("[dune.loc]", "[renamed.local]", 1)
+        );
+        assert_eq!(fs::read_to_string(target.join("index.php")).unwrap(), "<?php echo 'unchanged';");
+        let backups: Vec<_> = fs::read_dir(target.join(".osp"))
+            .unwrap()
+            .flatten()
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".bak"))
+            .collect();
+        assert_eq!(backups.len(), 1);
+        assert_eq!(fs::read_to_string(backups[0].path()).unwrap(), SAMPLE);
+    }
+
+    #[test]
+    fn rename_preserves_formatting_and_rejects_ambiguous_domain_sections() {
+        let content = "\u{feff}; comment\n  [DUNE.LOC]  \nphp_engine = PHP-8.3\n; dune.loc is not replaced";
+        assert_eq!(
+            rename_project_section(content, "dune.loc", "new.local").unwrap(),
+            content.replacen("[DUNE.LOC]", "[new.local]", 1)
+        );
+        for invalid in ["[dune.loc]\n[second.local]\n", "[other.local]\n", "[dune.loc]\n[DUNE.LOC]\n", ""] {
+            assert_eq!(
+                rename_project_section(invalid, "dune.loc", "new.local").unwrap_err().code,
+                "err.projectRenameLayout"
+            );
+        }
+    }
+
+    #[test]
+    fn rename_rejects_conflicts_invalid_names_and_wrong_paths_without_changes() {
+        let fixture = RenameFixture::new();
+        for invalid in
+            ["../escape", "..\\escape", "DUNE.LOC", "new.local.", "-bad.local", "con.local", "bad..local", ""]
+        {
+            assert_eq!(fixture.rename(invalid).unwrap_err().code, "err.invalidDomain");
+        }
+        fs::create_dir(fixture.0.join("home/taken.local")).unwrap();
+        assert_eq!(fixture.rename("taken.local").unwrap_err().code, "err.projectExists");
+        fs::create_dir_all(fixture.0.join("home/another/.osp")).unwrap();
+        fs::write(fixture.0.join("home/another/.osp/project.ini"), "[pending.local]\n").unwrap();
+        assert_eq!(fixture.rename("pending.local").unwrap_err().code, "err.projectExists");
+        let wrong = rename_project_directory(
+            &fixture.0,
+            "dune.loc",
+            "new.local",
+            &fixture.0.join("home/another"),
+            &[],
+        )
+        .unwrap_err();
+        assert_eq!(wrong.code, "err.projectRenameLayout");
+        let registered = crate::panel_api::Project {
+            domain: "api.local".into(),
+            path: fixture.0.join("home/dune.loc").to_string_lossy().into_owned(),
+            php: "8.2".into(),
+            r#type: "Apache".into(),
+            ssl: true,
+        };
+        assert_eq!(
+            rename_project_directory(
+                &fixture.0,
+                "dune.loc",
+                "new.local",
+                &fixture.0.join("home/dune.loc"),
+                &[registered]
+            )
+            .unwrap_err()
+            .code,
+            "err.projectRenameLayout"
+        );
+        fs::write(fixture.0.join("home/dune.loc/.osp/project.ini"), "[dune.loc]\n[shared.local]\n").unwrap();
+        assert_eq!(fixture.rename("new.local").unwrap_err().code, "err.projectRenameLayout");
+        assert!(!fixture.0.join("home/new.local").exists());
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn rename_restores_original_ini_when_directory_is_locked() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let fixture = RenameFixture::new();
+        // FILE_FLAG_BACKUP_SEMANTICS opens the directory itself; omitting FILE_SHARE_DELETE
+        // reproduces an editor/server preventing Windows from moving that directory.
+        let _handle = fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(0x02000000)
+            .share_mode(3)
+            .open(fixture.0.join("home/dune.loc"))
+            .unwrap();
+        assert_eq!(fixture.rename("new.local").unwrap_err().code, "err.ioFailed");
+        assert_eq!(fs::read_to_string(fixture.0.join("home/dune.loc/.osp/project.ini")).unwrap(), SAMPLE);
+        assert!(!fixture.0.join("home/new.local").exists());
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn rename_rejects_junctions_outside_home_and_redirected_settings() {
+        let fixture = RenameFixture::new();
+        let external = RenameFixture::new();
+        let link = fixture.0.join("home/escape.local");
+        let output = hidden_command("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&link)
+            .arg(external.0.join("home/dune.loc"))
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(
+            rename_project_directory(&fixture.0, "escape.local", "new.local", &link, &[]).unwrap_err().code,
+            "err.projectRenameLayout"
+        );
+        fs::remove_dir(&link).unwrap();
+        let osp = fixture.0.join("home/dune.loc/.osp");
+        fs::remove_file(osp.join("project.ini")).unwrap();
+        fs::remove_dir(&osp).unwrap();
+        let output = hidden_command("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&osp)
+            .arg(external.0.join("home/dune.loc/.osp"))
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(fixture.rename("new.local").unwrap_err().code, "err.accessDenied");
+        fs::remove_dir(&osp).unwrap();
+        assert_eq!(fs::read_to_string(external.0.join("home/dune.loc/.osp/project.ini")).unwrap(), SAMPLE);
+    }
 
     #[test]
     fn replaces_value_preserving_line_formatting() {

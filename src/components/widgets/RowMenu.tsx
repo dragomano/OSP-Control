@@ -1,5 +1,5 @@
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { type MenuEntry, type MenuTrigger, useDismiss } from '../shared';
 
@@ -103,21 +103,23 @@ export function RowMenu({ entries, trigger }: { entries: MenuEntry[]; trigger?: 
             }
 
             return (
-              <button
-                type="button"
-                key={entry.label}
-                className={`menu-item ${entry.danger ? 'danger' : ''}`}
-                role="menuitem"
-                disabled={entry.disabled}
-                onClick={() => {
-                  if (entry.disabled) return;
-                  setOpen(false);
-                  entry.onSelect?.();
-                }}
-              >
-                {Icon && <Icon size={14} />}
-                {entry.label}
-              </button>
+              <Fragment key={entry.label}>
+                {entry.separatorBefore && <hr className="row-menu-separator" />}
+                <button
+                  type="button"
+                  className={`menu-item ${entry.danger ? 'danger' : ''}`}
+                  role="menuitem"
+                  disabled={entry.disabled}
+                  onClick={() => {
+                    if (entry.disabled) return;
+                    setOpen(false);
+                    entry.onSelect?.();
+                  }}
+                >
+                  {Icon && <Icon size={14} />}
+                  {entry.label}
+                </button>
+              </Fragment>
             );
           })}
         </div>

@@ -698,5 +698,12 @@
   "err.settingsInvalid": "The settings file is invalid or uses an unsupported version: {path}. Fix it and retry. The file has not been overwritten.",
   "err.settingsSaveFailed": "Could not read or save settings beside the application: {path}. Check folder permissions and retry.",
   "settings.storageFailed": "Settings could not be loaded or saved. Changes have not been saved to disk.",
-  "settings.storageRetry": "Retry"
+  "settings.storageRetry": "Retry",
+  "projects.renameDomain": "Rename domain",
+  "projects.renameNewDomain": "New domain",
+  "projects.renameHint": "The home/<domain> folder and the domain in project settings will be renamed; tags and module versions will be kept. A copy of project.ini will be saved first. Supported projects have one domain section in home/<domain>. Check absolute paths, links in code, databases and custom certificates manually. Restart OSPanel to apply the change.",
+  "projects.toastRenamed": "Domain {from} renamed to {domain} — restart the panel to apply",
+  "projects.toastRenameFailed": "Failed to rename domain",
+  "err.projectRenameLayout": "Renaming requires a project in home/<domain> with one matching domain section in .osp/project.ini, without shared folders or links.",
+  "err.projectRenameRollbackFailed": "Could not restore settings after the rename failed. Restore project.ini from this copy: {path}"
 }

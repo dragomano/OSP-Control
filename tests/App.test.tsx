@@ -10,6 +10,7 @@ const ospanelMocks = vi.hoisted(() => {
   const state: { real?: () => Promise<OsPanelSnapshot> } = {};
   return {
     state,
+    renameProject: vi.fn(),
     discoverOsPanel: vi.fn((): Promise<OsPanelSnapshot> => {
       const real = state.real;
       if (!real) return Promise.reject(new Error('ospanel adapter is not loaded yet'));
@@ -21,7 +22,11 @@ const ospanelMocks = vi.hoisted(() => {
 vi.mock('../src/ospanel', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/ospanel')>();
   ospanelMocks.state.real = actual.discoverOsPanel;
-  return { ...actual, discoverOsPanel: ospanelMocks.discoverOsPanel };
+  return {
+    ...actual,
+    discoverOsPanel: ospanelMocks.discoverOsPanel,
+    renameProject: ospanelMocks.renameProject,
+  };
 });
 
 const confirmYes = () => {
@@ -44,6 +49,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
   beforeEach(() => {
     localStorage.clear();
     ospanelMocks.discoverOsPanel.mockClear();
+    ospanelMocks.renameProject.mockReset();
     // The language is pinned explicitly: otherwise the Russian UI depends on the locale of
     // the machine running the tests (with empty localStorage the app takes it from navigator).
     localStorage.setItem('ospanel.lang', 'ru');
@@ -258,6 +264,32 @@ describe('App (browser mode: adapter serves mocks)', () => {
       expect(await screen.findByText('Действие доступно только в десктопном приложении')).toBeInTheDocument();
       // The browser confirm() receives the message only — the title is desktop-only.
       expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Удалить проект my-shop.test'));
+    });
+
+    it('keeps a renamed project when a snapshot still contains the old domain', async () => {
+      ospanelMocks.renameProject.mockResolvedValue({
+        domain: 'renamed.test',
+        path: 'C:\\OSPanel\\home\\renamed.test',
+      });
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: 'Проекты' }));
+      const row = await projectRow('my-shop.test');
+      fireEvent.click(within(row).getByRole('button', { name: 'Действия' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Переименовать домен' }));
+      const dialog = screen.getByRole('dialog', { name: 'Переименовать домен' });
+      fireEvent.change(within(dialog).getByLabelText('Новый домен'), { target: { value: 'renamed.test' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Переименовать домен' }));
+      expect(await projectRow('renamed.test')).toHaveTextContent('C:\\OSPanel\\home\\renamed.test');
+      expect(screen.queryByText('my-shop.test', { selector: 'b' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Перезапустить панель' })).toBeInTheDocument();
+      const calls = ospanelMocks.discoverOsPanel.mock.calls.length;
+      fireEvent.click(screen.getByRole('button', { name: 'Обзор' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Синхронизировать' }));
+      await waitFor(() => expect(ospanelMocks.discoverOsPanel.mock.calls.length).toBe(calls + 1));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Синхронизировать' })).toBeEnabled());
+      fireEvent.click(screen.getByRole('button', { name: 'Проекты' }));
+      expect(await projectRow('renamed.test')).toHaveTextContent('C:\\OSPanel\\home\\renamed.test');
+      expect(screen.queryByText('my-shop.test', { selector: 'b' })).not.toBeInTheDocument();
     });
 
     it('toggles project TLS optimistically and offers the restart', async () => {

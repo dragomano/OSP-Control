@@ -60,6 +60,16 @@ export function writeProjectTags(key: string, tags: ProjectTags): void {
   }
 }
 
+export function renameProjectTags(tags: ProjectTags, from: string, to: string): ProjectTags {
+  const next = new Map(Object.entries(tags));
+  const values = tagsForProject(tags, from);
+  next.delete(domainKey(from));
+  // A reused domain must not inherit metadata left behind by an older project.
+  if (values.length) next.set(domainKey(to), values);
+  else next.delete(domainKey(to));
+  return Object.fromEntries(next);
+}
+
 export function knownProjectTags(tags: ProjectTags): string[] {
   const unique = new Map<string, string>();
   for (const tag of Object.values(tags).flat()) {

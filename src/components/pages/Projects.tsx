@@ -9,6 +9,7 @@ import {
   FolderOpen,
   Globe2,
   Network,
+  Pencil,
   Plus,
   Search,
   ShieldCheck,
@@ -38,6 +39,7 @@ import {
   PROJECT_TAGS_KEY,
   type ProjectSort,
   readProjectTags,
+  renameProjectTags,
   sortTaggedProjects,
   type TagMatch,
   tagsForProject,
@@ -45,6 +47,7 @@ import {
 } from '../../projectTags';
 import { CreateProjectDialog } from '../dialogs/CreateProjectDialog';
 import { ProjectModulesDialog } from '../dialogs/ProjectModulesDialog';
+import { RenameProjectDialog } from '../dialogs/RenameProjectDialog';
 import { copyText, type Notify } from '../shared';
 import { FilterFacet, facetValues } from '../widgets/FilterFacet';
 import { PageHeader } from '../widgets/PageHeader';
@@ -60,6 +63,7 @@ type ProjectsProps = {
   notify: Notify;
   onProjectCreated: (created: CreatedProject) => void;
   onProjectDeleted: (domain: string) => void;
+  onProjectRenamed: (domain: string, renamed: OsPanelProject) => void;
   onToggleSsl: (domain: string, next: boolean) => void;
   onRestartPanel: () => void;
 };
@@ -76,6 +80,7 @@ function ProjectsContent({
   notify,
   onProjectCreated,
   onProjectDeleted,
+  onProjectRenamed,
   onToggleSsl,
   onRestartPanel,
   tagStorageKey,
@@ -83,6 +88,7 @@ function ProjectsContent({
   const { t, lang } = useI18n();
   const [modulesFor, setModulesFor] = useState<OsPanelProject | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [renameFor, setRenameFor] = useState<OsPanelProject | null>(null);
   const [sslFilter, setSslFilter] = useState<'all' | 'on' | 'off'>('all');
   const [phpFilter, setPhpFilter] = useState('all');
   const [httpEngineFilter, setHttpEngineFilter] = useState('all');
@@ -529,6 +535,7 @@ function ProjectsContent({
                           },
                           {
                             label: t('projects.menuOpenBrowser'),
+                            separatorBefore: true,
                             icon: Globe2,
                             onSelect: () => void openProject(project),
                           },
@@ -551,7 +558,14 @@ function ProjectsContent({
                               ]
                             : []),
                           {
+                            label: t('projects.renameDomain'),
+                            icon: Pencil,
+                            separatorBefore: true,
+                            onSelect: () => setRenameFor(project),
+                          },
+                          {
                             label: t('projects.menuCopyDomain'),
+                            separatorBefore: true,
                             icon: Copy,
                             onSelect: () => void copyText(t, project.domain, 'label.domain', notify),
                           },
@@ -562,6 +576,7 @@ function ProjectsContent({
                           },
                           {
                             label: t('projects.delete'),
+                            separatorBefore: true,
                             icon: Trash2,
                             danger: true,
                             onSelect: () => onProjectDeleted(project.domain),
@@ -620,6 +635,28 @@ function ProjectsContent({
       )}
       {modulesFor && (
         <ProjectModulesDialog project={modulesFor} notify={notify} onClose={() => setModulesFor(null)} />
+      )}
+      {renameFor && (
+        <RenameProjectDialog
+          project={renameFor}
+          projects={allProjects}
+          onClose={() => setRenameFor(null)}
+          onRenamed={(renamed) => {
+            const next = renameProjectTags(tagsRef.current, renameFor.domain, renamed.domain);
+            let message = t('projects.toastRenamed', { from: renameFor.domain, domain: renamed.domain });
+            try {
+              writeProjectTags(tagStorageKey, next);
+            } catch (error) {
+              message += ` ${errorText(t, error, 'projects.tagsSaveFailed')}`;
+            }
+            tagsRef.current = next;
+            setTagState({ key: tagStorageKey, tags: next });
+            setEditingTags(null);
+            setExpandedProject(null);
+            onProjectRenamed(renameFor.domain, renamed);
+            notify(message, { label: t('projects.restartPanel'), run: onRestartPanel });
+          }}
+        />
       )}
       {createDialogOpen && (
         <CreateProjectDialog

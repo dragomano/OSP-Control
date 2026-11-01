@@ -22,6 +22,7 @@ import {
   panelOnline,
   persistOsPanelPath,
   refreshService,
+  renameProject,
   restartOsPanel,
   restoreBackup,
   restoreDbBackup,
@@ -207,6 +208,23 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
     invokeMock.mockResolvedValueOnce([]);
     await listLogSources();
     expect(invokeMock).toHaveBeenLastCalledWith('list_log_sources', { customPath: 'D:\\OSPanel6' });
+
+    const project = {
+      domain: 'old.local',
+      path: 'D:\\OSPanel6\\home\\old.local',
+      php: '8.3',
+      type: 'Apache',
+      ssl: true,
+    };
+    const renamed = { domain: 'new.local', path: 'D:\\OSPanel6\\home\\new.local' };
+    invokeMock.mockResolvedValueOnce(renamed);
+    await expect(renameProject(project, 'new.local')).resolves.toEqual(renamed);
+    expect(invokeMock).toHaveBeenLastCalledWith('rename_project', {
+      domain: 'old.local',
+      newDomain: 'new.local',
+      path: project.path,
+      customPath: 'D:\\OSPanel6',
+    });
 
     invokeMock.mockResolvedValueOnce(1);
     await clearLogs('domains/dune.loc_error.log');

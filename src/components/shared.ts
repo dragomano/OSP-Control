@@ -114,6 +114,7 @@ export const navItems: { id: Page; icon: typeof Activity }[] = [
 
 export type MenuEntry = {
   label: string;
+  separatorBefore?: boolean;
   icon?: typeof Activity;
   onSelect?: () => void;
   danger?: boolean;

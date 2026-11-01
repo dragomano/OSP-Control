@@ -4,6 +4,7 @@ import { Projects } from '../src/components/pages/Projects';
 import type { Notify } from '../src/components/shared';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
 import type { OsPanelProject } from '../src/ospanel';
+import { PROJECT_TAGS_KEY, readProjectTags, writeProjectTags } from '../src/projectTags';
 
 const mocks = vi.hoisted(() => ({
   getProjectActivity: vi.fn(),
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   getGlobalProjectEngines: vi.fn(),
   saveProjectSettings: vi.fn(),
   openFileExternally: vi.fn(),
+  renameProject: vi.fn(),
 }));
 
 vi.mock('../src/ospanel', async (importOriginal) => {
@@ -48,7 +50,11 @@ const moduleOptions = {
   nodeEngines: [],
 };
 
-const renderProjects = (notify: Notify, projects: OsPanelProject[] = [shopProject, landingProject]) =>
+const renderProjects = (
+  notify: Notify,
+  projects: OsPanelProject[] = [shopProject, landingProject],
+  onProjectRenamed = vi.fn(),
+) =>
   render(
     <I18nContext.Provider value={{ lang: 'en', t, plural }}>
       <Projects
@@ -58,6 +64,7 @@ const renderProjects = (notify: Notify, projects: OsPanelProject[] = [shopProjec
         setQuery={vi.fn()}
         notify={notify}
         onProjectCreated={vi.fn()}
+        onProjectRenamed={onProjectRenamed}
         onProjectDeleted={vi.fn()}
         onToggleSsl={vi.fn()}
         onRestartPanel={vi.fn()}
@@ -84,6 +91,7 @@ const stubClipboard = (impl: () => Promise<void>) => {
 };
 
 beforeEach(() => {
+  localStorage.clear();
   for (const mock of Object.values(mocks)) mock.mockReset();
   mocks.listEditors.mockResolvedValue([{ id: 'vscode', name: 'VS Code' }]);
   mocks.getProjectActivity.mockResolvedValue([]);
@@ -168,6 +176,7 @@ describe('Projects filtering', () => {
           setQuery={setQuery}
           notify={vi.fn()}
           onProjectCreated={vi.fn()}
+          onProjectRenamed={vi.fn()}
           onProjectDeleted={vi.fn()}
           onToggleSsl={vi.fn()}
           onRestartPanel={vi.fn()}
@@ -190,6 +199,7 @@ describe('Projects filtering', () => {
           setQuery={vi.fn()}
           notify={vi.fn()}
           onProjectCreated={vi.fn()}
+          onProjectRenamed={vi.fn()}
           onProjectDeleted={vi.fn()}
           onToggleSsl={onToggleSsl}
           onRestartPanel={vi.fn()}
@@ -203,6 +213,22 @@ describe('Projects filtering', () => {
 });
 
 describe('Projects row menu', () => {
+  it('separates domain renaming, copying and deletion into action groups', () => {
+    renderProjects(vi.fn());
+    const menu = openRowMenu();
+    expect(within(menu).getAllByRole('separator')).toHaveLength(4);
+    for (const name of ['Open in browser', 'Rename domain', 'Copy domain', 'Delete project']) {
+      expect(within(menu).getByRole('menuitem', { name }).previousElementSibling).toHaveProperty(
+        'tagName',
+        'HR',
+      );
+    }
+    const labels = within(menu)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent);
+    expect(labels.indexOf('Rename domain')).toBe(labels.indexOf('Copy domain') - 1);
+  });
+
   it('opens the module versions dialog and closes it on Escape', async () => {
     renderProjects(vi.fn());
 
@@ -271,6 +297,7 @@ describe('Projects row menu', () => {
           setQuery={vi.fn()}
           notify={vi.fn()}
           onProjectCreated={vi.fn()}
+          onProjectRenamed={vi.fn()}
           onProjectDeleted={onProjectDeleted}
           onToggleSsl={vi.fn()}
           onRestartPanel={vi.fn()}
@@ -280,6 +307,66 @@ describe('Projects row menu', () => {
 
     fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Delete project' }));
     expect(onProjectDeleted).toHaveBeenCalledWith('my-shop.test');
+  });
+});
+
+describe('Projects domain renaming', () => {
+  it('validates names, prevents duplicate submits and keeps tags, engines and TLS', async () => {
+    const notify = vi.fn<Notify>();
+    const onRenamed = vi.fn();
+    writeProjectTags(PROJECT_TAGS_KEY, { 'my-shop.test': ['Client'], 'new.local': ['Stale'] });
+    let finish: (result: { domain: string; path: string }) => void = () => {};
+    mocks.renameProject.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    renderProjects(notify, [shopProject, landingProject], onRenamed);
+    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Rename domain' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rename domain' });
+    const input = within(dialog).getByLabelText('New domain');
+    const submit = within(dialog).getByRole('button', { name: 'Rename domain' });
+    expect(submit).toBeDisabled();
+    fireEvent.change(input, { target: { value: '../escape' } });
+    expect(submit).toBeDisabled();
+    fireEvent.change(input, { target: { value: 'LANDING.TEST' } });
+    expect(submit).toBeDisabled();
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('already exists');
+    fireEvent.change(input, { target: { value: ' New.Local ' } });
+    fireEvent.submit(submit.closest('form') as HTMLFormElement);
+    fireEvent.submit(submit.closest('form') as HTMLFormElement);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    expect(mocks.renameProject).toHaveBeenCalledExactlyOnceWith(shopProject, 'new.local');
+    const renamed = { domain: 'new.local', path: 'C:\\OSPanel\\home\\new.local' };
+    finish(renamed);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onRenamed).toHaveBeenCalledWith('my-shop.test', { ...shopProject, ...renamed });
+    expect(readProjectTags(PROJECT_TAGS_KEY)).toEqual({ 'new.local': ['Client'] });
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining('my-shop.test renamed to new.local'), {
+      label: 'Restart panel',
+      run: expect.any(Function),
+    });
+  });
+
+  it('keeps the dialog and metadata unchanged on a command error and allows retry', async () => {
+    const onRenamed = vi.fn();
+    writeProjectTags(PROJECT_TAGS_KEY, { 'my-shop.test': ['Client'] });
+    mocks.renameProject.mockRejectedValue(
+      Object.assign(new Error('err.projectExists'), { params: { domain: 'taken.local' } }),
+    );
+    renderProjects(vi.fn(), [shopProject], onRenamed);
+    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Rename domain' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rename domain' });
+    fireEvent.change(within(dialog).getByLabelText('New domain'), { target: { value: 'taken.local' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Rename domain' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Project taken.local already exists');
+    expect(onRenamed).not.toHaveBeenCalled();
+    expect(readProjectTags(PROJECT_TAGS_KEY)).toEqual({ 'my-shop.test': ['Client'] });
+    expect(within(dialog).getByRole('button', { name: 'Rename domain' })).toBeEnabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 
@@ -295,6 +382,7 @@ describe('Projects create dialog', () => {
           setQuery={vi.fn()}
           notify={vi.fn()}
           onProjectCreated={onProjectCreated}
+          onProjectRenamed={vi.fn()}
           onProjectDeleted={vi.fn()}
           onToggleSsl={vi.fn()}
           onRestartPanel={vi.fn()}

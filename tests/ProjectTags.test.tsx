@@ -42,6 +42,7 @@ function Harness() {
         setQuery={setQuery}
         notify={notify}
         onProjectCreated={vi.fn()}
+        onProjectRenamed={vi.fn()}
         onProjectDeleted={vi.fn()}
         onToggleSsl={vi.fn()}
         onRestartPanel={vi.fn()}
