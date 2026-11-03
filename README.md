@@ -8,7 +8,7 @@ A UI companion for OSPanel 6. Local environment management: services, projects, 
 
 ## Stack
 
-Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
+Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js · marked
 
 ## Features
 
@@ -19,7 +19,7 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 - Quick overview of module states and a recent-activity feed from the panel logs.
 - A sync button to refresh from the panel.
 
-### Services
+### Modules
 
 - List of local environment modules grouped by category: web servers, languages and runtimes, databases, cache and queues, DNS, mail, tools and other.
 - Start / stop / restart a single module, or restart all running modules at once.
@@ -28,11 +28,16 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 - Manual updates for PHP (same branch), Apache 2.4, Nginx (same branch) and Caddy 2, with optional update checks at startup.
 - Release archives are verified with SHA-256 and binary version checks. Updates preserve settings, create a full module backup and support rollback and interrupted-operation recovery. Stopped web servers remain stopped.
 - If a Caddy archive is mislabeled, a verified newer stable patch from the same minor branch can be installed; the actual binary version is recorded and displayed.
+- Update sources are configured per module family (PHP, Apache, Nginx, Caddy): GitHub Releases or HTTPS catalogs of Windows ZIP builds with SHA-256 checksums, checked from top to bottom. Up to 32 addresses per family; an empty list disables checks for it.
+- PHP package revisions (for example `8.5.12-2`) are tracked, so a rebuilt package of the same version is offered and displayed correctly.
 
 ### Projects
 
-- Project list with search and SSL / PHP version filters.
-- Creating a new project (domain, HTTP engine, PHP version, Node), deleting a project.
+- Project list with search across domains, paths and tags (`#tag` matches a tag exactly) and filters by SSL/TLS, PHP version, HTTP engine and tags (any / all / untagged).
+- Colored tags (up to 12 per project, 32 characters each) with a custom color per tag, bulk assignment and removal for selected projects.
+- Sorting by last modification, domain or tag name; each row shows the last modified date and time grouped into Today / Yesterday / Earlier, plus the last modified file on demand.
+- Creating a project (domain, HTTP engine, PHP version, Node version), renaming a domain and deleting a project. Renaming moves `home/<domain>` and the domain in `project.ini`, keeps tags and module versions, and backs up `project.ini` first.
+- Enabling and disabling an SSL/TLS certificate per project.
 - Opening in a browser, opening the project folder, copying the domain and path.
 - Opening a project in an external editor (installed editors are detected automatically).
 - Per-project module settings (HTTP/PHP/Node, auto or global values) with the settings file at hand.
@@ -44,15 +49,24 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 - Search, module filter, opening the file and its folder, copying the content.
 - Automatic configuration backup before edits.
 
+### Menu editor
+
+- Visual editor of the OSPanel menu (`system/menu.dat`): item tree with categories (one nesting level), drag and drop, and moving items up or down.
+- Item properties: caption, command, working directory, Font Awesome icon picker, visibility, hiding the launched window, separators, launch conditions (domain alias, running module, start command, Windows Terminal, shell, web UI) and a required module category. Unknown fields are preserved and editable.
+- Adding, duplicating and deleting items; adding, renaming and deleting empty categories; undo / redo, search, expand / collapse all — the tree state is remembered.
+- Saving validates the menu, creates an automatic backup and detects changes made to `menu.dat` outside the editor; a toast offers to restart OSPanel. Menu copies are restored from Backups.
+
 ### Logs
 
 - Panel and domain logs with auto-refresh.
-- "All / errors / warnings" tabs, content search, line copying.
+- "All / errors / warnings" tabs with counters, content search, line copying.
+- Clearing the current log or all logs at once with confirmation; the files stay in place for new events.
 
 ### Backups
 
-- Configuration copies, database dumps (MySQL, MariaDB, PostgreSQL) and project zip archives (node_modules and vendor excluded).
-- Creating, restoring and deleting copies; the current state is backed up automatically before a restore.
+- Configuration copies, database dumps (MySQL, MariaDB, PostgreSQL), project zip archives (node_modules and vendor excluded) and exact copies of `system/menu.dat`.
+- Creating, restoring and deleting copies; the current state is backed up automatically before a restore (a menu restore also offers a panel restart).
+- Filter by backup type: configurations, databases, projects, OSPanel menu.
 - Opening the backups folder.
 
 ### Settings
@@ -60,14 +74,18 @@ Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js
 - OSPanel installation path with a folder picker.
 - App autostart with Windows and module autostart from projects.
 - Minimize to system tray on close, notifications.
-- Theme (dark / light / system), accent color, font and UI scale.
+- Theme (dark / light / system), six accent colors, six fonts and a UI scale from 80% to 130%.
 - Language selection, hot reload of translations.
+- Module update checks at startup and custom update sources per module family: one HTTPS address per line, up to 32, with format validation; an empty list disables checks.
 
 ### General
 
-- Quick search across sections and options (command palette).
+- Quick search across sections and options with the `/` shortcut, arrow keys and Enter (command palette).
 - System tray icon (show window / exit).
-- Localization: Russian, English, Ukrainian, Belarusian, Spanish.
+- Single instance: launching the app again brings the existing window to the front.
+- The window opens fitted to the screen working area; a manually resized size is remembered between launches.
+- Feedback card in the sidebar with a link to GitHub Discussions.
+- Localization: Russian, English, Ukrainian, Belarusian, Spanish — [details](#localization).
 
 ## Development
 
@@ -86,7 +104,7 @@ pnpm test             # Vitest (jsdom)
 
 ## Portable settings
 
-Application preferences, project tags and collapsed menu categories are stored in `settings.toml` beside the executable, independently of the working directory. A fresh portable distribution contains no settings file: defaults are used until the first preference change or metadata save. The application directory must be writable; there is no fallback to AppData for settings.
+Application preferences, the window size, project tags and their colors, module update sources and collapsed menu categories are stored in `settings.toml` beside the executable, independently of the working directory. A fresh portable distribution contains no settings file: defaults are used until the first preference change or metadata save. The application directory must be writable; there is no fallback to AppData for settings.
 
 On the first launch after upgrading, existing WebView localStorage preferences and the old AppData `settings.json` are migrated automatically. The TOML file takes precedence when present. Migration sources are retained until writing succeeds; the native JSON is then renamed to `settings.json.migrated` and migrated localStorage keys are removed.
 
@@ -112,14 +130,25 @@ autostart_projects = false
 application = false
 modules = false
 
+[window]
+width = 1440
+height = 900
+
 [panel]
 path = 'C:\OSPanel'
+
+[update_sources]
+php = ["https://example.com/php-releases.json"]
+apache = []
 
 [menu]
 collapsed_categories = ["Development"]
 
 [projects."shop.test"]
 tags = ["Client", "Laravel"]
+
+[project_tag_colors]
+client = "#2f81f7"
 ```
 
 Missing fields use built-in defaults. Windows autostart still uses the Windows registry, and WebView2 keeps its technical profile/cache in AppData; neither is a second settings store. Browser preview mode continues to use localStorage. A portable build does not copy development settings into the release folder.
@@ -128,7 +157,7 @@ Missing fields use built-in defaults. Windows autostart still uses the Windows r
 
 To check for updates manually, use the icon button to the right of **OSP Control** in the left sidebar header, styled like the **Open OSPanel folder** button below it. The update button is also available when the sidebar is collapsed and opens the application-update dialog. **Settings → Autostart & notifications** retains only the separate **Check for application updates at startup** toggle (off by default).
 
-When a new version is found, a compact notice opens a release-details dialog with an **Update and restart** button. Installation always requires confirmation.
+When a new version is found, a compact notice opens a release-details dialog with the release notes and an **Update and restart** button. Notes are rendered from Markdown into safe elements: raw HTML is shown as plain text. Installation always requires confirmation.
 
 Updates use the latest stable GitHub Release from `dragomano/OSP-Control`, selecting `OSP_Control_<version>_<arch>.zip`. The updater checks the exact URL, size, GitHub SHA-256 digest, ZIP paths and PE architecture. GitHub is the trust root: its digest is not an independent publisher signature.
 
@@ -139,6 +168,18 @@ The **executable and entire `locales/` directory are then replaced with the rele
 A power loss can require manual recovery. Close all application processes and, before deleting `.osp-control-update`, restore **both components from the same completed backup** in `.osp-control-backups/<identifier>/` (a completed backup contains a `complete` file): copy `osp-control.exe` to the application directory under the original executable name and replace the entire current `locales/` with the backup's `locales/`. Do not overlay the dictionaries, which would leave extra files behind. A `no-locales` marker means there was no translation directory before the update; remove it when restoring that backup. `.osp-control-update/backup-path.txt` records this operation's backup path. `previous.exe` and `previous-locales/` inside staging are moved originals for automatic rollback, not separate programs. Keep staging until recovery is complete. Installation is disabled in development builds.
 
 ## Localization
+
+The interface is available in five languages. The list below matches the language picker in **Settings → Appearance**, where languages are sorted by their native name.
+
+| Language                    | Code | Plural categories             | Dictionary                                       |
+| --------------------------- | ---- | ----------------------------- | ------------------------------------------------ |
+| **English** — base language | `en` | `one`, `other`                | [`en.json`](src-tauri/resources/locales/en.json) |
+| Español (Spanish)           | `es` | `one`, `many`, `other`        | [`es.json`](src-tauri/resources/locales/es.json) |
+| Беларуская (Belarusian)     | `be` | `one`, `few`, `many`, `other` | [`be.json`](src-tauri/resources/locales/be.json) |
+| Русский (Russian)           | `ru` | `one`, `few`, `many`, `other` | [`ru.json`](src-tauri/resources/locales/ru.json) |
+| Українська (Ukrainian)      | `uk` | `one`, `few`, `many`, `other` | [`uk.json`](src-tauri/resources/locales/uk.json) |
+
+English is the base language: anything missing from another dictionary silently falls back to it.
 
 Translations live in `src-tauri/resources/locales/*.json` and are embedded into the binary. The portable build ships a copy in `locales/` next to the executable: edit the files there and the changes are picked up when the window regains focus, or via the "Reload translations" button in the settings.
 
