@@ -349,14 +349,18 @@ mod tests {
             let mut transaction = Replacement::new(&target, &stage, &payload);
             transaction.install(|a, b| fs::rename(a, b).map_err(Into::into)).unwrap();
             let mut step = 0;
-            assert!(transaction.rollback_with(|a, b| {
-                let current = step;
-                step += 1;
-                if current == fail_at {
-                    return Err(invalid());
-                }
-                fs::rename(a, b).map_err(Into::into)
-            }).is_err());
+            assert!(
+                transaction
+                    .rollback_with(|a, b| {
+                        let current = step;
+                        step += 1;
+                        if current == fail_at {
+                            return Err(invalid());
+                        }
+                        fs::rename(a, b).map_err(Into::into)
+                    })
+                    .is_err()
+            );
             assert_eq!(fs::read(target).unwrap(), b"old exe");
             assert_eq!(fs::read(backup.join("locales/ru.json")).unwrap(), b"custom translation");
             assert!(stage.join("previous-locales").exists());

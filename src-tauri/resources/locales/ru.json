@@ -680,6 +680,8 @@
   "projects.tagsPlaceholder": "Новая или существующая метка",
   "projects.tagsAdd": "Добавить",
   "projects.tagsDone": "Готово",
+  "projects.tagsColorFor": "Цвет метки {tag}",
+  "projects.tagsColorDefault": "Цвет по умолчанию",
   "projects.tagsHint": "До 12 меток, до 32 символов в каждой. Поиск: #метка или #\"метка с пробелами\".",
   "projects.tagsRemove": "Снять метку {tag}",
   "projects.tagsEditFor": "Метки проекта {domain}",

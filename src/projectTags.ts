@@ -2,6 +2,32 @@ import type { OsPanelProject } from './ospanel';
 import { settingsStorage } from './settingsStorage';
 
 export type ProjectTags = Record<string, string[]>;
+export type ProjectTagColor = `#${string}`;
+export const isProjectTagColor = (value: unknown): value is ProjectTagColor =>
+  typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+export function projectTagAppearance(colors: ProjectTagColors, tag: string) {
+  const color = colorForTag(colors, tag);
+  return {
+    className: color ? 'tag-color-custom' : '',
+    style: color ? ({ '--tag-custom': color } as import('react').CSSProperties) : undefined,
+  };
+}
+export type ProjectTagColors = Record<string, ProjectTagColor>;
+export const projectTagKey = (value: string) => normalizeProjectTag(value).toLowerCase();
+export function colorForTag(colors: ProjectTagColors, tag: string): ProjectTagColor | undefined {
+  const key = projectTagKey(tag);
+  return Object.keys(colors).includes(key) ? colors[key] : undefined;
+}
+export function setProjectTagColor(
+  colors: ProjectTagColors,
+  tag: string,
+  color: ProjectTagColor | null,
+): ProjectTagColors {
+  const next = new Map(Object.entries(colors));
+  if (color) next.set(projectTagKey(tag), color);
+  else next.delete(projectTagKey(tag));
+  return Object.fromEntries(next);
+}
 export type ProjectSort = 'recent' | 'domain' | 'tags' | 'tags-desc';
 export type TagMatch = 'any' | 'all';
 export const MAX_PROJECT_TAG_LENGTH = 32;
@@ -52,9 +78,33 @@ export function readProjectTags(key: string): ProjectTags {
   }
 }
 
-export function writeProjectTags(key: string, tags: ProjectTags): void {
+export function readProjectTagColors(key: string): ProjectTagColors {
   try {
-    settingsStorage.setItem(key, JSON.stringify({ version: 1, projects: tags }));
+    const parsed: unknown = JSON.parse(settingsStorage.getItem(key) ?? 'null');
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !('version' in parsed) ||
+      parsed.version !== 1 ||
+      !('colors' in parsed)
+    )
+      return {};
+    const colors = parsed.colors;
+    if (!colors || typeof colors !== 'object' || Array.isArray(colors)) return {};
+    const result = new Map<string, ProjectTagColor>();
+    for (const [name, color] of Object.entries(colors)) {
+      const tag = normalizeProjectTag(name);
+      if (validTag(tag) && isProjectTagColor(color)) result.set(tagKey(tag), color);
+    }
+    return Object.fromEntries(result);
+  } catch {
+    return {};
+  }
+}
+
+export function writeProjectTags(key: string, tags: ProjectTags, colors = readProjectTagColors(key)): void {
+  try {
+    settingsStorage.setItem(key, JSON.stringify({ version: 1, projects: tags, colors }));
   } catch {
     throw new Error('err.projectTagsSaveFailed');
   }

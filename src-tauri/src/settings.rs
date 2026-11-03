@@ -17,6 +17,14 @@ const MENU_KEY: &str = "ospanel.menuTree";
 const TAG_KEY: &str = "ospanel.projectTags";
 const MAX_TAGS: usize = 12;
 const MAX_TAG_LENGTH: usize = 32;
+fn valid_tag_color(name: &str, color: &str) -> bool {
+    !name.trim().is_empty()
+        && name.chars().count() <= MAX_TAG_LENGTH
+        && !name.chars().any(char::is_control)
+        && color.len() == 7
+        && color.starts_with('#')
+        && color.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
+}
 const FIELDS: &[(&str, &str, &str, &str)] = &[
     ("ospanel.lang", "interface", "language", "string"),
     ("ospanel.theme", "interface", "theme", "string"),
@@ -162,6 +170,29 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
             }
             put(&mut doc["projects"][domain], "tags", array(&tags));
         }
+        // Tag-only edits must not erase the existing palette.
+        if let Some(colors) = parsed.get("colors") {
+            let colors = colors.as_object().ok_or_else(invalid)?;
+            section(doc, "project_tag_colors")?;
+            let existing = doc["project_tag_colors"]
+                .as_table()
+                .ok_or_else(invalid)?
+                .iter()
+                .map(|(name, _)| name.to_owned())
+                .collect::<Vec<_>>();
+            for name in existing {
+                if !colors.contains_key(&name) {
+                    doc["project_tag_colors"].as_table_mut().ok_or_else(invalid)?.remove(&name);
+                }
+            }
+            for (name, color) in colors {
+                let color = color.as_str().ok_or_else(invalid)?;
+                if !valid_tag_color(name, color) {
+                    return Err(invalid());
+                }
+                put(&mut doc["project_tag_colors"], name, value(color));
+            }
+        }
     } else {
         return Err(invalid());
     }
@@ -229,8 +260,18 @@ fn values(doc: &DocumentMut) -> Result<Values, CommandError> {
                 .insert(MENU_KEY.into(), serde_json::to_string(&strings(collapsed)?).map_err(|_| invalid())?);
         }
     }
+    let mut colors = BTreeMap::new();
+    if let Some(palette) = doc.get("project_tag_colors") {
+        for (name, item) in palette.as_table().ok_or_else(invalid)?.iter() {
+            let color = item.as_str().ok_or_else(invalid)?;
+            if !valid_tag_color(name, color) {
+                return Err(invalid());
+            }
+            colors.insert(name, color);
+        }
+    }
+    let mut tags = BTreeMap::new();
     if let Some(projects) = doc.get("projects") {
-        let mut tags = BTreeMap::new();
         for (domain, project) in projects.as_table().ok_or_else(invalid)?.iter() {
             if !project.is_table() {
                 return Err(invalid());
@@ -247,7 +288,12 @@ fn values(doc: &DocumentMut) -> Result<Values, CommandError> {
                 tags.insert(domain, list);
             }
         }
-        result.insert(TAG_KEY.into(), serde_json::json!({"version":1,"projects":tags}).to_string());
+    }
+    if doc.get("projects").is_some() || doc.get("project_tag_colors").is_some() {
+        result.insert(
+            TAG_KEY.into(),
+            serde_json::json!({"version":1,"projects":tags,"colors":colors}).to_string(),
+        );
     }
     Ok(result)
 }
@@ -561,6 +607,57 @@ mod tests {
         f.store.save([("ospanel.lang".into(), "es".into())].into(), true).unwrap();
         assert_eq!(f.text(), before);
     }
+    #[test]
+    fn tag_colors_survive_save_response_reload_and_unrelated_edits() {
+        let f = Fixture::new();
+        let metadata = serde_json::json!({
+            "version": 1, "projects": {"shop.test": ["Client"]},
+            "colors": {"client": "#12a4ce", "unused": "#cc4488", "mixed": "#Ab19EF"}
+        });
+        let snapshot = f.save(TAG_KEY, &metadata.to_string());
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&snapshot.values[TAG_KEY]).unwrap(), metadata);
+        f.save("ospanel.theme", "light");
+        let reopened = SettingsStore { path: f.store.path.clone(), legacy: None, lock: Mutex::new(()) };
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&reopened.load().unwrap().values[TAG_KEY]).unwrap(),
+            metadata
+        );
+        let cleared = serde_json::json!({"version": 1, "projects": {}, "colors": {}});
+        f.save(TAG_KEY, &cleared.to_string());
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&reopened.load().unwrap().values[TAG_KEY]).unwrap(),
+            cleared
+        );
+    }
+
+    #[test]
+    fn tag_colors_validate_hex_values_and_preserve_colors_during_tag_edits() {
+        let f = Fixture::new();
+        f.save(TAG_KEY, r##"{"version":1,"projects":{},"colors":{"client":"#12a4ce"}}"##);
+        f.save(TAG_KEY, r#"{"version":1,"projects":{"shop.test":["Client"]}}"#);
+        let saved: serde_json::Value =
+            serde_json::from_str(&f.store.load().unwrap().values[TAG_KEY]).unwrap();
+        assert_eq!(saved["colors"]["client"], "#12a4ce");
+        let before = f.text();
+        for colors in [
+            serde_json::json!({"client": "invalid"}),
+            serde_json::json!({"client": "blue"}),
+            serde_json::json!({"client": "green"}),
+            serde_json::json!({"client": "orange"}),
+            serde_json::json!({"client": "purple"}),
+            serde_json::json!({"client": "pink"}),
+            serde_json::json!({"client": "gray"}),
+            serde_json::json!({"client": "#abc"}),
+            serde_json::json!({"client": "#12345g"}),
+            serde_json::json!({"": "blue"}),
+            serde_json::json!([]),
+        ] {
+            let metadata = serde_json::json!({"version":1,"projects":{},"colors":colors});
+            assert!(f.store.save([(TAG_KEY.into(), metadata.to_string())].into(), false).is_err());
+            assert_eq!(f.text(), before);
+        }
+    }
+
     #[test]
     fn path_change_keeps_project_tags() {
         let f = Fixture::new();

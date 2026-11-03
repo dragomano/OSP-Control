@@ -670,6 +670,8 @@
   "projects.tagsPlaceholder": "New or existing tag",
   "projects.tagsAdd": "Add",
   "projects.tagsDone": "Done",
+  "projects.tagsColorFor": "Color for {tag}",
+  "projects.tagsColorDefault": "Default color",
   "projects.tagsHint": "Up to 12 tags, 32 characters each. Search: #tag or #\"tag with spaces\".",
   "projects.tagsRemove": "Remove tag {tag}",
   "projects.tagsEditFor": "Tags for {domain}",

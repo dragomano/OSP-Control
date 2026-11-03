@@ -22,8 +22,8 @@ mod shell;
 mod update_files;
 mod update_sources;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{Manager, PhysicalPosition, PhysicalSize, Position, Size, WindowEvent};
 
@@ -94,10 +94,8 @@ fn center_window(window: &tauri::WebviewWindow) {
             work.position.x + work.size.width as i32 / 2,
             work.position.y + work.size.height as i32 / 2,
         );
-        let origin = PhysicalPosition::new(
-            center.x - outer.width as i32 / 2,
-            center.y - outer.height as i32 / 2,
-        );
+        let origin =
+            PhysicalPosition::new(center.x - outer.width as i32 / 2, center.y - outer.height as i32 / 2);
         if let Err(error) = window.set_position(Position::Physical(origin)) {
             eprintln!("initial window centering failed: {error}");
         }
@@ -119,20 +117,14 @@ struct WindowGeometry {
     pending: Mutex<Option<LogicalWindowSize>>,
 }
 
-fn record_window_size(
-    app: &tauri::AppHandle,
-    window: &tauri::Window,
-    size: tauri::PhysicalSize<u32>,
-) {
+fn record_window_size(app: &tauri::AppHandle, window: &tauri::Window, size: tauri::PhysicalSize<u32>) {
     let geometry = app.state::<WindowGeometry>();
     if geometry.suppress_resize.load(Ordering::SeqCst) {
         return;
     }
     let scale = window.scale_factor().unwrap_or(1.0);
-    *geometry.pending.lock().unwrap() = Some(LogicalWindowSize {
-        width: size.width as f64 / scale,
-        height: size.height as f64 / scale,
-    });
+    *geometry.pending.lock().unwrap() =
+        Some(LogicalWindowSize { width: size.width as f64 / scale, height: size.height as f64 / scale });
     if !geometry.saver_waiting.swap(true, Ordering::SeqCst) {
         let app = app.clone();
         std::thread::spawn(move || {

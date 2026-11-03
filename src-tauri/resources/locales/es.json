@@ -675,6 +675,8 @@
   "projects.tagsPlaceholder": "Etiqueta nueva o existente",
   "projects.tagsAdd": "Añadir",
   "projects.tagsDone": "Listo",
+  "projects.tagsColorFor": "Color de {tag}",
+  "projects.tagsColorDefault": "Color predeterminado",
   "projects.tagsHint": "Hasta 12 etiquetas de 32 caracteres cada una. Buscar: #etiqueta o #\"etiqueta con espacios\".",
   "projects.tagsRemove": "Quitar etiqueta {tag}",
   "projects.tagsEditFor": "Etiquetas de {domain}",

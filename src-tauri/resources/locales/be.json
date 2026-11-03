@@ -680,6 +680,8 @@
   "projects.tagsPlaceholder": "Новая або існуючая метка",
   "projects.tagsAdd": "Дадаць",
   "projects.tagsDone": "Гатова",
+  "projects.tagsColorFor": "Колер меткі {tag}",
+  "projects.tagsColorDefault": "Колер па змаўчанні",
   "projects.tagsHint": "Да 12 метак, да 32 сімвалаў у кожнай. Пошук: #метка або #\"метка з прабеламі\".",
   "projects.tagsRemove": "Зняць метку {tag}",
   "projects.tagsEditFor": "Меткі праекта {domain}",

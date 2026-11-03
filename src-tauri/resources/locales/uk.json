@@ -680,6 +680,8 @@
   "projects.tagsPlaceholder": "Нова або наявна мітка",
   "projects.tagsAdd": "Додати",
   "projects.tagsDone": "Готово",
+  "projects.tagsColorFor": "Колір мітки {tag}",
+  "projects.tagsColorDefault": "Колір за замовчуванням",
   "projects.tagsHint": "До 12 міток, до 32 символів у кожній. Пошук: #мітка або #\"мітка з пробілами\".",
   "projects.tagsRemove": "Зняти мітку {tag}",
   "projects.tagsEditFor": "Мітки проєкту {domain}",

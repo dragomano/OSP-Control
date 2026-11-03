@@ -38,8 +38,12 @@ import {
   matchesProjectTags,
   PROJECT_TAGS_KEY,
   type ProjectSort,
+  type ProjectTagColor,
+  projectTagAppearance,
+  readProjectTagColors,
   readProjectTags,
   renameProjectTags,
+  setProjectTagColor,
   sortTaggedProjects,
   type TagMatch,
   tagsForProject,
@@ -96,13 +100,17 @@ function ProjectsContent({
   const [tagState, setTagState] = useState(() => ({
     key: tagStorageKey,
     tags: readProjectTags(tagStorageKey),
+    colors: readProjectTagColors(tagStorageKey),
   }));
+  const tagColors = tagState.key === tagStorageKey ? tagState.colors : readProjectTagColors(tagStorageKey);
   const projectTags = useMemo(
     () => (tagState.key === tagStorageKey ? tagState.tags : readProjectTags(tagStorageKey)),
     [tagState, tagStorageKey],
   );
   const tagsRef = useRef(projectTags);
   tagsRef.current = projectTags;
+  const colorsRef = useRef(tagColors);
+  colorsRef.current = tagColors;
   const [tagFilters, setTagFilters] = useState<(string | null)[]>([]);
   const [tagMatch, setTagMatch] = useState<TagMatch>('any');
   const [sort, setSort] = useState<ProjectSort>('recent');
@@ -110,7 +118,11 @@ function ProjectsContent({
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [bulkTag, setBulkTag] = useState('');
   useEffect(() => {
-    setTagState({ key: tagStorageKey, tags: readProjectTags(tagStorageKey) });
+    setTagState({
+      key: tagStorageKey,
+      tags: readProjectTags(tagStorageKey),
+      colors: readProjectTagColors(tagStorageKey),
+    });
     setSelected(new Set());
     setEditingTags(null);
     setTagFilters([]);
@@ -210,13 +222,23 @@ function ProjectsContent({
   const changeTags = (domains: string[], tag: string, action: 'add' | 'remove') => {
     try {
       const next = editProjectTags(tagsRef.current, domains, tag, action);
-      writeProjectTags(tagStorageKey, next);
+      writeProjectTags(tagStorageKey, next, colorsRef.current);
       tagsRef.current = next;
-      setTagState({ key: tagStorageKey, tags: next });
+      setTagState({ key: tagStorageKey, tags: next, colors: colorsRef.current });
       return true;
     } catch (error) {
       notify(errorText(t, error, 'projects.tagsSaveFailed'));
       return false;
+    }
+  };
+  const changeTagColor = (tag: string, color: ProjectTagColor | null) => {
+    try {
+      const next = setProjectTagColor(colorsRef.current, tag, color);
+      writeProjectTags(tagStorageKey, tagsRef.current, next);
+      colorsRef.current = next;
+      setTagState({ key: tagStorageKey, tags: tagsRef.current, colors: next });
+    } catch (error) {
+      notify(errorText(t, error, 'projects.tagsSaveFailed'));
     }
   };
   // Editors for "Open in": looked up once when the page opens.
@@ -321,6 +343,7 @@ function ProjectsContent({
         )}
         <ProjectTagFilter
           available={tagCatalog}
+          colors={tagColors}
           selected={tagFilters}
           match={tagMatch}
           onSelect={setTagFilters}
@@ -471,7 +494,8 @@ function ProjectsContent({
                         {tagsForProject(projectTags, project.domain).map((tag) => (
                           <button
                             type="button"
-                            className={`project-tag-chip ${tagFilters.includes(tag) ? 'active' : ''}`}
+                            className={`project-tag-chip ${projectTagAppearance(tagColors, tag).className} ${tagFilters.includes(tag) ? 'active' : ''}`}
+                            style={projectTagAppearance(tagColors, tag).style}
                             key={tag}
                             aria-label={t('projects.tagsFilterBy', { tag })}
                             onClick={() => setTagFilters([tag])}
@@ -590,6 +614,8 @@ function ProjectsContent({
                       domain={project.domain}
                       tags={tagsForProject(projectTags, project.domain)}
                       available={tagCatalog}
+                      colors={tagColors}
+                      onColorChange={changeTagColor}
                       onChange={(tag, action) => changeTags([project.domain], tag, action)}
                       onClose={() => setEditingTags(null)}
                     />
@@ -645,12 +671,12 @@ function ProjectsContent({
             const next = renameProjectTags(tagsRef.current, renameFor.domain, renamed.domain);
             let message = t('projects.toastRenamed', { from: renameFor.domain, domain: renamed.domain });
             try {
-              writeProjectTags(tagStorageKey, next);
+              writeProjectTags(tagStorageKey, next, colorsRef.current);
             } catch (error) {
               message += ` ${errorText(t, error, 'projects.tagsSaveFailed')}`;
             }
             tagsRef.current = next;
-            setTagState({ key: tagStorageKey, tags: next });
+            setTagState({ key: tagStorageKey, tags: next, colors: colorsRef.current });
             setEditingTags(null);
             setExpandedProject(null);
             onProjectRenamed(renameFor.domain, renamed);

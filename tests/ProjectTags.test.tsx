@@ -5,11 +5,14 @@ import { Projects } from '../src/components/pages/Projects';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
 import { filterProjects, type OsPanelProject } from '../src/ospanel';
 import {
+  colorForTag,
   editProjectTags,
   MAX_PROJECT_TAGS,
   matchesProjectTags,
   PROJECT_TAGS_KEY,
+  readProjectTagColors,
   readProjectTags,
+  setProjectTagColor,
   sortTaggedProjects,
   tagsForProject,
   writeProjectTags,
@@ -76,6 +79,36 @@ afterEach(() => {
 });
 
 describe('project tag metadata', () => {
+  it('retains HEX colors across tag edits without changing their names', () => {
+    writeProjectTags(key, initial);
+    expect(readProjectTagColors(key)).toEqual({});
+    const colors = setProjectTagColor({}, ' Client ', '#12a4ce');
+    writeProjectTags(key, initial, colors);
+    writeProjectTags(key, editProjectTags(initial, ['empty.local'], 'CLIENT', 'add'));
+    expect(colorForTag(readProjectTagColors(key), 'client')).toBe('#12a4ce');
+    expect(tagsForProject(readProjectTags(key), 'empty.local')).toEqual(['Client']);
+    expect(setProjectTagColor(colors, 'CLIENT', null)).toEqual({});
+  });
+
+  it('ignores invalid stored colors and unsupported metadata versions', () => {
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        version: 1,
+        projects: initial,
+        colors: {
+          Client: 'blue',
+          Custom: '#Ab19EF',
+          Short: '#abc',
+          Invalid: '#zzzzzz',
+          Bad: 'url(javascript:bad)',
+          '': 'pink',
+          __proto__: 'gray',
+        },
+      }),
+    );
+    expect(readProjectTagColors(key)).toEqual({ custom: '#Ab19EF' });
+  });
   it('normalizes Windows domain casing on write and read', () => {
     const next = editProjectTags({}, ['SHOP.local'], ' #Client ', 'add');
     writeProjectTags(key, next);
@@ -172,6 +205,72 @@ describe('project tags UI', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() =>
       expect(screen.queryByRole('region', { name: 'Tags for shop.local' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('assigns a shared color, persists it and restores the default without losing tags', () => {
+    writeProjectTags(key, initial);
+    const view = render(<Harness />);
+    fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
+    const palette = screen.getByRole('group', { name: 'Color for Client' });
+    expect(palette.textContent).toBe('');
+    expect(within(palette).getAllByRole('button')).toHaveLength(2);
+    const picker = palette.querySelector('input[type="color"]') as HTMLInputElement;
+    // A display:none input has no screen anchor and opens the native picker at the window origin.
+    expect(picker).not.toHaveAttribute('hidden');
+    expect(picker).toHaveClass('project-tag-native-picker');
+    expect(picker.tabIndex).toBe(-1);
+    expect(picker.parentElement).toHaveClass('project-tag-picker-anchor');
+    expect(picker.parentElement).toContainElement(
+      within(palette).getByRole('button', { name: 'Color for Client' }),
+    );
+    fireEvent.change(picker, { target: { value: '#12a4ce' } });
+    expect(readProjectTagColors(key)).toEqual({ client: '#12a4ce' });
+    for (const domain of ['shop.local', 'api.local']) {
+      const chip = row(domain).getByRole('button', { name: 'Filter by tag Client' });
+      expect(chip).toHaveClass('tag-color-custom');
+      expect(chip.style.getPropertyValue('--tag-custom')).toBe('#12a4ce');
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
+    const filterChip = within(screen.getByRole('group', { name: 'Tags' })).getByText('Client');
+    expect(filterChip.style.getPropertyValue('--tag-custom')).toBe('#12a4ce');
+    view.unmount();
+    render(<Harness />);
+    expect(
+      row('api.local')
+        .getByRole('button', { name: 'Filter by tag Client' })
+        .style.getPropertyValue('--tag-custom'),
+    ).toBe('#12a4ce');
+    fireEvent.click(row('api.local').getByRole('button', { name: 'Tags for api.local' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Color for Client' })).getByRole('button', {
+        name: 'Default color',
+      }),
+    );
+    expect(readProjectTagColors(key)).toEqual({});
+    expect(tagsForProject(readProjectTags(key), 'shop.local')).toContain('Client');
+  });
+
+  it('does not change the color if persistence fails', () => {
+    writeProjectTags(key, initial);
+    render(<Harness />);
+    fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new Error('quota');
+    });
+    fireEvent.change(
+      screen
+        .getByRole('group', { name: 'Color for Client' })
+        .querySelector('input[type="color"]') as HTMLInputElement,
+      { target: { value: '#12a4ce' } },
+    );
+    expect(notify).toHaveBeenCalledWith('Failed to save project tags');
+    expect(readProjectTagColors(key)).toEqual({});
+    expect(row('shop.local').getByRole('button', { name: 'Filter by tag Client' })).not.toHaveClass(
+      'tag-color-custom',
     );
   });
 
