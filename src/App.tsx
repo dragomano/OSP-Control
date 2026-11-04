@@ -484,6 +484,15 @@ function App() {
     [logSource, notify, t],
   );
 
+  const selectLogSource = useCallback((source: string) => {
+    if (source === logSourceRef.current || logClearingRef.current) return;
+    // Hide the previous file immediately and invalidate its pending reads.
+    logSourceRef.current = source;
+    logRequestRef.current += 1;
+    setLogLines([]);
+    setLogSource(source);
+  }, []);
+
   const clearSelectedLogs = async (source: string | null): Promise<string | null> => {
     if (
       logClearingRef.current ||
@@ -525,7 +534,7 @@ function App() {
       try {
         const list = await listLogSources();
         setLogSources(list);
-        if (list.length > 0 && !list.some((item) => item.name === logSource)) setLogSource(list[0].name);
+        if (list.length > 0 && !list.some((item) => item.name === logSource)) selectLogSource(list[0].name);
       } catch (error) {
         notify(errorText(t, error, 'logs.toastSourcesFailed'));
       }
@@ -1136,7 +1145,7 @@ function App() {
                     notify={notify}
                     sources={logSources}
                     source={logSource}
-                    onSourceChange={setLogSource}
+                    onSourceChange={selectLogSource}
                     lines={logLines}
                     auto={logAuto}
                     onAutoChange={setLogAuto}

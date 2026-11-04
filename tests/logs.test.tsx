@@ -211,6 +211,85 @@ describe('Log cleanup', () => {
   });
 });
 
+describe('Log source switching', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('ospanel.lang', 'en');
+    logMocks.fetchLogTail
+      .mockReset()
+      .mockImplementation(() => Promise.resolve(['[09:41:00] [error] CURRENT_ERROR']));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    cleanup();
+    logMocks.fetchLogTail.mockReset();
+  });
+
+  const openLogs = async () => {
+    const result = render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Logs' }));
+    await screen.findByText('[error] CURRENT_ERROR');
+    return result;
+  };
+  const selectSource = (current: string, next: string) => {
+    fireEvent.click(screen.getByRole('button', { name: current }));
+    fireEvent.click(screen.getByRole('menuitem', { name: next }));
+  };
+
+  it.each(['empty', 'failed'] as const)(
+    'hides the previous source immediately while the next read is pending and then %s',
+    async (outcome) => {
+      const { container } = await openLogs();
+      let finishRead: (lines: string[]) => void = () => {};
+      let failRead: (error: Error) => void = () => {};
+      logMocks.fetchLogTail.mockImplementation(
+        () =>
+          new Promise<string[]>((resolve, reject) => {
+            finishRead = resolve;
+            failRead = reject;
+          }),
+      );
+      selectSource('general.log', 'Apache.log');
+      expect(container.querySelectorAll('.log-line')).toHaveLength(0);
+      expect(screen.getByRole('button', { name: 'Errors 0' })).toBeInTheDocument();
+      await act(async () => {
+        if (outcome === 'empty') finishRead([]);
+        else failRead(new Error('err.ioFailed'));
+      });
+      expect(container.querySelectorAll('.log-line')).toHaveLength(0);
+      expect(
+        screen.getByText('The log is empty. New events will appear as the module runs.'),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it('ignores a late poll from the previous source after switching to an empty log', async () => {
+    const { container } = await openLogs();
+    let finishPoll: (lines: string[]) => void = () => {};
+    logMocks.fetchLogTail.mockImplementation((source: string, maxLines: number) => {
+      if (source === 'general.log' && maxLines === 300) {
+        return new Promise<string[]>((resolve) => {
+          finishPoll = resolve;
+        });
+      }
+      return Promise.resolve([]);
+    });
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole('button', { name: 'Auto-refresh' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    selectSource('general.log', 'Apache.log');
+    await act(async () => {});
+    await act(async () => {
+      finishPoll(['[09:42:00] [error] STALE_EVENT']);
+    });
+    expect(container.querySelectorAll('.log-line')).toHaveLength(0);
+    expect(screen.queryByText('[error] STALE_EVENT')).not.toBeInTheDocument();
+  });
+});
+
 describe('Logs page autorefresh toggle', () => {
   beforeEach(() => {
     localStorage.clear();

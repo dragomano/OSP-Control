@@ -184,7 +184,16 @@ export function Logs({
   };
   // Level tabs show merged events: in an error block the marker, the message
   // and the reason become one entry with a detail, not a bare "ERROR" line.
-  const events = useMemo(() => buildActivityRows(lines, aliases), [aliases, lines]);
+  const events = useMemo(() => {
+    const occurrences = new Map<string, number>();
+    return buildActivityRows(lines, aliases).map((event) => {
+      const signature = JSON.stringify([event.level, event.time, event.text]);
+      const occurrence = occurrences.get(signature) ?? 0;
+      occurrences.set(signature, occurrence + 1);
+      // Repeated messages within the same second are distinct log entries.
+      return { ...event, key: `${signature}:${occurrence}` };
+    });
+  }, [aliases, lines]);
   const counts = useMemo(
     () => ({
       error: events.filter((event) => event.level === 'error').length,
@@ -223,7 +232,7 @@ export function Logs({
           );
         })
       : levelVisible.map((event) => (
-          <div className={`log-line ${event.level}`} key={`${event.time}-${event.text}`}>
+          <div className={`log-line ${event.level}`} key={event.key}>
             <span>{event.time}</span>
             <code>{event.text}</code>
           </div>
