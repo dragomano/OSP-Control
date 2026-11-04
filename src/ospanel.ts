@@ -1,3 +1,4 @@
+import type { HostsDocument, HostsSaveResult } from './hosts';
 import type { OsPanelMenuDocument, OsPanelMenuItem, OsPanelMenuSaveResult } from './menu';
 import { matchesProjectSearch, type ProjectTags, tagsForProject } from './projectTags';
 import { settingsStorage } from './settingsStorage';
@@ -228,6 +229,28 @@ export async function pickOsPanelDirectory(currentPath?: string, title?: string)
 
 export function isDesktopApp() {
   return isTauri();
+}
+
+let demoHosts: HostsDocument = {
+  path: 'C:\\Windows\\System32\\drivers\\etc\\hosts',
+  content: '# Windows hosts\n127.0.0.1 localhost\n::1 localhost\n',
+  revision: 'browser-initial',
+  encoding: 'UTF-8',
+};
+
+export async function readHosts(): Promise<HostsDocument> {
+  return isTauri() ? invoke<HostsDocument>('read_hosts') : { ...demoHosts };
+}
+
+export async function writeHosts(content: string, expectedRevision: string): Promise<HostsSaveResult> {
+  if (isTauri()) return invoke<HostsSaveResult>('write_hosts', { content, expectedRevision });
+  if (expectedRevision !== demoHosts.revision) throw new Error('err.hostsConflict');
+  demoHosts = { ...demoHosts, content, revision: crypto.randomUUID() };
+  return { document: { ...demoHosts }, backupPath: null, dnsFlushed: true };
+}
+
+export async function flushHostsDns(): Promise<void> {
+  if (isTauri()) await invoke('flush_hosts_dns');
 }
 
 export function persistOsPanelPath(path: string) {

@@ -6,6 +6,7 @@ mod app_updates;
 mod backups;
 mod db;
 mod error;
+mod hosts;
 mod locales;
 mod menu;
 mod module_health;
@@ -149,6 +150,9 @@ fn flush_window_size(app: &tauri::AppHandle) {
 }
 
 fn main() {
+    if hosts::early_mode() {
+        return;
+    }
     if app_updates::early_mode() {
         return;
     }
@@ -265,6 +269,9 @@ fn main() {
             shell::read_config,
             shell::list_configs,
             menu::read_menu,
+            hosts::read_hosts,
+            hosts::write_hosts,
+            hosts::flush_hosts_dns,
             menu::write_menu,
             menu::create_menu_backup,
             menu::restore_menu_backup,

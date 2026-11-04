@@ -110,6 +110,13 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('Projects browser opening', () => {
+  it('opens hosts from the existing header without replacing the project table', async () => {
+    renderProjects(vi.fn());
+    fireEvent.click(screen.getByRole('button', { name: 'Hosts' }));
+    expect(await screen.findByRole('dialog', { name: 'Hosts editor' })).toBeVisible();
+    expect(screen.getByText('my-shop.test')).toBeInTheDocument();
+    expect(screen.getByText('New project')).toBeInTheDocument();
+  });
   it('reports a blocked popup instead of showing the success notification', async () => {
     const notify = vi.fn<Notify>();
     mocks.openInBrowser.mockRejectedValue(new Error('err.popupBlocked'));

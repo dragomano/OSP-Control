@@ -2,14 +2,14 @@
 
 use std::collections::BTreeMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 // Command errors travel to the frontend as a {code, params} structure and are translated there via t();
 // the texts live in locales under the err.* keys — no human-readable strings in Rust.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct CommandError {
     pub(crate) code: String,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) params: BTreeMap<String, String>,
 }
 

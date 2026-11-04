@@ -1,0 +1,329 @@
+.projects-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.projects-header-actions .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.modal-window.hosts-editor {
+  width: min(1060px, 100%);
+  max-height: calc(100dvh - 40px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+.hosts-editor .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hosts-path {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.hosts-toolbar,
+.hosts-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 17px;
+}
+.hosts-toolbar .row-actions {
+  flex-wrap: wrap;
+}
+.hosts-editor :is(.secondary-button, .primary-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.hosts-mode-row {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 14px 0;
+}
+.hosts-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.hosts-editor-body {
+  overflow: auto;
+  min-height: 90px;
+  min-width: 0;
+}
+.hosts-info {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  margin: 0 0 14px;
+  line-height: 1.6;
+}
+.hosts-info svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.hosts-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.hosts-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.hosts-table th {
+  color: var(--muted);
+  background: var(--panel2);
+  font-weight: 400;
+  font-size: 11px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.hosts-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  vertical-align: middle;
+}
+.hosts-table tr:last-child td {
+  border-bottom: 0;
+}
+.hosts-table td:nth-child(3) {
+  min-width: 150px;
+  overflow-wrap: anywhere;
+}
+.hosts-toggle {
+  width: 32px;
+  height: 19px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--line);
+}
+.hosts-toggle i {
+  display: block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.hosts-toggle.on {
+  background: var(--accent);
+}
+.hosts-toggle.on i {
+  transform: translateX(13px);
+  background: var(--panel);
+}
+.hosts-toggle:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.hosts-ip {
+  font-family: Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.hosts-entry-comment {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.hosts-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.hosts-disabled {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.hosts-file-label {
+  display: grid;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.hosts-file-text,
+.hosts-batch-text {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 12px;
+  background: var(--panel2);
+  color: var(--text);
+  font:
+    12px / 1.75 Consolas,
+    monospace;
+  tab-size: 4;
+}
+.hosts-file-text {
+  min-height: 300px;
+}
+.hosts-batch-text {
+  min-height: 170px;
+}
+.hosts-file-text:focus,
+.hosts-batch-text:focus {
+  outline: 1px solid var(--accent);
+}
+.hosts-error,
+.hosts-issues {
+  border-left: 2px solid var(--accent);
+  padding: 8px 11px;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+}
+.hosts-issues p {
+  margin: 0 0 4px;
+}
+.hosts-result {
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  margin-top: 14px;
+}
+.hosts-result p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 7px;
+}
+.hosts-backup-link {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  text-align: left;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.hosts-apply-plan {
+  margin-top: 15px;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.hosts-apply-plan summary {
+  cursor: pointer;
+}
+.hosts-apply-plan p {
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+.hosts-apply-plan p:last-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hosts-editor > .modal-foot {
+  flex-wrap: wrap;
+}
+.hosts-editor .modal-foot .row-actions {
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.hosts-sheet-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(2px);
+  border-radius: inherit;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  z-index: 1;
+}
+.modal-window.hosts-entry-sheet {
+  width: min(620px, 100%);
+  max-height: 100%;
+  overflow: auto;
+}
+.hosts-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+.hosts-checkbox input {
+  accent-color: var(--accent);
+}
+.hosts-batch-preview > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: 11px;
+  border-bottom: 1px solid var(--line);
+}
+.hosts-batch-preview > div > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.hosts-discard {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+@media (max-width: 620px) {
+  .hosts-editor {
+    padding: 15px;
+  }
+  .hosts-toolbar > .row-actions {
+    width: 100%;
+  }
+  .hosts-editor .modal-foot {
+    align-items: flex-start;
+  }
+  .hosts-editor .modal-foot > .row-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .hosts-sheet-overlay {
+    padding: 10px;
+  }
+  .hosts-entry-sheet {
+    padding: 15px;
+  }
+  .hosts-batch-preview > div {
+    flex-wrap: wrap;
+  }
+}

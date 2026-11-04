@@ -50,6 +50,7 @@ import {
   writeProjectTags,
 } from '../../projectTags';
 import { CreateProjectDialog } from '../dialogs/CreateProjectDialog';
+import { HostsEditor } from '../dialogs/HostsEditor';
 import { ProjectModulesDialog } from '../dialogs/ProjectModulesDialog';
 import { RenameProjectDialog } from '../dialogs/RenameProjectDialog';
 import { copyText, type Notify } from '../shared';
@@ -92,6 +93,7 @@ function ProjectsContent({
   const { t, lang } = useI18n();
   const [modulesFor, setModulesFor] = useState<OsPanelProject | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [hostsOpen, setHostsOpen] = useState(false);
   const [renameFor, setRenameFor] = useState<OsPanelProject | null>(null);
   const [sslFilter, setSslFilter] = useState<'all' | 'on' | 'off'>('all');
   const [phpFilter, setPhpFilter] = useState('all');
@@ -282,10 +284,16 @@ function ProjectsContent({
         heading={t('nav.projects')}
         description={t('projects.subtitle')}
         action={
-          <button type="button" className="primary-button" onClick={() => setCreateDialogOpen(true)}>
-            <span className="plus">+</span>
-            {t('projects.new')}
-          </button>
+          <div className="projects-header-actions">
+            <button type="button" className="secondary-button" onClick={() => setHostsOpen(true)}>
+              <Network size={15} />
+              {t('hosts.open')}
+            </button>
+            <button type="button" className="primary-button" onClick={() => setCreateDialogOpen(true)}>
+              <span className="plus">+</span>
+              {t('projects.new')}
+            </button>
+          </div>
         }
       />
       <div className="toolbar projects-toolbar">
@@ -692,6 +700,7 @@ function ProjectsContent({
           onClose={() => setCreateDialogOpen(false)}
         />
       )}
+      {hostsOpen && <HostsEditor notify={notify} onClose={() => setHostsOpen(false)} />}
     </>
   );
 }
