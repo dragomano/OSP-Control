@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn domain_validation_rejects_traversal() {
-        assert!(is_valid_domain("dune.loc"));
+        assert!(is_valid_domain("example.test"));
         assert!(is_valid_domain("my-shop.test"));
         assert!(!is_valid_domain("..\\Apache"));
         assert!(!is_valid_domain(".hidden"));

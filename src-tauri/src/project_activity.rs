@@ -241,13 +241,13 @@ mod tests {
         fixture.file(".git/config", 900);
         fixture.file("node_modules/package/index.js", 900);
         fixture.file("nested/vendor/library/index.php", 900);
-        let activity = scan_project("test.local", &fixture.0);
+        let activity = scan_project("fixture.test", &fixture.0);
         assert_eq!(activity.modified_at, Some(300));
         assert_eq!(activity.last_file.as_deref(), Some("src/deep/routes.php"));
         assert_eq!(activity.status, "ready");
         // A newer directory timestamp must not count as an edited file.
         fs::create_dir(fixture.0.join("new-directory")).unwrap();
-        assert_eq!(scan_project("test.local", &fixture.0), activity);
+        assert_eq!(scan_project("fixture.test", &fixture.0), activity);
     }
 
     #[test]
@@ -272,13 +272,13 @@ mod tests {
         fixture.file("build/output.php", 900);
         fixture.file("build/keep.php", 300);
         fixture.file("node_modules/package/index.js", 900);
-        let activity = scan_project("test.local", &fixture.0);
+        let activity = scan_project("fixture.test", &fixture.0);
         assert_eq!(activity.status, "ready");
         assert_eq!(activity.modified_at, Some(300));
         assert_eq!(activity.last_file.as_deref(), Some("build/keep.php"));
         // An anchored rule applies only at the project root.
         fixture.file("nested/cache/allowed.php", 400);
-        assert_eq!(scan_project("test.local", &fixture.0).modified_at, Some(400));
+        assert_eq!(scan_project("fixture.test", &fixture.0).modified_at, Some(400));
     }
 
     #[test]
@@ -286,35 +286,35 @@ mod tests {
         let fixture = Fixture::new();
         fixture.file("index.php", 100);
         fs::write(fixture.0.join(".gitignore"), "[z-a]\n").unwrap();
-        assert_eq!(scan_project("test.local", &fixture.0).status, "partial");
+        assert_eq!(scan_project("fixture.test", &fixture.0).status, "partial");
     }
 
     #[test]
     fn distinguishes_empty_and_unavailable_projects_and_breaks_timestamp_ties() {
         let fixture = Fixture::new();
-        assert_eq!(scan_project("empty.local", &fixture.0).status, "empty");
-        assert_eq!(scan_project("gone.local", &fixture.0.join("gone")).status, "unavailable");
+        assert_eq!(scan_project("empty.test", &fixture.0).status, "empty");
+        assert_eq!(scan_project("gone.test", &fixture.0.join("gone")).status, "unavailable");
         fixture.file("b.php", 100);
         fixture.file("a.php", 100);
-        assert_eq!(scan_project("test.local", &fixture.0).last_file.as_deref(), Some("a.php"));
+        assert_eq!(scan_project("fixture.test", &fixture.0).last_file.as_deref(), Some("a.php"));
     }
 
     #[test]
     fn accepts_only_registered_paths_or_validated_home_domains() {
         let fixture = Fixture::new();
-        fs::create_dir_all(fixture.0.join("home/test.local")).unwrap();
-        assert!(project_directory(&fixture.0, "test.local", &[]).is_ok());
+        fs::create_dir_all(fixture.0.join("home/fixture.test")).unwrap();
+        assert!(project_directory(&fixture.0, "fixture.test", &[]).is_ok());
         assert!(project_directory(&fixture.0, "../home", &[]).is_err());
-        assert!(project_directory(&fixture.0, "unknown.local", &[]).is_err());
+        assert!(project_directory(&fixture.0, "unknown.test", &[]).is_err());
         let external = Fixture::new();
         let registered = Project {
-            domain: "external.local".into(),
+            domain: "external.test".into(),
             path: external.0.to_string_lossy().into_owned(),
             php: "-".into(),
             r#type: "-".into(),
             ssl: false,
         };
-        assert_eq!(project_directory(&fixture.0, "external.local", &[registered]).unwrap(), external.0);
+        assert_eq!(project_directory(&fixture.0, "external.test", &[registered]).unwrap(), external.0);
     }
 
     #[test]
@@ -339,11 +339,11 @@ mod tests {
                 .unwrap();
             assert!(status.status.success());
         }
-        let activity = scan_project("test.local", &fixture.0);
+        let activity = scan_project("fixture.test", &fixture.0);
         assert_eq!(activity.modified_at, Some(100));
         assert_eq!(activity.last_file.as_deref(), Some("inside.php"));
         fs::create_dir(fixture.0.join("home")).unwrap();
-        let home_link = fixture.0.join("home/escape.local");
+        let home_link = fixture.0.join("home/escape.test");
         let output = std::process::Command::new("cmd")
             .args(["/C", "mklink", "/J"])
             .arg(&home_link)
@@ -352,7 +352,7 @@ mod tests {
             .output()
             .unwrap();
         assert!(output.status.success());
-        assert!(project_directory(&fixture.0, "escape.local", &[]).is_err());
+        assert!(project_directory(&fixture.0, "escape.test", &[]).is_err());
         for link in
             [home_link, fixture.0.join("outside"), fixture.0.join("loop"), fixture.0.join("dependency-alias")]
         {

@@ -40,13 +40,13 @@ describe('portable settings bridge', () => {
     desktop();
     const tags = '{"version":1,"projects":{"api.test":["Client"]}}';
     localStorage.setItem('ospanel.lang', 'ru');
-    localStorage.setItem('ospanel.path', 'D:\\OSPanel6');
-    localStorage.setItem('ospanel.projectTags.v1:d:/ospanel6', tags);
+    localStorage.setItem('ospanel.path', 'X:\\TestPanel');
+    localStorage.setItem('ospanel.projectTags.v1:x:/testpanel', tags);
     localStorage.setItem(
       'ospanel.projectTags.v1:c:/oldpanel',
       '{"version":1,"projects":{"old.test":["Old"]}}',
     );
-    localStorage.setItem('ospanel.menuTree.d:/ospanel6', '["Development"]');
+    localStorage.setItem('ospanel.menuTree.x:/testpanel', '["Development"]');
     localStorage.setItem('ospanel.demoMenu', '{}');
     invoke
       .mockResolvedValueOnce({ values: {}, migrationNeeded: true })
@@ -56,7 +56,7 @@ describe('portable settings bridge', () => {
     expect(invoke).toHaveBeenLastCalledWith('migrate_settings', {
       legacy: {
         'ospanel.lang': 'ru',
-        'ospanel.path': 'D:\\OSPanel6',
+        'ospanel.path': 'X:\\TestPanel',
         'ospanel.projectTags': tags,
         'ospanel.menuTree': '["Development"]',
       },
@@ -64,9 +64,9 @@ describe('portable settings bridge', () => {
     expect(settingsStorage.getItem('ospanel.projectTags')).toBe(tags);
     expect(settingsStorage.getItem('ospanel.menuTree')).toBe('["Development"]');
     expect(localStorage.getItem('ospanel.lang')).toBeNull();
-    expect(localStorage.getItem('ospanel.projectTags.v1:d:/ospanel6')).toBeNull();
+    expect(localStorage.getItem('ospanel.projectTags.v1:x:/testpanel')).toBeNull();
     expect(localStorage.getItem('ospanel.projectTags.v1:c:/oldpanel')).toBeNull();
-    expect(localStorage.getItem('ospanel.menuTree.d:/ospanel6')).toBeNull();
+    expect(localStorage.getItem('ospanel.menuTree.x:/testpanel')).toBeNull();
     expect(localStorage.getItem('ospanel.demoMenu')).toBe('{}');
   });
 

@@ -179,7 +179,7 @@
   "projects.menuModules": "Версії модулів",
   "projects.createTitle": "Новий проєкт",
   "projects.createDomain": "Назва домену",
-  "projects.createDomainPlaceholder": "my-project.local",
+  "projects.createDomainPlaceholder": "my-project.test",
   "projects.createHint": "Буде створено теку home/<домен> із файлом .osp\\project.ini. Домен: лише латинські літери, цифри, крапка та дефіс.",
   "projects.createHttpEngine": "HTTP-движок",
   "projects.createPhpEngine": "Версія PHP",

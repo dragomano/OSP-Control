@@ -12,6 +12,7 @@ import {
   fetchOverviewMetrics,
   filterProjects,
   getProjectSettings,
+  getUserInfo,
   isEngineUnset,
   listLogSources,
   openBackupsFolder,
@@ -67,9 +68,9 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
     expect(snap.path).toBe('C:\\OSPanel');
     expect(snap.services.length).toBeGreaterThan(0);
 
-    persistOsPanelPath('D:\\OSPanel6');
+    persistOsPanelPath('X:\\TestPanel');
     const custom = await discoverOsPanel();
-    expect(custom.path).toBe('D:\\OSPanel6');
+    expect(custom.path).toBe('X:\\TestPanel');
   });
 
   it('panelOnline reports the panel as running in the mock', async () => {
@@ -102,8 +103,8 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
   });
 
   it('getProjectSettings returns defaults outside Tauri', async () => {
-    await expect(getProjectSettings('dune.loc')).resolves.toEqual({
-      domain: 'dune.loc',
+    await expect(getProjectSettings('example.test')).resolves.toEqual({
+      domain: 'example.test',
       httpEngine: 'Apache',
       phpEngine: 'PHP-8.3',
       nodeEngine: 'auto',
@@ -112,11 +113,15 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
     });
   });
 
+  it('uses a synthetic identity in the browser demo', async () => {
+    await expect(getUserInfo()).resolves.toEqual({ name: 'Demo User' });
+  });
+
   it('createBackup mocks return entries tagged with their kind', async () => {
     expect(await createDbBackup('MySQL-8.0')).toMatchObject({ kind: 'db', subject: 'MySQL-8.0' });
-    expect(await createProjectBackup('dune.loc')).toMatchObject({
+    expect(await createProjectBackup('example.test')).toMatchObject({
       kind: 'project',
-      subject: 'dune.loc',
+      subject: 'example.test',
     });
   });
 
@@ -130,7 +135,7 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
     await expect(setAutostart(true)).rejects.toThrow('err.desktopOnly');
     await expect(setCloseToTray(true, 'ru')).rejects.toThrow('err.desktopOnly');
     await expect(restartOsPanel()).rejects.toThrow('err.desktopOnly');
-    await expect(deleteProject('dune.loc')).rejects.toThrow('err.desktopOnly');
+    await expect(deleteProject('example.test')).rejects.toThrow('err.desktopOnly');
     await expect(openInEditor('vscode', 'C:\\x')).rejects.toThrow('err.desktopOnly');
     await expect(openBackupsFolder()).rejects.toThrow('err.desktopOnly');
   });
@@ -186,6 +191,15 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
     invokeMock.mockReset();
   });
 
+  it.each(['Example User', 'Another User'])(
+    'uses the desktop identity returned by the backend: %s',
+    async (name) => {
+      invokeMock.mockResolvedValueOnce({ name });
+      await expect(getUserInfo()).resolves.toEqual({ name });
+      expect(invokeMock).toHaveBeenLastCalledWith('get_user_info', undefined);
+    },
+  );
+
   it('a { code, params } command error becomes an Error with an err.* key and params', async () => {
     invokeMock.mockRejectedValueOnce({ code: 'err.customPathMissing', params: { path: 'X' } });
     await expect(discoverOsPanel()).rejects.toMatchObject({
@@ -200,72 +214,72 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
   });
 
   it('the custom path from localStorage is passed to commands', async () => {
-    persistOsPanelPath('D:\\OSPanel6');
+    persistOsPanelPath('X:\\TestPanel');
     invokeMock.mockResolvedValueOnce(true);
     await panelOnline();
-    expect(invokeMock).toHaveBeenCalledWith('panel_online', { customPath: 'D:\\OSPanel6' });
+    expect(invokeMock).toHaveBeenCalledWith('panel_online', { customPath: 'X:\\TestPanel' });
 
     invokeMock.mockResolvedValueOnce([]);
     await listLogSources();
-    expect(invokeMock).toHaveBeenLastCalledWith('list_log_sources', { customPath: 'D:\\OSPanel6' });
+    expect(invokeMock).toHaveBeenLastCalledWith('list_log_sources', { customPath: 'X:\\TestPanel' });
 
     const project = {
-      domain: 'old.local',
-      path: 'D:\\OSPanel6\\home\\old.local',
+      domain: 'old.test',
+      path: 'X:\\TestPanel\\home\\old.test',
       php: '8.3',
       type: 'Apache',
       ssl: true,
     };
-    const renamed = { domain: 'new.local', path: 'D:\\OSPanel6\\home\\new.local' };
+    const renamed = { domain: 'new.test', path: 'X:\\TestPanel\\home\\new.test' };
     invokeMock.mockResolvedValueOnce(renamed);
-    await expect(renameProject(project, 'new.local')).resolves.toEqual(renamed);
+    await expect(renameProject(project, 'new.test')).resolves.toEqual(renamed);
     expect(invokeMock).toHaveBeenLastCalledWith('rename_project', {
-      domain: 'old.local',
-      newDomain: 'new.local',
+      domain: 'old.test',
+      newDomain: 'new.test',
       path: project.path,
-      customPath: 'D:\\OSPanel6',
+      customPath: 'X:\\TestPanel',
     });
 
     invokeMock.mockResolvedValueOnce(1);
-    await clearLogs('domains/dune.loc_error.log');
+    await clearLogs('domains/example.test_error.log');
     expect(invokeMock).toHaveBeenLastCalledWith('clear_logs', {
-      source: 'domains/dune.loc_error.log',
-      customPath: 'D:\\OSPanel6',
+      source: 'domains/example.test_error.log',
+      customPath: 'X:\\TestPanel',
     });
     invokeMock.mockResolvedValueOnce(3);
     await clearLogs(null);
     expect(invokeMock).toHaveBeenLastCalledWith('clear_logs', {
       source: null,
-      customPath: 'D:\\OSPanel6',
+      customPath: 'X:\\TestPanel',
     });
 
     invokeMock.mockResolvedValueOnce({ id: 'backup-1-db-MySQL-8.0' });
     await createDbBackup('MySQL-8.0');
     expect(invokeMock).toHaveBeenLastCalledWith('create_db_backup', {
       module: 'MySQL-8.0',
-      customPath: 'D:\\OSPanel6',
+      customPath: 'X:\\TestPanel',
     });
 
     invokeMock.mockResolvedValueOnce(undefined);
-    await restoreProjectBackup('backup-1-proj-dune.loc');
+    await restoreProjectBackup('backup-1-proj-example.test');
     expect(invokeMock).toHaveBeenLastCalledWith('restore_project_backup', {
-      id: 'backup-1-proj-dune.loc',
-      customPath: 'D:\\OSPanel6',
+      id: 'backup-1-proj-example.test',
+      customPath: 'X:\\TestPanel',
     });
 
     invokeMock.mockResolvedValueOnce(undefined);
     await openBackupsFolder();
     expect(invokeMock).toHaveBeenLastCalledWith('open_backups_folder', {
-      customPath: 'D:\\OSPanel6',
+      customPath: 'X:\\TestPanel',
     });
 
     invokeMock.mockResolvedValueOnce({ id: 'menu-1700000000000000000', kind: 'menu' });
     await createMenuBackup();
-    expect(invokeMock).toHaveBeenLastCalledWith('create_menu_backup', { customPath: 'D:\\OSPanel6' });
+    expect(invokeMock).toHaveBeenLastCalledWith('create_menu_backup', { customPath: 'X:\\TestPanel' });
     await restoreMenuBackup('menu-1700000000000000000');
     expect(invokeMock).toHaveBeenLastCalledWith('restore_menu_backup', {
       id: 'menu-1700000000000000000',
-      customPath: 'D:\\OSPanel6',
+      customPath: 'X:\\TestPanel',
     });
   });
 });
@@ -273,7 +287,7 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
 describe('filterProjects', () => {
   const list = [
     {
-      domain: 'api.local',
+      domain: 'api.test',
       path: 'C:\\OSPanel\\home\\api-backend',
       php: '8.3',
       type: 'Node + PHP',

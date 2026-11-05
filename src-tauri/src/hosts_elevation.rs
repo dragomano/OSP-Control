@@ -610,8 +610,8 @@ mod tests {
     #[test]
     fn invalid_requests_fail_before_any_elevation_or_file_access() {
         for (content, revision, code) in [
-            ("127.0.0.1 site.local".into(), "wrong".into(), "err.hostsElevation"),
-            ("999.0.0.1 site.local".into(), "a".repeat(64), "err.hostsIp"),
+            ("127.0.0.1 site.test".into(), "wrong".into(), "err.hostsElevation"),
+            ("999.0.0.1 site.test".into(), "a".repeat(64), "err.hostsIp"),
             ("#".repeat(MAX_BYTES + 1), "a".repeat(64), "err.hostsTooLarge"),
         ] {
             assert_eq!(

@@ -406,32 +406,32 @@ mod tests {
     #[test]
     fn projects_built_from_projects_api_json() {
         let json = serde_json::json!({"_type": "Empty", "_children": [
-            {"key": "mezzio.local", "value": {"_type": "Empty", "_children": [
-                {"key": "base_dir", "value": {"_type": "UString", "_value": "D:\\OSPanel6\\home\\mezzio.local"}},
+            {"key": "sample.test", "value": {"_type": "Empty", "_children": [
+                {"key": "base_dir", "value": {"_type": "UString", "_value": "X:\\TestPanel\\home\\sample.test"}},
                 {"key": "http_engine", "value": {"_type": "UString", "_value": "Apache"}},
                 {"key": "php_engine", "value": {"_type": "UString", "_value": "PHP-8.2"}},
                 {"key": "tls_enabled", "value": {"_type": "Boolean", "_value": true}}
             ]}},
-            {"key": "old.local", "value": {"_type": "Empty", "_children": [
+            {"key": "old.test", "value": {"_type": "Empty", "_children": [
                 {"key": "base_dir", "value": {"_type": "UString", "_value": ""}},
                 {"key": "http_engine", "value": {"_type": "UString", "_value": ""}},
                 {"key": "php_engine", "value": {"_type": "UString", "_value": ""}},
                 {"key": "tls_enabled", "value": {"_type": "Boolean", "_value": false}}
             ]}}
         ]});
-        let root = Path::new("D:\\OSPanel6");
+        let root = Path::new("X:\\TestPanel");
         let projects = projects_from_json(&json, root);
         assert_eq!(projects.len(), 2);
 
-        let mezzio = projects.iter().find(|p| p.domain == "mezzio.local").unwrap();
-        assert_eq!(mezzio.path, "D:\\OSPanel6\\home\\mezzio.local");
-        assert_eq!(mezzio.r#type, "Apache");
-        assert_eq!(mezzio.php, "8.2");
-        assert!(mezzio.ssl);
+        let sample = projects.iter().find(|p| p.domain == "sample.test").unwrap();
+        assert_eq!(sample.path, "X:\\TestPanel\\home\\sample.test");
+        assert_eq!(sample.r#type, "Apache");
+        assert_eq!(sample.php, "8.2");
+        assert!(sample.ssl);
 
-        let old = projects.iter().find(|p| p.domain == "old.local").unwrap();
+        let old = projects.iter().find(|p| p.domain == "old.test").unwrap();
         // Without base_dir the path is built from home/<domain>.
-        assert!(old.path.ends_with("home\\old.local"));
+        assert!(old.path.ends_with("home\\old.test"));
         assert_eq!(old.r#type, "-");
         assert_eq!(old.php, "-");
         assert!(!old.ssl);

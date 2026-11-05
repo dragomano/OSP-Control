@@ -808,7 +808,7 @@ mod tests {
         use std::cell::Cell;
         use std::os::windows::fs::OpenOptionsExt;
         let fixture = LogFixture::new();
-        let mut locked: Vec<_> = ["general.log", "domains/shop.local_error.log"]
+        let mut locked: Vec<_> = ["general.log", "domains/shop.test_error.log"]
             .into_iter()
             .map(|name| {
                 fs::OpenOptions::new()
@@ -961,7 +961,7 @@ mod tests {
             fs::create_dir_all(root.join("logs/domains")).unwrap();
             fs::write(root.join("logs/general.log"), "panel events\n").unwrap();
             fs::write(root.join("logs/Apache.LOG"), "module events\n").unwrap();
-            fs::write(root.join("logs/domains/shop.local_error.log"), "domain events\n").unwrap();
+            fs::write(root.join("logs/domains/shop.test_error.log"), "domain events\n").unwrap();
             Self(root)
         }
     }
@@ -988,7 +988,7 @@ mod tests {
         assert_eq!(fs::metadata(&path).unwrap().len(), 0);
         assert_eq!(fs::read_to_string(fixture.0.join("logs/Apache.LOG")).unwrap(), "module events\n");
         assert_eq!(
-            fs::read_to_string(fixture.0.join("logs/domains/shop.local_error.log")).unwrap(),
+            fs::read_to_string(fixture.0.join("logs/domains/shop.test_error.log")).unwrap(),
             "domain events\n"
         );
         writer.write_all(b"new event\n").unwrap();
@@ -1002,7 +1002,7 @@ mod tests {
         fs::create_dir_all(fixture.0.join("logs/archive.log")).unwrap();
         assert_eq!(clear_logs_in(&fixture.0, None).unwrap(), 3);
         assert_eq!(scan_log_sources(&logs_directory(&fixture.0).unwrap()).unwrap().len(), 3);
-        for name in ["general.log", "Apache.LOG", "domains/shop.local_error.log"] {
+        for name in ["general.log", "Apache.LOG", "domains/shop.test_error.log"] {
             assert_eq!(fs::metadata(fixture.0.join("logs").join(name)).unwrap().len(), 0);
         }
         assert_eq!(fs::read_to_string(fixture.0.join("logs/settings.ini")).unwrap(), "keep");
@@ -1017,7 +1017,7 @@ mod tests {
             "",
             "../general.log",
             "/general.log",
-            r"domains\shop.local_error.log",
+            r"domains\shop.test_error.log",
             "domains/../general.log",
             "domains//general.log",
             "general.log:stream",
@@ -1050,7 +1050,7 @@ mod tests {
         drop(locked);
         assert_eq!(fs::read_to_string(fixture.0.join("logs/general.log")).unwrap(), "panel events\n");
         assert_eq!(fs::metadata(fixture.0.join("logs/Apache.LOG")).unwrap().len(), 0);
-        assert_eq!(fs::metadata(fixture.0.join("logs/domains/shop.local_error.log")).unwrap().len(), 0);
+        assert_eq!(fs::metadata(fixture.0.join("logs/domains/shop.test_error.log")).unwrap().len(), 0);
     }
 
     #[test]

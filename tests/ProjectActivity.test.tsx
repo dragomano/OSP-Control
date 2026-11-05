@@ -18,7 +18,7 @@ vi.mock('../src/ospanel', async (importOriginal) => ({
 const now = new Date(2026, 9, 27, 12).getTime();
 const project = (domain: string): OsPanelProject => ({
   domain,
-  path: `D:/OSPanel6/home/${domain}`,
+  path: `X:/TestPanel/home/${domain}`,
   php: '8.3',
   type: 'Apache',
   ssl: true,
@@ -45,13 +45,13 @@ afterEach(() => {
 
 describe('project activity grouping', () => {
   it('sorts dates newest first, groups local calendar days and keeps unknown dates last', () => {
-    const domains = ['old.local', 'unknown.local', 'today.local', 'yesterday.local', 'newest.local'];
+    const domains = ['old.test', 'unknown.test', 'today.test', 'yesterday.test', 'newest.test'];
     const projects = domains.map(project);
     const activities = [
-      entry('old.local', new Date(2026, 9, 21, 9)),
-      entry('today.local', new Date(2026, 9, 27, 9)),
-      entry('yesterday.local', new Date(2026, 9, 26, 23, 59)),
-      entry('newest.local', new Date(2026, 9, 27, 11)),
+      entry('old.test', new Date(2026, 9, 21, 9)),
+      entry('today.test', new Date(2026, 9, 27, 9)),
+      entry('yesterday.test', new Date(2026, 9, 26, 23, 59)),
+      entry('newest.test', new Date(2026, 9, 27, 11)),
     ];
     const groups = groupProjectActivity(
       projects,
@@ -60,7 +60,7 @@ describe('project activity grouping', () => {
     );
     expect(groups.map((group) => group.kind)).toEqual(['today', 'yesterday', 'earlier', 'unknown']);
     expect(groups[0].key).toBe('2026-10-27');
-    expect(groups[0].projects.map((value) => value.domain)).toEqual(['newest.local', 'today.local']);
+    expect(groups[0].projects.map((value) => value.domain)).toEqual(['newest.test', 'today.test']);
     expect(projects.map((value) => value.domain)).toEqual(domains);
   });
 
@@ -71,7 +71,7 @@ describe('project activity grouping', () => {
       new Date(2026, 9, 30),
       new Date(2026, 9, 29),
     ];
-    const projects = dates.map((_, index) => project(`${index}.local`));
+    const projects = dates.map((_, index) => project(`${index}.test`));
     const values = projects.map((value, index) => entry(value.domain, dates[index]));
     const groups = groupProjectActivity(
       projects,
@@ -96,7 +96,7 @@ describe('project activity refresh', () => {
       }),
     );
     const { result, unmount, rerender } = renderHook(({ projects }) => useProjectActivity(projects), {
-      initialProps: { projects: [project('test.local')] },
+      initialProps: { projects: [project('fixture.test')] },
     });
     expect(mocks.getProjectActivity).toHaveBeenCalledTimes(1);
     await act(async () => {
@@ -104,12 +104,12 @@ describe('project activity refresh', () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(mocks.getProjectActivity).toHaveBeenCalledTimes(1);
-    const value = entry('test.local', new Date(now));
+    const value = entry('fixture.test', new Date(now));
     await act(async () => {
       finish([value]);
     });
-    expect(result.current.activity['test.local']).toEqual(value);
-    rerender({ projects: [project('test.local')] });
+    expect(result.current.activity['fixture.test']).toEqual(value);
+    rerender({ projects: [project('fixture.test')] });
     expect(mocks.getProjectActivity).toHaveBeenCalledTimes(1);
     await act(() => vi.advanceTimersByTimeAsync(30_000));
     expect(mocks.getProjectActivity).toHaveBeenCalledTimes(2);
@@ -129,31 +129,31 @@ describe('project activity refresh', () => {
       }),
     );
     const { result, rerender } = renderHook(({ projects }) => useProjectActivity(projects), {
-      initialProps: { projects: [project('old.local')] },
+      initialProps: { projects: [project('old.test')] },
     });
-    const current = entry('new.local', new Date(now));
+    const current = entry('new.test', new Date(now));
     mocks.getProjectActivity.mockResolvedValueOnce([current]);
     await act(async () => {
-      rerender({ projects: [project('new.local')] });
+      rerender({ projects: [project('new.test')] });
     });
     await act(async () => {
-      finish([entry('old.local', new Date(now))]);
+      finish([entry('old.test', new Date(now))]);
     });
-    expect(result.current.activity).toEqual({ 'new.local': current });
-    expect(mocks.getProjectActivity).toHaveBeenLastCalledWith(['new.local']);
+    expect(result.current.activity).toEqual({ 'new.test': current });
+    expect(mocks.getProjectActivity).toHaveBeenLastCalledWith(['new.test']);
   });
 
   it('preserves the last result and reports a refresh failure, then retries on focus', async () => {
-    const current = entry('test.local', new Date(now));
+    const current = entry('fixture.test', new Date(now));
     mocks.getProjectActivity.mockResolvedValueOnce([current]);
-    const { result } = renderHook(() => useProjectActivity([project('test.local')]));
+    const { result } = renderHook(() => useProjectActivity([project('fixture.test')]));
     await act(async () => {});
     const error = new Error('err.ioFailed');
     mocks.getProjectActivity.mockRejectedValueOnce(error);
     await act(async () => {
       window.dispatchEvent(new Event('focus'));
     });
-    expect(result.current.activity['test.local']).toEqual(current);
+    expect(result.current.activity['fixture.test']).toEqual(current);
     expect(result.current.error).toBe(error);
     await act(async () => {
       window.dispatchEvent(new Event('focus'));
@@ -164,9 +164,9 @@ describe('project activity refresh', () => {
 
 describe('project activity UI', () => {
   it('shows grouped activity, expands one file at a time, and filters without rescanning', async () => {
-    const items = [project('older.local'), project('recent.local')];
-    const older = entry('older.local', new Date(now - 86_400_000), 'partial');
-    const recent = entry('recent.local', new Date(now));
+    const items = [project('older.test'), project('recent.test')];
+    const older = entry('older.test', new Date(now - 86_400_000), 'partial');
+    const recent = entry('recent.test', new Date(now));
     mocks.getProjectActivity.mockResolvedValue([older, recent]);
     render(
       <I18nContext.Provider value={{ lang: 'en', t, plural }}>
@@ -185,16 +185,16 @@ describe('project activity UI', () => {
       </I18nContext.Provider>,
     );
     const recentButton = await screen.findByRole('button', {
-      name: 'Show the last modified file in recent.local',
+      name: 'Show the last modified file in recent.test',
     });
     const rows = [...document.querySelectorAll('.project-row')];
-    expect(rows[0]).toHaveTextContent('recent.local');
+    expect(rows[0]).toHaveTextContent('recent.test');
     fireEvent.click(recentButton);
-    expect(screen.getByText('recent.local/index.php')).toBeVisible();
-    const olderButton = screen.getByRole('button', { name: 'Show the last modified file in older.local' });
+    expect(screen.getByText('recent.test/index.php')).toBeVisible();
+    const olderButton = screen.getByRole('button', { name: 'Show the last modified file in older.test' });
     fireEvent.click(olderButton);
-    expect(screen.getByText('recent.local/index.php')).not.toBeVisible();
-    expect(screen.getByText('older.local/index.php')).toBeVisible();
+    expect(screen.getByText('recent.test/index.php')).not.toBeVisible();
+    expect(screen.getByText('older.test/index.php')).toBeVisible();
     expect(screen.getByText('Scan incomplete; the modification date may be inaccurate')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'SSL' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Without certificate' }));
@@ -203,7 +203,7 @@ describe('project activity UI', () => {
   });
 
   it('distinguishes an empty project from an unavailable directory', async () => {
-    const items = [project('empty.local'), project('missing.local')];
+    const items = [project('empty.test'), project('missing.test')];
     mocks.getProjectActivity.mockResolvedValue(
       items.map((value, index) => ({
         domain: value.domain,

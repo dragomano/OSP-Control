@@ -582,7 +582,7 @@ mod tests {
         let old = [
             ("ospanel.lang", "en"),
             ("ospanel.theme", "light"),
-            ("ospanel.path", r"D:\OSPanel6"),
+            ("ospanel.path", r"X:\TestPanel"),
             ("ospanel.projectTags", tags),
             ("ospanel.menuTree", r#"["Development"]"#),
             ("ospanel.demoMenu", "ignored"),
@@ -592,7 +592,7 @@ mod tests {
         let snapshot = f.store.save(old, true).unwrap();
         assert_eq!(snapshot.values["ospanel.lang"], "en");
         assert_eq!(snapshot.values["ospanel.closeToTray"], "1");
-        assert_eq!(snapshot.values["ospanel.path"], r"D:\OSPanel6");
+        assert_eq!(snapshot.values["ospanel.path"], r"X:\TestPanel");
         assert!(snapshot.values["ospanel.projectTags"].contains("Laravel"));
         assert_eq!(snapshot.values["ospanel.menuTree"], r#"["Development"]"#);
         assert!(!snapshot.values.contains_key("ospanel.demoMenu"));
@@ -661,7 +661,7 @@ mod tests {
     #[test]
     fn path_change_keeps_project_tags() {
         let f = Fixture::new();
-        f.save("ospanel.path", r"D:\OSPanel6");
+        f.save("ospanel.path", r"X:\TestPanel");
         f.save("ospanel.projectTags", r#"{"version":1,"projects":{"shop.test":["Клиент"]}}"#);
         let snapshot = f.save("ospanel.path", r"E:\MovedPanel");
         assert_eq!(snapshot.values["ospanel.path"], r"E:\MovedPanel");
@@ -680,15 +680,15 @@ mod tests {
         assert!(text.contains("answer = 42"));
         assert!(!text.contains("[panel]"));
         assert!(!text.contains("[projects"));
-        f.save("ospanel.path", r"D:\OSPanel6");
-        assert_eq!(f.store.load().unwrap().values["ospanel.path"], r"D:\OSPanel6");
+        f.save("ospanel.path", r"X:\TestPanel");
+        assert_eq!(f.store.load().unwrap().values["ospanel.path"], r"X:\TestPanel");
         assert!(f.text().contains("[panel]"));
         assert!(!f.text().contains("[installations"));
     }
     #[test]
     fn tag_update_retains_project_notes_and_unrelated_metadata() {
         let f = Fixture::new();
-        fs::write(&f.store.path, "schema_version=1\n[panel]\npath='D:\\OSPanel6'\n[projects.'shop.test']\n# important\ntags=['Old'] # tags comment\nnote='Keep'\n").unwrap();
+        fs::write(&f.store.path, "schema_version=1\n[panel]\npath='X:\\TestPanel'\n[projects.'shop.test']\n# important\ntags=['Old'] # tags comment\nnote='Keep'\n").unwrap();
         f.save("ospanel.projectTags", r#"{"version":1,"projects":{"shop.test":["New"]}}"#);
         assert!(f.text().contains("# important"));
         assert!(f.text().contains("# tags comment"));

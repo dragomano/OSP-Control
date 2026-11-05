@@ -455,24 +455,24 @@ mod tests {
 
     #[test]
     fn saves_with_exact_backup_bom_and_line_endings() {
-        let original = b"\xef\xbb\xbf# Header\r\n127.0.0.1\tapi.local\r\n";
+        let original = b"\xef\xbb\xbf# Header\r\n127.0.0.1\tapi.test\r\n";
         let fixture = Fixture::new(original);
-        let saved = save_at(&fixture.0, "# Header\n127.0.0.2\tapi.local\n", &revision(original)).unwrap();
+        let saved = save_at(&fixture.0, "# Header\n127.0.0.2\tapi.test\n", &revision(original)).unwrap();
         assert_eq!(fs::read(saved.backup_path.unwrap()).unwrap(), original);
-        assert_eq!(fs::read(fixture.file()).unwrap(), b"\xef\xbb\xbf# Header\r\n127.0.0.2\tapi.local\r\n");
-        assert_eq!(saved.document.content, "# Header\n127.0.0.2\tapi.local\n");
+        assert_eq!(fs::read(fixture.file()).unwrap(), b"\xef\xbb\xbf# Header\r\n127.0.0.2\tapi.test\r\n");
+        assert_eq!(saved.document.content, "# Header\n127.0.0.2\tapi.test\n");
     }
     #[test]
     fn external_changes_and_invalid_input_are_never_overwritten() {
-        let fixture = Fixture::new(b"127.0.0.1 one.local\n");
+        let fixture = Fixture::new(b"127.0.0.1 one.test\n");
         let revision = revision(&fs::read(fixture.file()).unwrap());
-        fs::write(fixture.file(), "127.0.0.2 two.local\n").unwrap();
+        fs::write(fixture.file(), "127.0.0.2 two.test\n").unwrap();
         assert_eq!(
-            save_at(&fixture.0, "127.0.0.3 three.local\n", &revision).unwrap_err().code,
+            save_at(&fixture.0, "127.0.0.3 three.test\n", &revision).unwrap_err().code,
             "err.hostsConflict"
         );
-        assert_eq!(save_at(&fixture.0, "999.0.0.1 bad.local\n", &revision).unwrap_err().code, "err.hostsIp");
-        assert_eq!(fs::read_to_string(fixture.file()).unwrap(), "127.0.0.2 two.local\n");
+        assert_eq!(save_at(&fixture.0, "999.0.0.1 bad.test\n", &revision).unwrap_err().code, "err.hostsIp");
+        assert_eq!(fs::read_to_string(fixture.file()).unwrap(), "127.0.0.2 two.test\n");
         assert_eq!(fs::read_dir(fixture.file().parent().unwrap()).unwrap().count(), 1);
     }
     #[test]
@@ -498,11 +498,11 @@ mod tests {
     }
     #[test]
     fn validation_understands_comments_aliases_ipv6_and_managed_blocks() {
-        validate(&format!("# arbitrary comment\n{START}\n127.0.0.1 site.local www.site.local\n{END}\n::1 site.local\n# 127.0.0.2 site.local\n")).unwrap();
+        validate(&format!("# arbitrary comment\n{START}\n127.0.0.1 site.test www.site.test\n{END}\n::1 site.test\n# 127.0.0.2 site.test\n")).unwrap();
         for (text, code) in [
-            ("127.0.0.1 a.local\n127.0.0.2 A.local", "err.hostsNameConflict"),
-            ("127.0.0.1 -bad.local", "err.hostsName"),
-            ("127.0.0.1 a.local a.local", "err.hostsRepeatedName"),
+            ("127.0.0.1 a.test\n127.0.0.2 A.test", "err.hostsNameConflict"),
+            ("127.0.0.1 -bad.test", "err.hostsName"),
+            ("127.0.0.1 a.test a.test", "err.hostsRepeatedName"),
             (START, "err.hostsMarkers"),
             ("# \0", "err.hostsControl"),
         ] {

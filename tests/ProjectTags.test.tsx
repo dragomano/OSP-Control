@@ -25,11 +25,11 @@ vi.mock('../src/ospanel', async (importOriginal) => ({
 }));
 
 const projects: OsPanelProject[] = [
-  { domain: 'shop.local', path: 'D:/OSPanel6/home/shop.local', php: '8.4', type: 'Nginx', ssl: true },
-  { domain: 'api.local', path: 'D:/OSPanel6/home/api.local', php: '8.3', type: 'Nginx', ssl: true },
-  { domain: 'empty.local', path: 'D:/OSPanel6/home/empty.local', php: '8.4', type: 'Apache', ssl: false },
+  { domain: 'shop.test', path: 'X:/TestPanel/home/shop.test', php: '8.4', type: 'Nginx', ssl: true },
+  { domain: 'api.test', path: 'X:/TestPanel/home/api.test', php: '8.3', type: 'Nginx', ssl: true },
+  { domain: 'empty.test', path: 'X:/TestPanel/home/empty.test', php: '8.4', type: 'Apache', ssl: false },
 ];
-const initial = { 'shop.local': ['Client', 'Laravel'], 'api.local': ['Client', 'API'] };
+const initial = { 'shop.test': ['Client', 'Laravel'], 'api.test': ['Client', 'API'] };
 const key = PROJECT_TAGS_KEY;
 const t = makeTranslator(embeddedDict('en'), embeddedDict('en'));
 const plural = makePlural(t, 'en', embeddedDict('en'));
@@ -84,9 +84,9 @@ describe('project tag metadata', () => {
     expect(readProjectTagColors(key)).toEqual({});
     const colors = setProjectTagColor({}, ' Client ', '#12a4ce');
     writeProjectTags(key, initial, colors);
-    writeProjectTags(key, editProjectTags(initial, ['empty.local'], 'CLIENT', 'add'));
+    writeProjectTags(key, editProjectTags(initial, ['empty.test'], 'CLIENT', 'add'));
     expect(colorForTag(readProjectTagColors(key), 'client')).toBe('#12a4ce');
-    expect(tagsForProject(readProjectTags(key), 'empty.local')).toEqual(['Client']);
+    expect(tagsForProject(readProjectTags(key), 'empty.test')).toEqual(['Client']);
     expect(setProjectTagColor(colors, 'CLIENT', null)).toEqual({});
   });
 
@@ -110,9 +110,9 @@ describe('project tag metadata', () => {
     expect(readProjectTagColors(key)).toEqual({ custom: '#Ab19EF' });
   });
   it('normalizes Windows domain casing on write and read', () => {
-    const next = editProjectTags({}, ['SHOP.local'], ' #Client ', 'add');
+    const next = editProjectTags({}, ['SHOP.test'], ' #Client ', 'add');
     writeProjectTags(key, next);
-    expect(tagsForProject(readProjectTags(key), 'shop.LOCAL')).toEqual(['Client']);
+    expect(tagsForProject(readProjectTags(key), 'shop.test')).toEqual(['Client']);
   });
 
   it('ignores corrupt and future data, sanitizes stored tags, and handles prototype-like domains', () => {
@@ -125,49 +125,49 @@ describe('project tag metadata', () => {
       JSON.stringify({
         version: 1,
         projects: {
-          'SHOP.local': [' Client ', 'client', 42, '', 'x'.repeat(33), 'API'],
+          'SHOP.test': [' Client ', 'client', 42, '', 'x'.repeat(33), 'API'],
           bad: 'Client',
         },
       }),
     );
-    expect(readProjectTags(key)).toEqual({ 'shop.local': ['Client', 'API'] });
+    expect(readProjectTags(key)).toEqual({ 'shop.test': ['Client', 'API'] });
     const next = editProjectTags({}, ['__proto__', 'constructor'], 'Safe', 'add');
     expect(tagsForProject(next, '__proto__')).toEqual(['Safe']);
     expect(tagsForProject({}, 'constructor')).toEqual([]);
   });
 
   it('applies bulk edits atomically, deduplicates names and enforces tag limits', () => {
-    expect(editProjectTags(initial, ['shop.local', 'shop.local', 'empty.local'], 'client', 'add')).toEqual({
+    expect(editProjectTags(initial, ['shop.test', 'shop.test', 'empty.test'], 'client', 'add')).toEqual({
       ...initial,
-      'empty.local': ['Client'],
+      'empty.test': ['Client'],
     });
     const full = {
       ...initial,
-      'empty.local': Array.from({ length: MAX_PROJECT_TAGS }, (_, index) => `Tag ${index}`),
+      'empty.test': Array.from({ length: MAX_PROJECT_TAGS }, (_, index) => `Tag ${index}`),
     };
-    expect(() => editProjectTags(full, ['api.local', 'empty.local'], 'Review', 'add')).toThrow(
+    expect(() => editProjectTags(full, ['api.test', 'empty.test'], 'Review', 'add')).toThrow(
       'err.projectTagLimit',
     );
-    expect(full['api.local']).toEqual(['Client', 'API']);
+    expect(full['api.test']).toEqual(['Client', 'API']);
     for (const invalid of ['', '###', 'x'.repeat(33), 'bad\u0000tag']) {
-      expect(() => editProjectTags(initial, ['shop.local'], invalid, 'add')).toThrow('err.invalidProjectTag');
+      expect(() => editProjectTags(initial, ['shop.test'], invalid, 'add')).toThrow('err.invalidProjectTag');
     }
-    expect(editProjectTags({ 'shop.local': ['Client'] }, ['SHOP.local'], 'CLIENT', 'remove')).toEqual({});
+    expect(editProjectTags({ 'shop.test': ['Client'] }, ['SHOP.test'], 'CLIENT', 'remove')).toEqual({});
   });
 
   it('searches tags, paths and domains together, including exact quoted tags', () => {
-    const tags = { ...initial, 'empty.local': ['Client work'] };
+    const tags = { ...initial, 'empty.test': ['Client work'] };
     expect(filterProjects(projects, '#client', tags).map((project) => project.domain)).toEqual([
-      'shop.local',
-      'api.local',
+      'shop.test',
+      'api.test',
     ]);
     expect(filterProjects(projects, '#"client work"', tags).map((project) => project.domain)).toEqual([
-      'empty.local',
+      'empty.test',
     ]);
     expect(filterProjects(projects, 'home #client shop', tags).map((project) => project.domain)).toEqual([
-      'shop.local',
+      'shop.test',
     ]);
-    expect(filterProjects(projects, 'larav', tags).map((project) => project.domain)).toEqual(['shop.local']);
+    expect(filterProjects(projects, 'larav', tags).map((project) => project.domain)).toEqual(['shop.test']);
     expect(matchesProjectTags(['Client'], ['Client', 'Laravel'], 'any')).toBe(true);
     expect(matchesProjectTags(['Client'], ['Client', 'Laravel'], 'all')).toBe(false);
     expect(matchesProjectTags([], [null], 'all')).toBe(true);
@@ -176,42 +176,42 @@ describe('project tag metadata', () => {
 
   it('sorts by labels without moving untagged projects ahead or mutating the source', () => {
     expect(sortTaggedProjects(projects, initial, 'tags', 'en').map((project) => project.domain)).toEqual([
-      'api.local',
-      'shop.local',
-      'empty.local',
+      'api.test',
+      'shop.test',
+      'empty.test',
     ]);
     expect(sortTaggedProjects(projects, initial, 'tags-desc', 'en').map((project) => project.domain)).toEqual(
-      ['shop.local', 'api.local', 'empty.local'],
+      ['shop.test', 'api.test', 'empty.test'],
     );
-    expect(projects.map((project) => project.domain)).toEqual(['shop.local', 'api.local', 'empty.local']);
+    expect(projects.map((project) => project.domain)).toEqual(['shop.test', 'api.test', 'empty.test']);
   });
 });
 
 describe('project tags UI', () => {
   it('adds and removes tags and keeps them across remounts', async () => {
     const view = render(<Harness />);
-    fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
-    const editor = screen.getByRole('region', { name: 'Tags for shop.local' });
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
+    const editor = screen.getByRole('region', { name: 'Tags for shop.test' });
     fireEvent.change(within(editor).getByLabelText('Tag name'), { target: { value: 'Client' } });
     fireEvent.submit(within(editor).getByLabelText('Tag name').closest('form') as HTMLFormElement);
-    expect(row('shop.local').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
+    expect(row('shop.test').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
     fireEvent.click(within(editor).getByRole('button', { name: 'Done' }));
     view.unmount();
     render(<Harness />);
-    expect(row('shop.local').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
-    fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
+    expect(row('shop.test').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove tag Client' }));
     expect(readProjectTags(key)).toEqual({});
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() =>
-      expect(screen.queryByRole('region', { name: 'Tags for shop.local' })).not.toBeInTheDocument(),
+      expect(screen.queryByRole('region', { name: 'Tags for shop.test' })).not.toBeInTheDocument(),
     );
   });
 
   it('assigns a shared color, persists it and restores the default without losing tags', () => {
     writeProjectTags(key, initial);
     const view = render(<Harness />);
-    fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
     const palette = screen.getByRole('group', { name: 'Color for Client' });
     expect(palette.textContent).toBe('');
@@ -227,7 +227,7 @@ describe('project tags UI', () => {
     );
     fireEvent.change(picker, { target: { value: '#12a4ce' } });
     expect(readProjectTagColors(key)).toEqual({ client: '#12a4ce' });
-    for (const domain of ['shop.local', 'api.local']) {
+    for (const domain of ['shop.test', 'api.test']) {
       const chip = row(domain).getByRole('button', { name: 'Filter by tag Client' });
       expect(chip).toHaveClass('tag-color-custom');
       expect(chip.style.getPropertyValue('--tag-custom')).toBe('#12a4ce');
@@ -238,11 +238,11 @@ describe('project tags UI', () => {
     view.unmount();
     render(<Harness />);
     expect(
-      row('api.local')
+      row('api.test')
         .getByRole('button', { name: 'Filter by tag Client' })
         .style.getPropertyValue('--tag-custom'),
     ).toBe('#12a4ce');
-    fireEvent.click(row('api.local').getByRole('button', { name: 'Tags for api.local' }));
+    fireEvent.click(row('api.test').getByRole('button', { name: 'Tags for api.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
     fireEvent.click(
       within(screen.getByRole('group', { name: 'Color for Client' })).getByRole('button', {
@@ -250,13 +250,13 @@ describe('project tags UI', () => {
       }),
     );
     expect(readProjectTagColors(key)).toEqual({});
-    expect(tagsForProject(readProjectTags(key), 'shop.local')).toContain('Client');
+    expect(tagsForProject(readProjectTags(key), 'shop.test')).toContain('Client');
   });
 
   it('does not change the color if persistence fails', () => {
     writeProjectTags(key, initial);
     render(<Harness />);
-    fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
     vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
       throw new Error('quota');
@@ -269,7 +269,7 @@ describe('project tags UI', () => {
     );
     expect(notify).toHaveBeenCalledWith('Failed to save project tags');
     expect(readProjectTagColors(key)).toEqual({});
-    expect(row('shop.local').getByRole('button', { name: 'Filter by tag Client' })).not.toHaveClass(
+    expect(row('shop.test').getByRole('button', { name: 'Filter by tag Client' })).not.toHaveClass(
       'tag-color-custom',
     );
   });
@@ -277,60 +277,60 @@ describe('project tags UI', () => {
   it('combines tag conditions with search and existing filters, and sorts without date groups taking precedence', async () => {
     writeProjectTags(key, initial);
     render(<Harness />);
-    await screen.findByRole('button', { name: 'Show the last modified file in shop.local' });
+    await screen.findByRole('button', { name: 'Show the last modified file in shop.test' });
     fireEvent.change(screen.getByLabelText('Sort projects'), { target: { value: 'domain' } });
-    expect(rowOrder()).toEqual(['api.local', 'empty.local', 'shop.local']);
+    expect(rowOrder()).toEqual(['api.test', 'empty.test', 'shop.test']);
     fireEvent.change(screen.getByLabelText('Sort projects'), { target: { value: 'tags-desc' } });
-    expect(rowOrder()).toEqual(['shop.local', 'api.local', 'empty.local']);
+    expect(rowOrder()).toEqual(['shop.test', 'api.test', 'empty.test']);
     expect(document.querySelector('.project-activity-group-heading')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
     const filter = screen.getByRole('group', { name: 'Tags' });
     fireEvent.click(within(filter).getByRole('checkbox', { name: 'Client' }));
     fireEvent.click(within(filter).getByRole('checkbox', { name: 'Laravel' }));
-    expect(rowOrder()).toEqual(['shop.local', 'api.local']);
+    expect(rowOrder()).toEqual(['shop.test', 'api.test']);
     fireEvent.change(within(filter).getByLabelText('Match'), { target: { value: 'all' } });
-    expect(rowOrder()).toEqual(['shop.local']);
+    expect(rowOrder()).toEqual(['shop.test']);
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     fireEvent.change(search(), { target: { value: '#API' } });
-    expect(rowOrder()).toEqual(['api.local']);
+    expect(rowOrder()).toEqual(['api.test']);
     expect(mocks.getProjectActivity).toHaveBeenCalledTimes(1);
   });
 
   it('bulk-assigns and removes tags only from selected visible projects and updates tag search immediately', () => {
     writeProjectTags(key, initial);
     render(<Harness />);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select shop.local' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select shop.test' }));
     expect(screen.getByRole('checkbox', { name: 'Select all visible projects' })).toHaveProperty(
       'indeterminate',
       true,
     );
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select api.local' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select api.test' }));
     fireEvent.change(screen.getByLabelText('Tag for selected projects'), { target: { value: 'Review' } });
     fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
-    expect(tagsForProject(readProjectTags(key), 'shop.local')).toContain('Review');
-    expect(tagsForProject(readProjectTags(key), 'api.local')).toContain('Review');
-    expect(tagsForProject(readProjectTags(key), 'empty.local')).toEqual([]);
+    expect(tagsForProject(readProjectTags(key), 'shop.test')).toContain('Review');
+    expect(tagsForProject(readProjectTags(key), 'api.test')).toContain('Review');
+    expect(tagsForProject(readProjectTags(key), 'empty.test')).toEqual([]);
     fireEvent.change(search(), { target: { value: '#Review shop' } });
     expect(screen.getByText('Selected: 1')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     expect(rowOrder()).toEqual([]);
-    expect(tagsForProject(readProjectTags(key), 'shop.local')).not.toContain('Review');
-    expect(tagsForProject(readProjectTags(key), 'api.local')).toContain('Review');
+    expect(tagsForProject(readProjectTags(key), 'shop.test')).not.toContain('Review');
+    expect(tagsForProject(readProjectTags(key), 'api.test')).toContain('Review');
     fireEvent.change(search(), { target: { value: '' } });
-    expect(screen.getByRole('checkbox', { name: 'Select api.local' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select api.test' })).not.toBeChecked();
   });
 
   it('reports failed persistence and keeps the original labels', () => {
     writeProjectTags(key, initial);
     render(<Harness />);
-    fireEvent.click(row('shop.local').getByRole('button', { name: 'Tags for shop.local' }));
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     fireEvent.change(screen.getByLabelText('Tag name'), { target: { value: 'Review' } });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
       throw new Error('quota');
     });
     fireEvent.submit(screen.getByLabelText('Tag name').closest('form') as HTMLFormElement);
     expect(notify).toHaveBeenCalledWith('Failed to save project tags');
-    expect(row('shop.local').queryByRole('button', { name: 'Filter by tag Review' })).not.toBeInTheDocument();
+    expect(row('shop.test').queryByRole('button', { name: 'Filter by tag Review' })).not.toBeInTheDocument();
     expect(readProjectTags(key)).toEqual(initial);
   });
 });

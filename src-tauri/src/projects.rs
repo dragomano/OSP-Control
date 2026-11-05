@@ -356,8 +356,61 @@ pub fn write_project_settings(
     })
 }
 
-// --- Project deletion ---
-// The home/<domain> directory is wiped entirely (together with .osp and project.ini).
+// --- Project log cleanup and deletion ---
+
+fn remove_project_logs(root: &Path, domain: &str) -> Result<(), CommandError> {
+    if !is_valid_domain(domain) {
+        return Err(CommandError::new("err.invalidDomain"));
+    }
+    let root = fs::canonicalize(root)?;
+    let mut directory = root.clone();
+    for component in ["logs", "domains"] {
+        let expected = directory.join(component);
+        directory = match fs::canonicalize(&expected) {
+            Ok(path) => path,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(error.into()),
+        };
+        // Do not follow redirected log folders, even to another location inside the installation.
+        if !directory.starts_with(&root) || directory != expected {
+            return Err(CommandError::new("err.accessDenied"));
+        }
+    }
+
+    let mut files = Vec::new();
+    for entry in fs::read_dir(&directory)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+        // OSPanel uses <domain>_<kind>.log (access, error, caddy, 404, etc.).
+        // Split at the last underscore so domains containing underscores stay distinct.
+        // Include rotated logs such as error.log.1 and caddy-<timestamp>.log.gz.
+        let Some((owner, suffix)) = name.rsplit_once('_') else {
+            continue;
+        };
+        if !owner.eq_ignore_ascii_case(domain) || !(suffix.ends_with(".log") || suffix.contains(".log.")) {
+            continue;
+        }
+        let path = fs::canonicalize(entry.path())?;
+        if !path.starts_with(&directory) || path != entry.path() {
+            return Err(CommandError::new("err.accessDenied"));
+        }
+        if path.is_file() {
+            files.push(path);
+        }
+    }
+    // Validate the entire selection before removing anything, and propagate cleanup failures.
+    for path in files {
+        match fs::remove_file(path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(())
+}
+
+// The home/<domain> directory is wiped entirely (together with .osp and project.ini),
+// and its logs are removed from logs/domains/.
 // A dangerous operation: the frontend must show a confirmation first, and here the
 // check is strict that the directory lies inside home/.
 
@@ -377,6 +430,7 @@ pub fn delete_project(domain: String, custom_path: Option<String>) -> Result<(),
         return Err(CommandError::new("err.accessDenied"));
     }
 
+    remove_project_logs(&root, &domain)?;
     fs::remove_dir_all(&project_dir)?;
     Ok(())
 }
@@ -503,6 +557,10 @@ fn rename_project_directory(
         file.sync_all()?;
         Ok(())
     };
+    let rollback_failed = |path: &Path| {
+        CommandError::new("err.projectRenameRollbackFailed")
+            .with("path", external_path(path).to_string_lossy().into_owned())
+    };
     write_new(&backup, &original)?;
     write_new(&temporary, &updated)?;
     if let Err(error) = fs::rename(&temporary, &ini) {
@@ -512,10 +570,20 @@ fn rename_project_directory(
     if let Err(error) = fs::rename(&source, &target) {
         // Restore the exact original file if Windows denies moving a directory with open handles.
         if fs::rename(&backup, &ini).is_err() {
-            return Err(CommandError::new("err.projectRenameRollbackFailed")
-                .with("path", external_path(&backup).to_string_lossy().into_owned()));
+            return Err(rollback_failed(&backup));
         }
         return Err(error.into());
+    }
+    // Clean up only after the move succeeds, preserving logs when the directory is locked.
+    // If cleanup fails, restore the old project name and settings before reporting the error.
+    if let Err(error) = remove_project_logs(root, domain) {
+        if fs::rename(&target, &source).is_err() {
+            return Err(rollback_failed(&target.join(".osp").join(backup.file_name().unwrap())));
+        }
+        if fs::rename(&backup, &ini).is_err() {
+            return Err(rollback_failed(&backup));
+        }
+        return Err(error);
     }
     Ok(RenamedProject {
         domain: new_domain.into(),
@@ -779,25 +847,45 @@ mod tests {
     use super::*;
 
     // Format and alignment are as in the panel's real home/<domain>/.osp/project.ini.
-    const SAMPLE: &str = "\u{feff}[dune.loc]\r\n\r\nhttp_engine = Apache\r\nphp_engine  = PHP-8.2\r\nweb_root    = {base_dir}\\public\r\n";
+    const SAMPLE: &str = "\u{feff}[example.test]\r\n\r\nhttp_engine = Apache\r\nphp_engine  = PHP-8.2\r\nweb_root    = {base_dir}\\public\r\n";
 
     struct RenameFixture(PathBuf);
 
     impl RenameFixture {
-        fn new() -> Self {
+        fn empty() -> Self {
             let root = std::env::temp_dir().join(format!(
                 "osp-rename-test-{}-{}",
                 std::process::id(),
                 PROJECT_RENAME_SEQUENCE.fetch_add(1, Ordering::Relaxed)
             ));
-            fs::create_dir_all(root.join("home/dune.loc/.osp")).unwrap();
-            fs::write(root.join("home/dune.loc/.osp/project.ini"), SAMPLE).unwrap();
-            fs::write(root.join("home/dune.loc/index.php"), "<?php echo 'unchanged';").unwrap();
+            fs::create_dir_all(root.join("home")).unwrap();
             Self(fs::canonicalize(root).unwrap())
         }
 
+        fn new() -> Self {
+            let fixture = Self::empty();
+            fs::create_dir_all(fixture.0.join("home/example.test/.osp")).unwrap();
+            fs::write(fixture.0.join("home/example.test/.osp/project.ini"), SAMPLE).unwrap();
+            fs::write(fixture.0.join("home/example.test/index.php"), "<?php echo 'unchanged';").unwrap();
+            fixture
+        }
+
         fn rename(&self, new_domain: &str) -> Result<RenamedProject, CommandError> {
-            rename_project_directory(&self.0, "dune.loc", new_domain, &self.0.join("home/dune.loc"), &[])
+            rename_project_directory(
+                &self.0,
+                "example.test",
+                new_domain,
+                &self.0.join("home/example.test"),
+                &[],
+            )
+        }
+
+        fn logs(&self, names: &[&str]) {
+            let directory = self.0.join("logs/domains");
+            fs::create_dir_all(&directory).unwrap();
+            for name in names {
+                fs::write(directory.join(name), "log contents\n").unwrap();
+            }
         }
     }
 
@@ -808,16 +896,75 @@ mod tests {
     }
 
     #[test]
+    fn generated_domains_work_through_the_project_lifecycle_in_a_fresh_installation() {
+        for (index, (suffix, new_suffix)) in
+            [("test", "example"), ("example", "test"), ("sub.test", "sub.example")].into_iter().enumerate()
+        {
+            let fixture = RenameFixture::empty();
+            let custom = Some(fixture.0.to_string_lossy().into_owned());
+            let sequence = PROJECT_RENAME_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let domain = format!("project-{sequence}-{index}.{suffix}");
+            let new_domain = format!("renamed-{sequence}-{index}.{new_suffix}");
+            fs::create_dir_all(fixture.0.join("modules/Apache")).unwrap();
+
+            let created = create_project(
+                CreateProjectParams {
+                    domain: domain.clone(),
+                    http_engine: Some("Apache".into()),
+                    php_engine: None,
+                    node_engine: None,
+                },
+                custom.clone(),
+            )
+            .unwrap();
+            assert_eq!(fs::canonicalize(&created.path).unwrap(), fixture.0.join("home").join(&domain));
+            write_project_settings(
+                domain.clone(),
+                ProjectModuleOverride {
+                    http_engine: "Apache".into(),
+                    php_engine: ENGINE_AUTO.into(),
+                    node_engine: ENGINE_AUTO.into(),
+                    tls_enabled: "on".into(),
+                },
+                custom.clone(),
+            )
+            .unwrap();
+            let backup = crate::backups::create_project_backup(domain.clone(), custom.clone()).unwrap();
+            assert_eq!(serde_json::to_value(backup).unwrap()["subject"], domain);
+
+            let old_log = format!("{domain}_access.log");
+            fixture.logs(&[old_log.as_str()]);
+            let renamed =
+                rename_project_directory(&fixture.0, &domain, &new_domain, Path::new(&created.path), &[])
+                    .unwrap();
+            assert_eq!(renamed.domain, new_domain);
+            assert_eq!(fs::canonicalize(renamed.path).unwrap(), fixture.0.join("home").join(&new_domain));
+            assert!(!fixture.0.join("home").join(&domain).exists());
+            assert!(!fixture.0.join("logs/domains").join(old_log).exists());
+            let settings = read_project_settings(new_domain.clone(), custom.clone()).unwrap();
+            assert_eq!(settings.domain, new_domain);
+            assert_eq!(settings.http_engine, "Apache");
+            assert_eq!(settings.tls_enabled, "on");
+
+            let new_log = format!("{new_domain}_error.log");
+            fixture.logs(&[new_log.as_str()]);
+            delete_project(new_domain.clone(), custom).unwrap();
+            assert!(!fixture.0.join("home").join(new_domain).exists());
+            assert!(!fixture.0.join("logs/domains").join(new_log).exists());
+        }
+    }
+
+    #[test]
     fn rename_moves_project_and_changes_only_domain_header_with_original_backup() {
         let fixture = RenameFixture::new();
-        let renamed = fixture.rename("renamed.local").unwrap();
-        let target = fixture.0.join("home/renamed.local");
-        assert_eq!(renamed.domain, "renamed.local");
+        let renamed = fixture.rename("renamed.test").unwrap();
+        let target = fixture.0.join("home/renamed.test");
+        assert_eq!(renamed.domain, "renamed.test");
         assert_eq!(fs::canonicalize(renamed.path).unwrap(), target);
-        assert!(!fixture.0.join("home/dune.loc").exists());
+        assert!(!fixture.0.join("home/example.test").exists());
         assert_eq!(
             fs::read_to_string(target.join(".osp/project.ini")).unwrap(),
-            SAMPLE.replacen("[dune.loc]", "[renamed.local]", 1)
+            SAMPLE.replacen("[example.test]", "[renamed.test]", 1)
         );
         assert_eq!(fs::read_to_string(target.join("index.php")).unwrap(), "<?php echo 'unchanged';");
         let backups: Vec<_> = fs::read_dir(target.join(".osp"))
@@ -830,15 +977,153 @@ mod tests {
     }
 
     #[test]
-    fn rename_preserves_formatting_and_rejects_ambiguous_domain_sections() {
-        let content = "\u{feff}; comment\n  [DUNE.LOC]  \nphp_engine = PHP-8.3\n; dune.loc is not replaced";
-        assert_eq!(
-            rename_project_section(content, "dune.loc", "new.local").unwrap(),
-            content.replacen("[DUNE.LOC]", "[new.local]", 1)
-        );
-        for invalid in ["[dune.loc]\n[second.local]\n", "[other.local]\n", "[dune.loc]\n[DUNE.LOC]\n", ""] {
+    fn project_operations_remove_only_the_selected_domains_logs() {
+        let removed = [
+            "EXAMPLE.TEST_access.LOG",
+            "example.test_error.log",
+            "example.test_caddy.log",
+            "example.test_404.log",
+            "example.test_error.log.1",
+            "example.test_caddy-2026-11-05T00-00-00.000.log.gz",
+        ];
+        let kept = [
+            "other.test_error.log",
+            "example.test.extra.test_access.log",
+            "prefix-example.test_error.log",
+            "example.test_extra_error.log",
+            "renamed.test_access.log",
+            "example.test_error.txt",
+        ];
+        for rename in [false, true] {
+            let fixture = RenameFixture::new();
+            fixture.logs(&removed);
+            fixture.logs(&kept);
+            let nested = fixture.0.join("logs/domains/example.test_archive.log/nested.log");
+            fs::create_dir_all(nested.parent().unwrap()).unwrap();
+            fs::write(&nested, "keep nested log").unwrap();
+            let module_log = fixture.0.join("logs/example.test_error.log");
+            fs::write(&module_log, "keep module log").unwrap();
+            if rename {
+                fixture.rename("renamed.test").unwrap();
+                assert!(fixture.0.join("home/renamed.test/.osp/project.ini").is_file());
+            } else {
+                delete_project("example.test".into(), Some(fixture.0.to_string_lossy().into_owned()))
+                    .unwrap();
+            }
+            assert!(!fixture.0.join("home/example.test").exists());
+            for name in removed {
+                assert!(!fixture.0.join("logs/domains").join(name).exists(), "{name}");
+            }
+            for name in kept {
+                assert_eq!(
+                    fs::read_to_string(fixture.0.join("logs/domains").join(name)).unwrap(),
+                    "log contents\n",
+                    "{name}"
+                );
+            }
+            assert_eq!(fs::read_to_string(&module_log).unwrap(), "keep module log");
+            assert_eq!(fs::read_to_string(&nested).unwrap(), "keep nested log");
+        }
+    }
+
+    #[test]
+    fn project_operations_accept_missing_log_directories() {
+        for rename in [false, true] {
+            for logs_exist in [false, true] {
+                let fixture = RenameFixture::new();
+                if logs_exist {
+                    fs::create_dir(fixture.0.join("logs")).unwrap();
+                }
+                if rename {
+                    fixture.rename("new.test").unwrap();
+                } else {
+                    delete_project("example.test".into(), Some(fixture.0.to_string_lossy().into_owned()))
+                        .unwrap();
+                }
+                assert!(!fixture.0.join("home/example.test").exists());
+            }
+        }
+    }
+
+    #[test]
+    fn log_cleanup_handles_domains_with_underscores() {
+        let fixture = RenameFixture::new();
+        fixture.logs(&["my_site.test_error.log", "my_site.test_extra_error.log"]);
+        remove_project_logs(&fixture.0, "MY_SITE.test").unwrap();
+        assert!(!fixture.0.join("logs/domains/my_site.test_error.log").exists());
+        assert!(fixture.0.join("logs/domains/my_site.test_extra_error.log").is_file());
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn locked_logs_prevent_project_deletion_and_renaming() {
+        use std::os::windows::fs::OpenOptionsExt;
+        for rename in [false, true] {
+            let fixture = RenameFixture::new();
+            fixture.logs(&["example.test_access.log"]);
+            let log = fixture.0.join("logs/domains/example.test_access.log");
+            let _handle = fs::OpenOptions::new().read(true).share_mode(3).open(&log).unwrap();
+            let result = if rename {
+                fixture.rename("new.test").map(|_| ())
+            } else {
+                delete_project("example.test".into(), Some(fixture.0.to_string_lossy().into_owned()))
+            };
+            assert_eq!(result.unwrap_err().code, "err.ioFailed");
             assert_eq!(
-                rename_project_section(invalid, "dune.loc", "new.local").unwrap_err().code,
+                fs::read_to_string(fixture.0.join("home/example.test/.osp/project.ini")).unwrap(),
+                SAMPLE
+            );
+            assert!(!fixture.0.join("home/new.test").exists());
+            assert_eq!(fs::read_to_string(log).unwrap(), "log contents\n");
+        }
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn project_operations_reject_redirected_log_directories() {
+        for rename in [false, true] {
+            for component in ["logs", "logs/domains"] {
+                let fixture = RenameFixture::new();
+                let external = RenameFixture::new();
+                external.logs(&["example.test_access.log"]);
+                let link = fixture.0.join(component);
+                fs::create_dir_all(link.parent().unwrap()).unwrap();
+                let output = hidden_command("cmd")
+                    .args(["/C", "mklink", "/J"])
+                    .arg(&link)
+                    .arg(external.0.join(component))
+                    .output()
+                    .unwrap();
+                assert!(output.status.success());
+                let result = if rename {
+                    fixture.rename("new.test").map(|_| ())
+                } else {
+                    delete_project("example.test".into(), Some(fixture.0.to_string_lossy().into_owned()))
+                };
+                fs::remove_dir(&link).unwrap();
+                assert_eq!(result.unwrap_err().code, "err.accessDenied");
+                assert!(fixture.0.join("home/example.test/.osp/project.ini").is_file());
+                assert_eq!(
+                    fs::read_to_string(external.0.join("logs/domains/example.test_access.log")).unwrap(),
+                    "log contents\n"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rename_preserves_formatting_and_rejects_ambiguous_domain_sections() {
+        let content =
+            "\u{feff}; comment\n  [EXAMPLE.TEST]  \nphp_engine = PHP-8.3\n; example.test is not replaced";
+        assert_eq!(
+            rename_project_section(content, "example.test", "new.test").unwrap(),
+            content.replacen("[EXAMPLE.TEST]", "[new.test]", 1)
+        );
+        for invalid in
+            ["[example.test]\n[second.test]\n", "[other.test]\n", "[example.test]\n[EXAMPLE.TEST]\n", ""]
+        {
+            assert_eq!(
+                rename_project_section(invalid, "example.test", "new.test").unwrap_err().code,
                 "err.projectRenameLayout"
             );
         }
@@ -847,28 +1132,29 @@ mod tests {
     #[test]
     fn rename_rejects_conflicts_invalid_names_and_wrong_paths_without_changes() {
         let fixture = RenameFixture::new();
+        fixture.logs(&["example.test_access.log"]);
         for invalid in
-            ["../escape", "..\\escape", "DUNE.LOC", "new.local.", "-bad.local", "con.local", "bad..local", ""]
+            ["../escape", "..\\escape", "EXAMPLE.TEST", "new.test.", "-bad.test", "con.test", "bad..test", ""]
         {
             assert_eq!(fixture.rename(invalid).unwrap_err().code, "err.invalidDomain");
         }
-        fs::create_dir(fixture.0.join("home/taken.local")).unwrap();
-        assert_eq!(fixture.rename("taken.local").unwrap_err().code, "err.projectExists");
+        fs::create_dir(fixture.0.join("home/taken.test")).unwrap();
+        assert_eq!(fixture.rename("taken.test").unwrap_err().code, "err.projectExists");
         fs::create_dir_all(fixture.0.join("home/another/.osp")).unwrap();
-        fs::write(fixture.0.join("home/another/.osp/project.ini"), "[pending.local]\n").unwrap();
-        assert_eq!(fixture.rename("pending.local").unwrap_err().code, "err.projectExists");
+        fs::write(fixture.0.join("home/another/.osp/project.ini"), "[pending.test]\n").unwrap();
+        assert_eq!(fixture.rename("pending.test").unwrap_err().code, "err.projectExists");
         let wrong = rename_project_directory(
             &fixture.0,
-            "dune.loc",
-            "new.local",
+            "example.test",
+            "new.test",
             &fixture.0.join("home/another"),
             &[],
         )
         .unwrap_err();
         assert_eq!(wrong.code, "err.projectRenameLayout");
         let registered = crate::panel_api::Project {
-            domain: "api.local".into(),
-            path: fixture.0.join("home/dune.loc").to_string_lossy().into_owned(),
+            domain: "api.test".into(),
+            path: fixture.0.join("home/example.test").to_string_lossy().into_owned(),
             php: "8.2".into(),
             r#type: "Apache".into(),
             ssl: true,
@@ -876,18 +1162,20 @@ mod tests {
         assert_eq!(
             rename_project_directory(
                 &fixture.0,
-                "dune.loc",
-                "new.local",
-                &fixture.0.join("home/dune.loc"),
+                "example.test",
+                "new.test",
+                &fixture.0.join("home/example.test"),
                 &[registered]
             )
             .unwrap_err()
             .code,
             "err.projectRenameLayout"
         );
-        fs::write(fixture.0.join("home/dune.loc/.osp/project.ini"), "[dune.loc]\n[shared.local]\n").unwrap();
-        assert_eq!(fixture.rename("new.local").unwrap_err().code, "err.projectRenameLayout");
-        assert!(!fixture.0.join("home/new.local").exists());
+        fs::write(fixture.0.join("home/example.test/.osp/project.ini"), "[example.test]\n[shared.test]\n")
+            .unwrap();
+        assert_eq!(fixture.rename("new.test").unwrap_err().code, "err.projectRenameLayout");
+        assert!(!fixture.0.join("home/new.test").exists());
+        assert!(fixture.0.join("logs/domains/example.test_access.log").is_file());
     }
 
     #[test]
@@ -895,17 +1183,22 @@ mod tests {
     fn rename_restores_original_ini_when_directory_is_locked() {
         use std::os::windows::fs::OpenOptionsExt;
         let fixture = RenameFixture::new();
+        fixture.logs(&["example.test_access.log"]);
         // FILE_FLAG_BACKUP_SEMANTICS opens the directory itself; omitting FILE_SHARE_DELETE
         // reproduces an editor/server preventing Windows from moving that directory.
         let _handle = fs::OpenOptions::new()
             .read(true)
             .custom_flags(0x02000000)
             .share_mode(3)
-            .open(fixture.0.join("home/dune.loc"))
+            .open(fixture.0.join("home/example.test"))
             .unwrap();
-        assert_eq!(fixture.rename("new.local").unwrap_err().code, "err.ioFailed");
-        assert_eq!(fs::read_to_string(fixture.0.join("home/dune.loc/.osp/project.ini")).unwrap(), SAMPLE);
-        assert!(!fixture.0.join("home/new.local").exists());
+        assert_eq!(fixture.rename("new.test").unwrap_err().code, "err.ioFailed");
+        assert_eq!(fs::read_to_string(fixture.0.join("home/example.test/.osp/project.ini")).unwrap(), SAMPLE);
+        assert!(!fixture.0.join("home/new.test").exists());
+        assert_eq!(
+            fs::read_to_string(fixture.0.join("logs/domains/example.test_access.log")).unwrap(),
+            "log contents\n"
+        );
     }
 
     #[test]
@@ -913,37 +1206,40 @@ mod tests {
     fn rename_rejects_junctions_outside_home_and_redirected_settings() {
         let fixture = RenameFixture::new();
         let external = RenameFixture::new();
-        let link = fixture.0.join("home/escape.local");
+        let link = fixture.0.join("home/escape.test");
         let output = hidden_command("cmd")
             .args(["/C", "mklink", "/J"])
             .arg(&link)
-            .arg(external.0.join("home/dune.loc"))
+            .arg(external.0.join("home/example.test"))
             .output()
             .unwrap();
         assert!(output.status.success());
         assert_eq!(
-            rename_project_directory(&fixture.0, "escape.local", "new.local", &link, &[]).unwrap_err().code,
+            rename_project_directory(&fixture.0, "escape.test", "new.test", &link, &[]).unwrap_err().code,
             "err.projectRenameLayout"
         );
         fs::remove_dir(&link).unwrap();
-        let osp = fixture.0.join("home/dune.loc/.osp");
+        let osp = fixture.0.join("home/example.test/.osp");
         fs::remove_file(osp.join("project.ini")).unwrap();
         fs::remove_dir(&osp).unwrap();
         let output = hidden_command("cmd")
             .args(["/C", "mklink", "/J"])
             .arg(&osp)
-            .arg(external.0.join("home/dune.loc/.osp"))
+            .arg(external.0.join("home/example.test/.osp"))
             .output()
             .unwrap();
         assert!(output.status.success());
-        assert_eq!(fixture.rename("new.local").unwrap_err().code, "err.accessDenied");
+        assert_eq!(fixture.rename("new.test").unwrap_err().code, "err.accessDenied");
         fs::remove_dir(&osp).unwrap();
-        assert_eq!(fs::read_to_string(external.0.join("home/dune.loc/.osp/project.ini")).unwrap(), SAMPLE);
+        assert_eq!(
+            fs::read_to_string(external.0.join("home/example.test/.osp/project.ini")).unwrap(),
+            SAMPLE
+        );
     }
 
     #[test]
     fn replaces_value_preserving_line_formatting() {
-        let (next, changed) = ini_set_value(SAMPLE, "dune.loc", "php_engine", "PHP-8.4", true);
+        let (next, changed) = ini_set_value(SAMPLE, "example.test", "php_engine", "PHP-8.4", true);
         assert!(changed);
         assert!(next.contains("php_engine  = PHP-8.4"));
         assert!(next.contains("http_engine = Apache"));
@@ -954,14 +1250,14 @@ mod tests {
 
     #[test]
     fn keeps_file_untouched_when_value_is_the_same() {
-        let (next, changed) = ini_set_value(SAMPLE, "dune.loc", "php_engine", "PHP-8.2", true);
+        let (next, changed) = ini_set_value(SAMPLE, "example.test", "php_engine", "PHP-8.2", true);
         assert!(!changed);
         assert_eq!(next, SAMPLE);
     }
 
     #[test]
     fn inserts_missing_key_into_existing_section() {
-        let (next, changed) = ini_set_value(SAMPLE, "dune.loc", "node_engine", "Node-22.11.0", true);
+        let (next, changed) = ini_set_value(SAMPLE, "example.test", "node_engine", "Node-22.11.0", true);
         assert!(changed);
         assert!(next.contains("node_engine       = Node-22.11.0"));
         assert!(next.contains("web_root    = {base_dir}\\public\r\n"));
@@ -969,22 +1265,22 @@ mod tests {
 
     #[test]
     fn skips_missing_key_when_insert_not_allowed() {
-        let (next, changed) = ini_set_value(SAMPLE, "dune.loc", "node_engine", ENGINE_AUTO, false);
+        let (next, changed) = ini_set_value(SAMPLE, "example.test", "node_engine", ENGINE_AUTO, false);
         assert!(!changed);
         assert_eq!(next, SAMPLE);
     }
 
     #[test]
     fn appends_new_section_for_unknown_domain() {
-        let (next, changed) = ini_set_value(SAMPLE, "other.local", "php_engine", "PHP-8.3", true);
+        let (next, changed) = ini_set_value(SAMPLE, "other.test", "php_engine", "PHP-8.3", true);
         assert!(changed);
-        assert!(next.contains("[other.local]"));
+        assert!(next.contains("[other.test]"));
         assert!(next.contains("php_engine        = PHP-8.3"));
     }
 
     #[test]
     fn reads_section_values_case_insensitively() {
-        let values = find_project_section(SAMPLE, "DUNE.LOC").expect("section must be found");
+        let values = find_project_section(SAMPLE, "EXAMPLE.TEST").expect("section must be found");
         assert_eq!(values.get("http_engine").map(String::as_str), Some("Apache"));
         assert_eq!(values.get("php_engine").map(String::as_str), Some("PHP-8.2"));
         assert!(!values.contains_key("node_engine"));
@@ -995,7 +1291,7 @@ mod tests {
     #[test]
     fn write_read_roundtrip_on_temporary_install() {
         let root = std::env::temp_dir().join(format!("osp-ui-test-{}", std::process::id()));
-        let home = root.join("home").join("test.local");
+        let home = root.join("home").join("fixture.test");
         let modules = root.join("modules");
         fs::create_dir_all(&home).unwrap();
         for module in ["Apache", "Nginx", "PHP-8.2", "PHP-8.4"] {
@@ -1004,7 +1300,7 @@ mod tests {
         let custom = Some(root.to_string_lossy().into_owned());
 
         let settings = write_project_settings(
-            "test.local".into(),
+            "fixture.test".into(),
             ProjectModuleOverride {
                 http_engine: "Apache".into(),
                 php_engine: "PHP-8.4".into(),
@@ -1017,16 +1313,16 @@ mod tests {
         assert!(settings.file_exists);
 
         let content =
-            fs::read_to_string(root.join("home").join("test.local").join(".osp").join("project.ini"))
+            fs::read_to_string(root.join("home").join("fixture.test").join(".osp").join("project.ini"))
                 .unwrap();
-        assert!(content.starts_with("\u{feff}[test.local]"));
+        assert!(content.starts_with("\u{feff}[fixture.test]"));
         assert!(content.contains("http_engine"));
         assert!(content.contains("php_engine        = PHP-8.4"));
         // For a new file all three keys are written explicitly, like in the panel's skeleton, including "= auto".
         assert!(content.contains("node_engine       = auto"));
         assert!(content.contains("tls_enabled       = on"));
 
-        let reread = read_project_settings("test.local".into(), custom.clone()).unwrap();
+        let reread = read_project_settings("fixture.test".into(), custom.clone()).unwrap();
         assert_eq!(reread.http_engine, "Apache");
         assert_eq!(reread.php_engine, "PHP-8.4");
         assert_eq!(reread.node_engine, ENGINE_AUTO);
@@ -1042,9 +1338,9 @@ mod tests {
     #[test]
     fn write_rejects_module_missing_from_installation() {
         let root = std::env::temp_dir().join(format!("osp-ui-test-miss-{}", std::process::id()));
-        fs::create_dir_all(root.join("home").join("test.local")).unwrap();
+        fs::create_dir_all(root.join("home").join("fixture.test")).unwrap();
         let error = write_project_settings(
-            "test.local".into(),
+            "fixture.test".into(),
             ProjectModuleOverride {
                 http_engine: ENGINE_AUTO.into(),
                 php_engine: "PHP-9.9".into(),
@@ -1062,7 +1358,7 @@ mod tests {
     #[test]
     fn tls_toggle_writes_and_validates() {
         let root = std::env::temp_dir().join(format!("osp-ui-test-tls-{}", std::process::id()));
-        let home = root.join("home").join("test.local");
+        let home = root.join("home").join("fixture.test");
         let modules = root.join("modules");
         fs::create_dir_all(&home).unwrap();
         fs::create_dir_all(modules.join("Apache")).unwrap();
@@ -1070,7 +1366,7 @@ mod tests {
 
         // Turning TLS off writes an explicit tls_enabled = off.
         write_project_settings(
-            "test.local".into(),
+            "fixture.test".into(),
             ProjectModuleOverride {
                 http_engine: ENGINE_AUTO.into(),
                 php_engine: ENGINE_AUTO.into(),
@@ -1080,12 +1376,12 @@ mod tests {
             custom.clone(),
         )
         .unwrap();
-        let reread = read_project_settings("test.local".into(), custom.clone()).unwrap();
+        let reread = read_project_settings("fixture.test".into(), custom.clone()).unwrap();
         assert_eq!(reread.tls_enabled, "off");
 
         // A value outside auto/on/off is rejected before anything is written.
         let error = write_project_settings(
-            "test.local".into(),
+            "fixture.test".into(),
             ProjectModuleOverride {
                 http_engine: ENGINE_AUTO.into(),
                 php_engine: ENGINE_AUTO.into(),
@@ -1113,7 +1409,7 @@ mod tests {
 
         let created = create_project(
             CreateProjectParams {
-                domain: "new.local".into(),
+                domain: "new.test".into(),
                 http_engine: Some("Apache".into()),
                 php_engine: None,
                 node_engine: None,
@@ -1121,14 +1417,14 @@ mod tests {
             custom.clone(),
         )
         .unwrap();
-        assert_eq!(created.domain, "new.local");
-        assert!(created.path.ends_with("home\\new.local"));
+        assert_eq!(created.domain, "new.test");
+        assert!(created.path.ends_with("home\\new.test"));
         assert_eq!(created.http, "Apache");
         assert_eq!(created.php, "-");
 
-        let ini = root.join("home").join("new.local").join(".osp").join("project.ini");
+        let ini = root.join("home").join("new.test").join(".osp").join("project.ini");
         let content = fs::read_to_string(&ini).unwrap();
-        assert!(content.starts_with("\u{feff}[new.local]\r\n\r\n"));
+        assert!(content.starts_with("\u{feff}[new.test]\r\n\r\n"));
         assert!(content.contains("http_engine       = Apache\r\n"));
         assert!(content.contains("php_engine        = auto\r\n"));
         assert!(content.contains("node_engine       = auto\r\n"));
@@ -1136,7 +1432,7 @@ mod tests {
         // A duplicate is an err.projectExists error.
         let duplicate = create_project(
             CreateProjectParams {
-                domain: "new.local".into(),
+                domain: "new.test".into(),
                 http_engine: None,
                 php_engine: None,
                 node_engine: None,
@@ -1147,7 +1443,7 @@ mod tests {
         assert_eq!(duplicate.code, "err.projectExists");
 
         // An invalid engine errors before directories are created (no garbage in home/).
-        let bad_domain = "rejected.local";
+        let bad_domain = "rejected.test";
         let bad_engine = create_project(
             CreateProjectParams {
                 domain: bad_domain.into(),
@@ -1168,16 +1464,22 @@ mod tests {
     #[test]
     fn delete_project_removes_directory_and_validates() {
         let root = std::env::temp_dir().join(format!("osp-ui-test-del-{}", std::process::id()));
-        let project = root.join("home").join("gone.local");
+        let project = root.join("home").join("gone.test");
         fs::create_dir_all(project.join(".osp")).unwrap();
-        fs::write(project.join(".osp").join("project.ini"), "\u{feff}[gone.local]\r\n").unwrap();
+        fs::write(project.join(".osp").join("project.ini"), "\u{feff}[gone.test]\r\n").unwrap();
         let custom = Some(root.to_string_lossy().into_owned());
 
-        delete_project("gone.local".into(), custom.clone()).unwrap();
+        delete_project("gone.test".into(), custom.clone()).unwrap();
         assert!(!project.exists());
 
-        let missing = delete_project("gone.local".into(), custom.clone()).unwrap_err();
+        let missing = delete_project("gone.test".into(), custom.clone()).unwrap_err();
         assert_eq!(missing.code, "err.projectNotFound");
+
+        fs::create_dir_all(root.join("logs/domains")).unwrap();
+        fs::write(root.join("logs/domains/gone.test_error.log"), "keep orphan log").unwrap();
+        let missing = delete_project("gone.test".into(), custom.clone()).unwrap_err();
+        assert_eq!(missing.code, "err.projectNotFound");
+        assert!(root.join("logs/domains/gone.test_error.log").is_file());
 
         let traversal = delete_project("..\\evil".into(), custom).unwrap_err();
         assert_eq!(traversal.code, "err.invalidDomain");

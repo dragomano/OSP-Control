@@ -27,7 +27,7 @@ describe('Log cleanup', () => {
     contents = new Map([
       ['general.log', ['[09:41:00] [error] CURRENT_ERROR', '[09:41:01] [info] CURRENT_INFO']],
       ['Apache.log', ['[09:42:00] [info] OTHER_LOG']],
-      ['domains/dune.loc_error.log', ['[09:43:00] [error] DOMAIN_ERROR']],
+      ['domains/example.test_error.log', ['[09:43:00] [error] DOMAIN_ERROR']],
     ]);
     logMocks.fetchLogTail
       .mockReset()
@@ -88,9 +88,9 @@ describe('Log cleanup', () => {
     expect(logMocks.clearLogs).toHaveBeenCalledExactlyOnceWith(null);
     expect(screen.getByText('Logs cleared (files: 3)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'general.log' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Domain: dune.loc error' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Domain: example.test error' }));
     await waitFor(() => expect(screen.queryByText('[error] DOMAIN_ERROR')).not.toBeInTheDocument());
-    expect(contents.get('domains/dune.loc_error.log')).toEqual([]);
+    expect(contents.get('domains/example.test_error.log')).toEqual([]);
     expect(
       screen.getByText('The log is empty. New events will appear as the module runs.'),
     ).toBeInTheDocument();

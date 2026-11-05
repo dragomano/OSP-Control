@@ -78,27 +78,27 @@ describe('Settings installation path', () => {
   });
 
   it('shows the detected installation path after snapshot loading', async () => {
-    renderSettings({ installationPath: 'D:\\OSPanel6' });
+    renderSettings({ installationPath: 'X:\\TestPanel' });
     const input = screen.getByRole('textbox', { name: 'OSPanel path' });
 
-    await waitFor(() => expect(input).toHaveValue(String.raw`D:\OSPanel6`));
+    await waitFor(() => expect(input).toHaveValue(String.raw`X:\TestPanel`));
   });
 
   it('keeps a saved path over the detected installation path', () => {
     localStorage.setItem('ospanel.path', 'C:\\CustomPanel');
-    renderSettings({ installationPath: 'D:\\OSPanel6' });
+    renderSettings({ installationPath: 'X:\\TestPanel' });
 
     expect(screen.getByRole('textbox', { name: 'OSPanel path' })).toHaveValue('C:\\CustomPanel');
   });
 
   it('does not overwrite a path edited before snapshot loading', async () => {
-    const { props, view } = renderSettings({ installationPath: 'D:\\OSPanel6' });
+    const { props, view } = renderSettings({ installationPath: 'X:\\TestPanel' });
     const input = screen.getByRole('textbox', { name: 'OSPanel path' });
     fireEvent.change(input, { target: { value: 'E:\\LocalPanel' } });
 
     view.rerender(
       <I18nContext.Provider value={{ lang: 'en', t, plural }}>
-        <Settings {...props} installationPath={'D:\\OSPanel6'} />
+        <Settings {...props} installationPath={'X:\\TestPanel'} />
       </I18nContext.Provider>,
     );
 
@@ -122,15 +122,15 @@ describe('Settings installation path', () => {
   });
 
   it('requires a non-empty path on commit', async () => {
-    const { props } = renderSettings({ installationPath: 'D:\\OSPanel6' });
+    const { props } = renderSettings({ installationPath: 'X:\\TestPanel' });
     const input = screen.getByRole('textbox', { name: 'OSPanel path' });
-    await waitFor(() => expect(input).toHaveValue(String.raw`D:\OSPanel6`));
+    await waitFor(() => expect(input).toHaveValue(String.raw`X:\TestPanel`));
 
     fireEvent.change(input, { target: { value: '' } });
     fireEvent.blur(input);
 
     expect(props.notify).toHaveBeenCalledWith('Specify the OSPanel path');
-    expect(input).toHaveValue(String.raw`D:\OSPanel6`);
+    expect(input).toHaveValue(String.raw`X:\TestPanel`);
   });
 
   it('saves the folder chosen through the picker', async () => {

@@ -51,7 +51,7 @@ type OverviewProps = Parameters<typeof Overview>[0];
 const overviewProps = (overrides: Partial<OverviewProps> = {}): OverviewProps => ({
   runningCount: 2,
   services: [service('Apache'), service('Nginx')],
-  userName: 'Toster',
+  userName: 'Demo User',
   metrics,
   activityLines,
   onNavigate: vi.fn<(page: Page, tab?: SettingsTab) => void>(),
@@ -78,7 +78,7 @@ afterEach(() => {
 describe('Overview header', () => {
   it('greets the user and shows today as the eyebrow', () => {
     renderOverview();
-    expect(screen.getByText('Good afternoon, Toster')).toBeInTheDocument();
+    expect(screen.getByText('Good afternoon, Demo User')).toBeInTheDocument();
     expect(
       screen.getByText(new RegExp(String(new Date().getFullYear())), { selector: '.eyebrow' }),
     ).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe('Overview header', () => {
 
   it('renders the greeting with the given name as is (App owns the fallback)', () => {
     renderOverview({ userName: '' });
-    expect(screen.queryByText('Good afternoon, Toster')).not.toBeInTheDocument();
+    expect(screen.queryByText('Good afternoon, Demo User')).not.toBeInTheDocument();
     expect(screen.getByText('Good afternoon,')).toBeInTheDocument();
   });
 
@@ -102,17 +102,17 @@ describe('Overview header', () => {
   ])('uses local time at %i:%i for the greeting', (hour, minute, greeting) => {
     vi.setSystemTime(new Date(2026, 9, 25, hour, minute));
     renderOverview();
-    expect(screen.getByRole('heading', { name: `${greeting}, Toster` })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: `${greeting}, Demo User` })).toBeInTheDocument();
   });
 
   it('updates the greeting while the overview stays open', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 25, 11, 59));
     const { view } = renderOverview();
-    expect(screen.getByRole('heading', { name: 'Good morning, Toster' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Good morning, Demo User' })).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(60_000));
-    expect(screen.getByRole('heading', { name: 'Good afternoon, Toster' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Good afternoon, Demo User' })).toBeInTheDocument();
 
     view.unmount();
     expect(vi.getTimerCount()).toBe(0);
@@ -125,7 +125,7 @@ describe('Overview header', () => {
     vi.setSystemTime(new Date(2026, 9, 26, 8));
     fireEvent.focus(window);
 
-    expect(screen.getByRole('heading', { name: 'Good morning, Toster' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Good morning, Demo User' })).toBeInTheDocument();
     expect(screen.getByText('Monday, October 26, 2026', { selector: '.eyebrow' })).toBeInTheDocument();
   });
 

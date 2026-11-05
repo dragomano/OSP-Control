@@ -321,7 +321,7 @@ describe('Projects domain renaming', () => {
   it('validates names, prevents duplicate submits and keeps tags, engines and TLS', async () => {
     const notify = vi.fn<Notify>();
     const onRenamed = vi.fn();
-    writeProjectTags(PROJECT_TAGS_KEY, { 'my-shop.test': ['Client'], 'new.local': ['Stale'] });
+    writeProjectTags(PROJECT_TAGS_KEY, { 'my-shop.test': ['Client'], 'new.test': ['Stale'] });
     let finish: (result: { domain: string; path: string }) => void = () => {};
     mocks.renameProject.mockReturnValue(
       new Promise((resolve) => {
@@ -339,19 +339,19 @@ describe('Projects domain renaming', () => {
     fireEvent.change(input, { target: { value: 'LANDING.TEST' } });
     expect(submit).toBeDisabled();
     expect(within(dialog).getByRole('alert')).toHaveTextContent('already exists');
-    fireEvent.change(input, { target: { value: ' New.Local ' } });
+    fireEvent.change(input, { target: { value: ' New.test ' } });
     fireEvent.submit(submit.closest('form') as HTMLFormElement);
     fireEvent.submit(submit.closest('form') as HTMLFormElement);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(dialog).toBeInTheDocument();
     expect(submit).toBeDisabled();
-    expect(mocks.renameProject).toHaveBeenCalledExactlyOnceWith(shopProject, 'new.local');
-    const renamed = { domain: 'new.local', path: 'C:\\OSPanel\\home\\new.local' };
+    expect(mocks.renameProject).toHaveBeenCalledExactlyOnceWith(shopProject, 'new.test');
+    const renamed = { domain: 'new.test', path: 'C:\\OSPanel\\home\\new.test' };
     finish(renamed);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(onRenamed).toHaveBeenCalledWith('my-shop.test', { ...shopProject, ...renamed });
-    expect(readProjectTags(PROJECT_TAGS_KEY)).toEqual({ 'new.local': ['Client'] });
-    expect(notify).toHaveBeenCalledWith(expect.stringContaining('my-shop.test renamed to new.local'), {
+    expect(readProjectTags(PROJECT_TAGS_KEY)).toEqual({ 'new.test': ['Client'] });
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining('my-shop.test renamed to new.test'), {
       label: 'Restart panel',
       run: expect.any(Function),
     });
@@ -361,14 +361,14 @@ describe('Projects domain renaming', () => {
     const onRenamed = vi.fn();
     writeProjectTags(PROJECT_TAGS_KEY, { 'my-shop.test': ['Client'] });
     mocks.renameProject.mockRejectedValue(
-      Object.assign(new Error('err.projectExists'), { params: { domain: 'taken.local' } }),
+      Object.assign(new Error('err.projectExists'), { params: { domain: 'taken.test' } }),
     );
     renderProjects(vi.fn(), [shopProject], onRenamed);
     fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Rename domain' }));
     const dialog = screen.getByRole('dialog', { name: 'Rename domain' });
-    fireEvent.change(within(dialog).getByLabelText('New domain'), { target: { value: 'taken.local' } });
+    fireEvent.change(within(dialog).getByLabelText('New domain'), { target: { value: 'taken.test' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Rename domain' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Project taken.local already exists');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Project taken.test already exists');
     expect(onRenamed).not.toHaveBeenCalled();
     expect(readProjectTags(PROJECT_TAGS_KEY)).toEqual({ 'my-shop.test': ['Client'] });
     expect(within(dialog).getByRole('button', { name: 'Rename domain' })).toBeEnabled();

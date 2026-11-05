@@ -45,6 +45,7 @@ Consider the task complete only when all commands pass without errors. For chang
 - Create an automatic backup before restoring configurations (already implemented).
 - The user edits `locales` files by hand — never overwrite them at runtime.
 - Code comments (TS/TSX, CSS, Rust, configs) — English only. Russian is allowed only in `locales` dictionaries and in data reproducing panel output (test fixtures, log regex parsers).
+- Sample data, tests, placeholders and documentation must use synthetic identities: reserved `.test`/`.example` domains, generic user names and fictional installation paths. Never copy personal project names, user names, profile paths or raw local panel snapshots into the repository.
 
 ## Known specifics
 

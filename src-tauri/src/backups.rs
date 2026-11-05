@@ -520,12 +520,12 @@ mod tests {
             Some((1700000000, true, BackupKind::Db("PostgreSQL-17".into())))
         );
         assert_eq!(
-            parse_backup_id("backup-1700000000-proj-dune.loc"),
-            Some((1700000000, false, BackupKind::Project("dune.loc".into())))
+            parse_backup_id("backup-1700000000-proj-example.test"),
+            Some((1700000000, false, BackupKind::Project("example.test".into())))
         );
         assert_eq!(
-            parse_backup_id("backup-1700000000-auto-proj-dune.loc"),
-            Some((1700000000, true, BackupKind::Project("dune.loc".into())))
+            parse_backup_id("backup-1700000000-auto-proj-example.test"),
+            Some((1700000000, true, BackupKind::Project("example.test".into())))
         );
     }
 
@@ -554,7 +554,7 @@ mod tests {
     #[test]
     fn project_archive_skips_dependency_dirs_and_restores() {
         let root = std::env::temp_dir().join(format!("osp-ui-zip-{}", std::process::id()));
-        let project = root.join("home").join("dune.loc");
+        let project = root.join("home").join("example.test");
         fs::create_dir_all(project.join("app").join("node_modules")).unwrap();
         fs::create_dir_all(project.join("vendor")).unwrap();
         fs::create_dir_all(project.join("empty")).unwrap();
@@ -563,20 +563,21 @@ mod tests {
         fs::write(project.join("vendor").join("lib.php"), "2").unwrap();
 
         let archive = root.join("out.zip");
-        let (size_bytes, files) = zip_dir(&project, "dune.loc", &archive, PROJECT_BACKUP_EXCLUDES).unwrap();
+        let (size_bytes, files) =
+            zip_dir(&project, "example.test", &archive, PROJECT_BACKUP_EXCLUDES).unwrap();
         assert_eq!(files, 1, "node_modules/vendor must not be archived");
         assert!(size_bytes > 0);
 
         let restored = root.join("restored");
-        unzip_to(&archive, &restored, "dune.loc").unwrap();
+        unzip_to(&archive, &restored, "example.test").unwrap();
         assert_eq!(
-            fs::read_to_string(restored.join("dune.loc").join("app").join("index.php")).unwrap(),
+            fs::read_to_string(restored.join("example.test").join("app").join("index.php")).unwrap(),
             "<?php v1"
         );
-        assert!(!restored.join("dune.loc").join("vendor").exists());
-        assert!(!restored.join("dune.loc").join("app").join("node_modules").exists());
+        assert!(!restored.join("example.test").join("vendor").exists());
+        assert!(!restored.join("example.test").join("app").join("node_modules").exists());
         // An empty folder is preserved — a directory entry stays in the archive.
-        assert!(restored.join("dune.loc").join("empty").is_dir());
+        assert!(restored.join("example.test").join("empty").is_dir());
 
         // Entries outside the source directory (first component mismatch) are rejected.
         let mut evil = zip::ZipWriter::new(fs::File::create(root.join("evil.zip")).unwrap());
@@ -586,7 +587,7 @@ mod tests {
             evil.write_all(b"x").unwrap();
             evil.finish().unwrap();
         }
-        let denied = unzip_to(&root.join("evil.zip"), &restored, "dune.loc").unwrap_err();
+        let denied = unzip_to(&root.join("evil.zip"), &restored, "example.test").unwrap_err();
         assert_eq!(denied.code, "err.accessDenied");
 
         fs::remove_dir_all(&root).unwrap();
@@ -658,14 +659,14 @@ mod tests {
     #[test]
     fn project_backup_lifecycle_on_temp_install() {
         let root = std::env::temp_dir().join(format!("osp-ui-bkproj-{}", std::process::id()));
-        let project = root.join("home").join("dune.loc");
+        let project = root.join("home").join("example.test");
         fs::create_dir_all(project.join("app")).unwrap();
         fs::write(project.join("app").join("index.php"), "<?php v1").unwrap();
         let custom = Some(root.to_string_lossy().into_owned());
 
-        let created = create_project_backup("dune.loc".into(), custom.clone()).unwrap();
+        let created = create_project_backup("example.test".into(), custom.clone()).unwrap();
         assert_eq!(created.kind, "project");
-        assert_eq!(created.subject.as_deref(), Some("dune.loc"));
+        assert_eq!(created.subject.as_deref(), Some("example.test"));
         assert_eq!(created.files, 1);
         assert!(root.join("backups").join(format!("{}.zip", created.id)).is_file());
 
@@ -676,7 +677,7 @@ mod tests {
         let list = list_backups(custom.clone()).unwrap();
         assert_eq!(list.len(), 2, "the project archive + the auto archive before the restore");
         assert!(
-            list.iter().all(|item| item.kind == "project" && item.subject.as_deref() == Some("dune.loc"))
+            list.iter().all(|item| item.kind == "project" && item.subject.as_deref() == Some("example.test"))
         );
 
         let bad = create_project_backup("..\\evil".into(), custom.clone()).unwrap_err();

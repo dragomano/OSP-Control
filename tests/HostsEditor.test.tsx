@@ -12,7 +12,7 @@ vi.mock('../src/ospanel', async (original) => ({
   flushHostsDns: vi.fn(),
 }));
 const content =
-  '# Header\n# OPEN SERVER PANEL: START OF THE LIST\n127.0.1.32 panel.local\n# OPEN SERVER PANEL: END OF THE LIST\n\n127.0.0.1 api.local # API\n';
+  '# Header\n# OPEN SERVER PANEL: START OF THE LIST\n127.0.1.32 panel.test\n# OPEN SERVER PANEL: END OF THE LIST\n\n127.0.0.1 api.test # API\n';
 const document = {
   content,
   revision: 'initial',
@@ -46,27 +46,27 @@ afterEach(cleanup);
 describe('HostsEditor', () => {
   it('loads in StrictMode, leaves OSPanel rows locked in the table and does not save on open', async () => {
     mount(true);
-    expect(await screen.findByRole('switch', { name: 'Enable panel.local' })).toBeDisabled();
-    expect(screen.getByRole('switch', { name: 'Enable api.local' })).toBeEnabled();
+    expect(await screen.findByRole('switch', { name: 'Enable panel.test' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Enable api.test' })).toBeEnabled();
     expect(writeHosts).not.toHaveBeenCalled();
   });
 
   it('adds a pasted block once, then synchronizes table and text without losing comments', async () => {
     mount();
-    await screen.findByText('panel.local');
+    await screen.findByText('panel.test');
     fireEvent.click(screen.getByRole('button', { name: 'Add multiple' }));
     const dialog = screen.getByRole('dialog', { name: 'Add multiple entries' });
     fireEvent.change(within(dialog).getByRole('textbox'), {
-      target: { value: '# Group\n127.0.0.1 shop.local\n# 127.0.0.1 archive.local' },
+      target: { value: '# Group\n127.0.0.1 shop.test\n# 127.0.0.1 archive.test' },
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add entries' }));
-    expect(screen.getByRole('switch', { name: 'Enable archive.local' })).toHaveAttribute(
+    expect(screen.getByRole('switch', { name: 'Enable archive.test' })).toHaveAttribute(
       'aria-checked',
       'false',
     );
     fireEvent.click(screen.getByRole('button', { name: 'File text' }));
     const text = screen.getByRole('textbox', { name: 'Full hosts file' });
-    expect(text).toHaveValue(`${content}# Group\n127.0.0.1 shop.local\n# 127.0.0.1 archive.local\n`);
+    expect(text).toHaveValue(`${content}# Group\n127.0.0.1 shop.test\n# 127.0.0.1 archive.test\n`);
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save and apply' }));
     await waitFor(() => expect(writeHosts).toHaveBeenCalledTimes(1));
@@ -76,42 +76,42 @@ describe('HostsEditor', () => {
 
   it('keeps invalid text and the dirty draft when switching views or requesting close', async () => {
     mount();
-    await screen.findByText('panel.local');
+    await screen.findByText('panel.test');
     fireEvent.click(screen.getByRole('button', { name: 'File text' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Full hosts file' }), {
-      target: { value: `${content}999.0.0.1 broken.local` },
+      target: { value: `${content}999.0.0.1 broken.test` },
     });
     expect(screen.getByRole('button', { name: 'Save and apply' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
     fireEvent.click(screen.getByRole('button', { name: 'File text' }));
     expect(screen.getByRole('textbox', { name: 'Full hosts file' })).toHaveValue(
-      `${content}999.0.0.1 broken.local`,
+      `${content}999.0.0.1 broken.test`,
     );
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]);
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
     expect(screen.getByRole('textbox', { name: 'Full hosts file' })).toHaveValue(
-      `${content}999.0.0.1 broken.local`,
+      `${content}999.0.0.1 broken.test`,
     );
   });
 
   it('highlights properties safely while keeping editable text and scrolling synchronized', async () => {
     const { container } = mount();
-    await screen.findByText('panel.local');
+    await screen.findByText('panel.test');
     fireEvent.click(screen.getByRole('button', { name: 'File text' }));
     const text = screen.getByRole('textbox', { name: 'Full hosts file' });
     const highlight = container.querySelector('.hosts-file-highlight') as HTMLPreElement;
     expect(highlight).toHaveAttribute('aria-hidden', 'true');
     expect(highlight.querySelector('.hljs-comment')).toHaveTextContent('# Header');
     expect(highlight.querySelector('.hljs-attr')).toHaveTextContent('127.0.1.32');
-    expect(highlight.querySelector('.hljs-string')).toHaveTextContent('panel.local');
+    expect(highlight.querySelector('.hljs-string')).toHaveTextContent('panel.test');
 
-    const next = '# <img src=x onerror=alert(1)>\n127.0.0.1\tshop.local\n::1 localhost\n\n';
+    const next = '# <img src=x onerror=alert(1)>\n127.0.0.1\tshop.test\n::1 localhost\n\n';
     fireEvent.change(text, { target: { value: next } });
     expect(text).toHaveValue(next);
     expect(highlight.textContent).toBe(`${next}\n`);
     expect(highlight.querySelector('img')).toBeNull();
-    expect(highlight.querySelector('.hljs-string')).toHaveTextContent('shop.local');
+    expect(highlight.querySelector('.hljs-string')).toHaveTextContent('shop.test');
 
     fireEvent.scroll(text, { target: { scrollTop: 100, scrollLeft: 80 } });
     expect(highlight.scrollTop).toBe(100);
@@ -122,11 +122,11 @@ describe('HostsEditor', () => {
   it('preserves the draft and revision after another program changes hosts', async () => {
     vi.mocked(writeHosts).mockRejectedValue(new Error('err.hostsConflict'));
     mount();
-    await screen.findByText('panel.local');
-    fireEvent.click(screen.getByRole('switch', { name: 'Enable api.local' }));
+    await screen.findByText('panel.test');
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable api.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save and apply' }));
     expect(await screen.findByText(t('err.hostsConflict'))).toBeVisible();
-    expect(screen.getByRole('switch', { name: 'Enable api.local' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('switch', { name: 'Enable api.test' })).toHaveAttribute('aria-checked', 'false');
     expect(readHosts).toHaveBeenCalledTimes(1);
   });
 
@@ -135,11 +135,11 @@ describe('HostsEditor', () => {
     async (code) => {
       vi.mocked(writeHosts).mockRejectedValueOnce(new Error(code));
       mount();
-      await screen.findByText('panel.local');
-      fireEvent.click(screen.getByRole('switch', { name: 'Enable api.local' }));
+      await screen.findByText('panel.test');
+      fireEvent.click(screen.getByRole('switch', { name: 'Enable api.test' }));
       fireEvent.click(screen.getByRole('button', { name: 'Save and apply' }));
       expect(await screen.findByText(t(code))).toBeVisible();
-      expect(screen.getByRole('switch', { name: 'Enable api.local' })).toHaveAttribute(
+      expect(screen.getByRole('switch', { name: 'Enable api.test' })).toHaveAttribute(
         'aria-checked',
         'false',
       );
@@ -158,8 +158,8 @@ describe('HostsEditor', () => {
       dnsFlushed: false,
     }));
     mount();
-    await screen.findByText('panel.local');
-    fireEvent.click(screen.getByRole('switch', { name: 'Enable api.local' }));
+    await screen.findByText('panel.test');
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable api.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save and apply' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Retry DNS cache clearing' }));
     expect(await screen.findByText('Hosts saved and Windows DNS cache cleared.')).toBeVisible();

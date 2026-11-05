@@ -179,7 +179,7 @@
   "projects.menuModules": "Module versions",
   "projects.createTitle": "New project",
   "projects.createDomain": "Domain name",
-  "projects.createDomainPlaceholder": "my-project.local",
+  "projects.createDomainPlaceholder": "my-project.test",
   "projects.createHint": "Will create the home/<domain> folder with .osp\\project.ini. Domain: Latin letters, digits, dot and dash only.",
   "projects.createHttpEngine": "HTTP engine",
   "projects.createPhpEngine": "PHP version",

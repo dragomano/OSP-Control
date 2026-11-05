@@ -169,7 +169,7 @@ const mockSnapshot: OsPanelSnapshot = {
   projects: [
     { domain: 'my-shop.test', path: 'C:\\OSPanel\\domains\\my-shop', php: '8.3', type: 'Laravel', ssl: true },
     { domain: 'landing.test', path: 'C:\\OSPanel\\domains\\landing', php: '8.2', type: 'Static', ssl: false },
-    { domain: 'api.local', path: 'C:\\OSPanel\\domains\\api', php: '8.3', type: 'Node + PHP', ssl: true },
+    { domain: 'api.test', path: 'C:\\OSPanel\\domains\\api', php: '8.3', type: 'Node + PHP', ssl: true },
   ],
 };
 
@@ -504,7 +504,7 @@ export async function listLogSources(): Promise<LogSource[]> {
   return [
     { name: 'general.log', label: 'general.log', domain: false },
     { name: 'Apache.log', label: 'Apache.log', domain: false },
-    { name: 'domains/dune.loc_error.log', label: 'dune.loc error', domain: true },
+    { name: 'domains/example.test_error.log', label: 'example.test error', domain: true },
   ];
 }
 
@@ -716,7 +716,7 @@ export type UserInfo = { name: string };
 export async function getUserInfo(): Promise<UserInfo> {
   if (isTauri()) return invoke<UserInfo>('get_user_info');
 
-  return { name: 'Toster' };
+  return { name: 'Demo User' };
 }
 
 export async function askConfirm(message: string, title?: string): Promise<boolean> {

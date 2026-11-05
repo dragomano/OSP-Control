@@ -572,7 +572,7 @@ function HostsEntrySheet({
                     value={block}
                     onChange={(event) => setBlock(event.target.value)}
                     spellCheck={false}
-                    placeholder={'127.0.0.1 shop.local www.shop.local\n127.0.0.1 api.shop.local'}
+                    placeholder={'127.0.0.1 shop.test www.shop.test\n127.0.0.1 api.shop.test'}
                   />
                 </label>
                 <p className="modal-hint" role="status">
