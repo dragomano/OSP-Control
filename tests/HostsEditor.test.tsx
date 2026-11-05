@@ -29,6 +29,7 @@ const mount = (strict = false) => {
   );
   return render(strict ? <StrictMode>{editor}</StrictMode> : editor);
 };
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(readHosts).mockResolvedValue({ ...document });
@@ -39,6 +40,7 @@ beforeEach(() => {
   }));
   vi.mocked(flushHostsDns).mockResolvedValue();
 });
+
 afterEach(cleanup);
 
 describe('HostsEditor', () => {
@@ -48,6 +50,7 @@ describe('HostsEditor', () => {
     expect(screen.getByRole('switch', { name: 'Enable api.local' })).toBeEnabled();
     expect(writeHosts).not.toHaveBeenCalled();
   });
+
   it('adds a pasted block once, then synchronizes table and text without losing comments', async () => {
     mount();
     await screen.findByText('panel.local');
@@ -70,6 +73,7 @@ describe('HostsEditor', () => {
     expect(vi.mocked(writeHosts).mock.calls[0][1]).toBe('initial');
     expect(await screen.findByText('Hosts saved and Windows DNS cache cleared.')).toBeVisible();
   });
+
   it('keeps invalid text and the dirty draft when switching views or requesting close', async () => {
     mount();
     await screen.findByText('panel.local');
@@ -90,6 +94,31 @@ describe('HostsEditor', () => {
       `${content}999.0.0.1 broken.local`,
     );
   });
+
+  it('highlights properties safely while keeping editable text and scrolling synchronized', async () => {
+    const { container } = mount();
+    await screen.findByText('panel.local');
+    fireEvent.click(screen.getByRole('button', { name: 'File text' }));
+    const text = screen.getByRole('textbox', { name: 'Full hosts file' });
+    const highlight = container.querySelector('.hosts-file-highlight') as HTMLPreElement;
+    expect(highlight).toHaveAttribute('aria-hidden', 'true');
+    expect(highlight.querySelector('.hljs-comment')).toHaveTextContent('# Header');
+    expect(highlight.querySelector('.hljs-attr')).toHaveTextContent('127.0.1.32');
+    expect(highlight.querySelector('.hljs-string')).toHaveTextContent('panel.local');
+
+    const next = '# <img src=x onerror=alert(1)>\n127.0.0.1\tshop.local\n::1 localhost\n\n';
+    fireEvent.change(text, { target: { value: next } });
+    expect(text).toHaveValue(next);
+    expect(highlight.textContent).toBe(`${next}\n`);
+    expect(highlight.querySelector('img')).toBeNull();
+    expect(highlight.querySelector('.hljs-string')).toHaveTextContent('shop.local');
+
+    fireEvent.scroll(text, { target: { scrollTop: 100, scrollLeft: 80 } });
+    expect(highlight.scrollTop).toBe(100);
+    expect(highlight.scrollLeft).toBe(80);
+    expect(writeHosts).not.toHaveBeenCalled();
+  });
+
   it('preserves the draft and revision after another program changes hosts', async () => {
     vi.mocked(writeHosts).mockRejectedValue(new Error('err.hostsConflict'));
     mount();
@@ -100,6 +129,7 @@ describe('HostsEditor', () => {
     expect(screen.getByRole('switch', { name: 'Enable api.local' })).toHaveAttribute('aria-checked', 'false');
     expect(readHosts).toHaveBeenCalledTimes(1);
   });
+
   it.each(['err.hostsElevationCancelled', 'err.hostsHelperTimeout'])(
     'keeps the draft and original revision after %s and permits retry',
     async (code) => {
@@ -120,6 +150,7 @@ describe('HostsEditor', () => {
       expect(vi.mocked(writeHosts).mock.calls.map((call) => call[1])).toEqual(['initial', 'initial']);
     },
   );
+
   it('reports partial DNS failure and retries it without writing a second time', async () => {
     vi.mocked(writeHosts).mockImplementation(async (next) => ({
       document: { ...document, content: next, revision: 'saved' },

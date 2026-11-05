@@ -171,6 +171,7 @@
   color: var(--muted);
 }
 .hosts-file-text,
+.hosts-file-highlight,
 .hosts-batch-text {
   width: 100%;
   resize: vertical;
@@ -186,6 +187,43 @@
 }
 .hosts-file-text {
   min-height: 300px;
+  display: block;
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+}
+.hosts-file-editor {
+  position: relative;
+  min-width: 0;
+  border-radius: 7px;
+  background: var(--panel2);
+}
+.hosts-file-text,
+.hosts-file-highlight {
+  white-space: pre;
+  overflow-wrap: normal;
+  scrollbar-gutter: stable;
+}
+.hosts-file-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-color: transparent;
+  resize: none;
+}
+.hosts-file-highlight span {
+  font: inherit;
+}
+@media (forced-colors: active) {
+  .hosts-file-highlight {
+    display: none;
+  }
+  .hosts-file-text {
+    color: CanvasText;
+  }
 }
 .hosts-batch-text {
   min-height: 170px;

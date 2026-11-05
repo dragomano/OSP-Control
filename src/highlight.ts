@@ -3,6 +3,7 @@ import apache from 'highlight.js/lib/languages/apache';
 import ini from 'highlight.js/lib/languages/ini';
 import json from 'highlight.js/lib/languages/json';
 import nginx from 'highlight.js/lib/languages/nginx';
+import properties from 'highlight.js/lib/languages/properties';
 import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
 
@@ -12,6 +13,7 @@ hljs.registerLanguage('nginx', nginx);
 hljs.registerLanguage('yaml', yaml);
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('xml', xml);
+hljs.registerLanguage('properties', properties);
 
 const LANG_BY_EXT: Record<string, string> = {
   ini: 'ini',
@@ -29,10 +31,7 @@ const LANG_BY_EXT: Record<string, string> = {
 
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export function highlightConfig(fileName: string, content: string): string {
-  const ext = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();
-  const language = LANG_BY_EXT[ext];
-
+function highlightText(content: string, language?: string): string {
   if (!language) return escapeHtml(content);
 
   try {
@@ -40,4 +39,13 @@ export function highlightConfig(fileName: string, content: string): string {
   } catch {
     return escapeHtml(content);
   }
+}
+
+export function highlightConfig(fileName: string, content: string): string {
+  const ext = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();
+  return highlightText(content, LANG_BY_EXT[ext]);
+}
+
+export function highlightHosts(content: string): string {
+  return highlightText(content, 'properties');
 }

@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { highlightHosts } from '../../highlight';
 import {
   appendHostsBlock,
   changeHostsEntry,
@@ -93,10 +94,12 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
   const [discard, setDiscard] = useState<'close' | 'reload' | null>(null);
   const [limit, setLimit] = useState(100);
   const windowRef = useRef<HTMLDivElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
   const pending = useRef(false);
   const request = useRef(0);
   const dirty = document !== null && document.content !== content;
   const parsed = useMemo(() => parseHosts(content), [content]);
+  const highlighted = useMemo(() => (view === 'text' ? highlightHosts(content) : ''), [content, view]);
   const managedChanged = document && hostsManagedBlocks(document.content) !== hostsManagedBlocks(content);
   const blocked = loading || busy;
   const inputId = useId();
@@ -279,17 +282,34 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                 {t(view === 'table' ? 'hosts.managedHint' : 'hosts.textHint')}
               </p>
               {view === 'text' ? (
-                <label className="hosts-file-label" htmlFor={inputId}>
-                  <span>{t('hosts.fullFile')}</span>
-                  <textarea
-                    id={inputId}
-                    className="hosts-file-text"
-                    spellCheck={false}
-                    value={content}
-                    disabled={blocked}
-                    onChange={(event) => change(event.target.value)}
-                  />
-                </label>
+                <div className="hosts-file-label">
+                  <label htmlFor={inputId}>{t('hosts.fullFile')}</label>
+                  <div className="hosts-file-editor">
+                    <pre
+                      ref={highlightRef}
+                      className="hosts-file-highlight hljs"
+                      aria-hidden="true"
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: highlightHosts escapes local text via highlight.js or escapeHtml.
+                      dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }}
+                    />
+                    <textarea
+                      id={inputId}
+                      className="hosts-file-text"
+                      spellCheck={false}
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      wrap="off"
+                      value={content}
+                      disabled={blocked}
+                      onChange={(event) => change(event.target.value)}
+                      onScroll={(event) => {
+                        if (!highlightRef.current) return;
+                        highlightRef.current.scrollTop = event.currentTarget.scrollTop;
+                        highlightRef.current.scrollLeft = event.currentTarget.scrollLeft;
+                      }}
+                    />
+                  </div>
+                </div>
               ) : (
                 <div className="hosts-table-wrap">
                   <table className="hosts-table">
