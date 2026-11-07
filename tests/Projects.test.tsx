@@ -54,6 +54,7 @@ const renderProjects = (
   notify: Notify,
   projects: OsPanelProject[] = [shopProject, landingProject],
   onProjectRenamed = vi.fn(),
+  onRestartPanel = vi.fn(),
 ) =>
   render(
     <I18nContext.Provider value={{ lang: 'en', t, plural }}>
@@ -67,7 +68,7 @@ const renderProjects = (
         onProjectRenamed={onProjectRenamed}
         onProjectDeleted={vi.fn()}
         onToggleSsl={vi.fn()}
-        onRestartPanel={vi.fn()}
+        onRestartPanel={onRestartPanel}
       />
     </I18nContext.Provider>,
   );
@@ -291,6 +292,33 @@ describe('Projects row menu', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('offers the shared panel restart after saving module versions and dismissing the dialog', async () => {
+    const notify = vi.fn<Notify>();
+    const onRestartPanel = vi.fn();
+    mocks.saveProjectSettings.mockImplementation(async (domain, settings) => ({
+      domain,
+      ...settings,
+      fileExists: true,
+    }));
+    renderProjects(notify, [shopProject], vi.fn(), onRestartPanel);
+
+    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Module versions' }));
+    fireEvent.change(await screen.findByRole('combobox', { name: 'PHP version' }), {
+      target: { value: 'PHP_8.3' },
+    });
+    expect(notify).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(notify).toHaveBeenCalledExactlyOnceWith(
+      'Module versions for my-shop.test saved — restart the panel to apply',
+      { label: 'Restart panel', run: onRestartPanel },
+    );
+    expect(onRestartPanel).not.toHaveBeenCalled();
+    notify.mock.calls[0][1]?.run();
+    expect(onRestartPanel).toHaveBeenCalledOnce();
   });
 
   it('opens the project folder and reports a failure', async () => {

@@ -672,7 +672,12 @@ function ProjectsContent({
         </div>
       )}
       {modulesFor && (
-        <ProjectModulesDialog project={modulesFor} notify={notify} onClose={() => setModulesFor(null)} />
+        <ProjectModulesDialog
+          project={modulesFor}
+          notify={notify}
+          onRestartPanel={onRestartPanel}
+          onClose={() => setModulesFor(null)}
+        />
       )}
       {renameFor && (
         <RenameProjectDialog

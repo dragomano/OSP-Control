@@ -20,10 +20,12 @@ import { ModuleSelect } from './ModuleSelect';
 export function ProjectModulesDialog({
   project,
   notify,
+  onRestartPanel,
   onClose,
 }: {
   project: OsPanelProject;
   notify: Notify;
+  onRestartPanel: () => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -87,7 +89,11 @@ export function ProjectModulesDialog({
         tlsEnabled: next.tlsEnabled,
       });
 
-      notify(t('projects.toastModulesSaved', { domain: displayProjectDomain(project.domain) }));
+      notify(t('projects.toastModulesSaved', { domain: displayProjectDomain(project.domain) }), {
+        label: t('projects.restartPanel'),
+        run: onRestartPanel,
+      });
+      onClose();
     } catch (error) {
       notify(errorText(t, error, 'projects.toastModulesFailed'));
     } finally {

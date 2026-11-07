@@ -277,9 +277,17 @@ describe('CreateProjectDialog', () => {
 describe('ProjectModulesDialog', () => {
   const renderDialog = () => {
     const notify = vi.fn<Notify>();
+    const onRestartPanel = vi.fn();
     const onClose = vi.fn();
-    renderI18n(<ProjectModulesDialog project={project} notify={notify} onClose={onClose} />);
-    return { notify, onClose };
+    renderI18n(
+      <ProjectModulesDialog
+        project={project}
+        notify={notify}
+        onRestartPanel={onRestartPanel}
+        onClose={onClose}
+      />,
+    );
+    return { notify, onRestartPanel, onClose };
   };
 
   it('loads the saved values and shows the global engine hints', async () => {
@@ -307,12 +315,12 @@ describe('ProjectModulesDialog', () => {
     expect(screen.queryByText('Global setting: Apache')).not.toBeInTheDocument();
   });
 
-  it('saves the draft and clears the dirty state', async () => {
+  it('saves the draft, closes the dialog and offers a panel restart', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
     mocks.getProjectSettings.mockResolvedValue(projectSettings);
     mocks.getGlobalProjectEngines.mockRejectedValue(new Error('boom'));
     mocks.saveProjectSettings.mockResolvedValue({ ...projectSettings, httpEngine: 'Nginx_1.25' });
-    const { notify } = renderDialog();
+    const { notify, onRestartPanel, onClose } = renderDialog();
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'HTTP engine' }), {
       target: { value: 'Nginx_1.25' },
@@ -321,7 +329,12 @@ describe('ProjectModulesDialog', () => {
     expect(save).toBeEnabled();
     fireEvent.click(save);
 
-    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Module versions for shop.test saved'));
+    await vi.waitFor(() =>
+      expect(notify).toHaveBeenCalledWith(
+        'Module versions for shop.test saved — restart the panel to apply',
+        { label: 'Restart panel', run: onRestartPanel },
+      ),
+    );
     expect(mocks.saveProjectSettings).toHaveBeenCalledWith('shop.test', {
       httpEngine: 'Nginx_1.25',
       phpEngine: 'PHP_8.2',
@@ -329,14 +342,18 @@ describe('ProjectModulesDialog', () => {
       tlsEnabled: 'on',
     });
     expect(save).toBeDisabled();
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onRestartPanel).not.toHaveBeenCalled();
+    notify.mock.calls[0][1]?.run();
+    expect(onRestartPanel).toHaveBeenCalledOnce();
   });
 
-  it('reports a failed save', async () => {
+  it('reports a failed save without closing or offering a restart', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
     mocks.getProjectSettings.mockResolvedValue(projectSettings);
     mocks.getGlobalProjectEngines.mockRejectedValue(new Error('boom'));
     mocks.saveProjectSettings.mockRejectedValue(new Error('boom'));
-    const { notify } = renderDialog();
+    const { notify, onRestartPanel, onClose } = renderDialog();
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'HTTP engine' }), {
       target: { value: 'Nginx_1.25' },
@@ -344,6 +361,10 @@ describe('ProjectModulesDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith(MODULES_FAILED));
+    expect(notify).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onRestartPanel).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 
   it('opens project.ini from the file link and reports a failure', async () => {
