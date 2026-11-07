@@ -134,6 +134,8 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
   });
 
   it('desktop-only commands reject with err.desktopOnly outside Tauri', async () => {
+    const { startOsPanel } = await import('../src/ospanel');
+    await expect(startOsPanel()).rejects.toThrow('err.desktopOnly');
     await expect(openProjectFolder('C:\\x')).rejects.toThrow('err.desktopOnly');
     await expect(openFileExternally('C:\\x.log')).rejects.toThrow('err.desktopOnly');
     await expect(restoreBackup('id')).rejects.toThrow('err.desktopOnly');

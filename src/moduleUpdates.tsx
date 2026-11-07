@@ -43,11 +43,13 @@ export function ModuleUpdatesProvider({
   refresh,
   blocked,
   onBusy,
+  startupReady = true,
 }: {
   children: ReactNode;
   refresh: () => Promise<boolean>;
   blocked: boolean;
   onBusy: (busy: boolean) => void;
+  startupReady?: boolean;
 }) {
   const { t } = useI18n();
   const [updates, setUpdates] = useState<ModuleUpdate[]>([]);
@@ -58,6 +60,7 @@ export function ModuleUpdatesProvider({
   const [message, setMessage] = useState('');
   const locks = useRef(new Set<string>());
   const checkLock = useRef(false);
+  const startupChecked = useRef(false);
   const generation = useRef(0);
   const reset = useCallback(() => {
     if (locks.current.size > 0) return;
@@ -89,11 +92,13 @@ export function ModuleUpdatesProvider({
     },
     [t],
   );
-  // biome-ignore lint/correctness/useExhaustiveDependencies: startup check runs once per mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: startup check waits for the panel, not language changes
   useEffect(() => {
+    if (!startupReady || startupChecked.current) return;
+    startupChecked.current = true;
     if (settingsStorage.getItem('ospanel.checkServiceUpdates') !== '1' || !isDesktopApp()) return;
     void check(false);
-  }, []);
+  }, [startupReady]);
   const blockedRef = useRef(blocked);
   blockedRef.current = blocked;
   const install = async (name: string, recover = false) => {

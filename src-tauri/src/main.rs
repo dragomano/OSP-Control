@@ -253,6 +253,7 @@ fn main() {
             module_updates::recover_module_update,
             services::discover_ospanel,
             services::panel_online,
+            services::start_ospanel,
             services::overview_metrics,
             services::service_action,
             projects::project_module_options,

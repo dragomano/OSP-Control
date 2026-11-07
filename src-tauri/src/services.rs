@@ -10,7 +10,7 @@ use crate::panel_api::{
     Project, Service, active_profile_settings, api_json, classify_module, dat_field, dat_node_map,
     dat_string_value, module_port, modules_from_api, projects_from_api, read_osp_version, services_from_json,
 };
-use crate::paths::{hidden_command, is_valid_module_name, now_iso, resolve_installation};
+use crate::paths::{external_path, hidden_command, is_valid_module_name, now_iso, resolve_installation};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -332,6 +332,93 @@ pub fn service_action(
     })
 }
 
+// Process identity is checked independently of the HTTP API: the process can be
+// running while its API is still starting or has been disabled.
+#[cfg(windows)]
+fn panel_process_running(executable: &Path) -> Result<bool, CommandError> {
+    use windows::{
+        Win32::{
+            Foundation::CloseHandle,
+            System::{
+                ProcessStatus::EnumProcesses,
+                Threading::{
+                    OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+                    QueryFullProcessImageNameW,
+                },
+            },
+        },
+        core::PWSTR,
+    };
+
+    let expected = external_path(executable).to_string_lossy().to_lowercase();
+    let mut pids = vec![0u32; 65536];
+    let mut returned = 0;
+    unsafe {
+        EnumProcesses(pids.as_mut_ptr(), std::mem::size_of_val(pids.as_slice()) as u32, &mut returned)
+            .map_err(|_| CommandError::new("err.panelStartFailed"))?;
+    }
+    if returned as usize >= std::mem::size_of_val(pids.as_slice()) {
+        return Err(CommandError::new("err.panelStartFailed"));
+    }
+    for pid in &pids[..returned as usize / std::mem::size_of::<u32>()] {
+        unsafe {
+            let Ok(handle) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, *pid) else {
+                continue;
+            };
+            let mut buffer = vec![0u16; 32768];
+            let mut len = buffer.len() as u32;
+            let queried =
+                QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, PWSTR(buffer.as_mut_ptr()), &mut len)
+                    .is_ok();
+            let _ = CloseHandle(handle);
+            if queried && String::from_utf16_lossy(&buffer[..len as usize]).to_lowercase() == expected {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+#[cfg(not(windows))]
+fn panel_process_running(_: &Path) -> Result<bool, CommandError> {
+    Err(CommandError::new("err.desktopOnly"))
+}
+
+fn ensure_panel_started(
+    root: &Path,
+    running: impl FnOnce(&Path) -> Result<bool, CommandError>,
+    launch: impl FnOnce(&Path, &Path) -> Result<(), CommandError>,
+) -> Result<(), CommandError> {
+    let root = fs::canonicalize(root).map_err(|_| CommandError::new("err.ospanelNotFound"))?;
+    let executable = fs::canonicalize(root.join("bin/ospanel.exe"))
+        .map_err(|_| CommandError::new("err.ospanelNotFound"))?;
+    if !executable.starts_with(&root) || !executable.is_file() {
+        return Err(CommandError::new("err.accessDenied"));
+    }
+    if !running(&executable)? {
+        launch(&external_path(&executable), &external_path(&root))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn start_ospanel(custom_path: String) -> Result<(), CommandError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = crate::module_updates::mutation()?;
+        // Startup requires an explicitly configured installation; never fall back
+        // to another installation when the saved path is missing or invalid.
+        if custom_path.trim().is_empty() {
+            return Err(CommandError::new("err.ospanelNotFound"));
+        }
+        ensure_panel_started(Path::new(custom_path.trim()), panel_process_running, |executable, root| {
+            hidden_command(executable).current_dir(root).spawn().map_err(spawn_failed)?;
+            Ok(())
+        })
+    })
+    .await
+    .map_err(|_| CommandError::new("err.panelStartFailed"))?
+}
+
 // --- Restarting the OSPanel panel ---
 // osp.bat exit stops the panel together with the modules, then we launch
 // ospanel.exe again. This is the same fast path as the panel's own restart
@@ -359,6 +446,81 @@ pub fn restart_ospanel(custom_path: Option<String>) -> Result<(), CommandError> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct PanelFixture(std::path::PathBuf);
+
+    impl PanelFixture {
+        fn new() -> Self {
+            let nonce =
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+            let root = std::env::temp_dir().join(format!("osp-startup-{}-{nonce}", std::process::id()));
+            fs::create_dir_all(root.join("bin")).unwrap();
+            fs::write(root.join("bin/ospanel.exe"), b"fixture").unwrap();
+            Self(root)
+        }
+    }
+
+    impl Drop for PanelFixture {
+        fn drop(&mut self) {
+            assert_eq!(self.0.parent(), Some(std::env::temp_dir().as_path()));
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn startup_launches_the_configured_executable_in_its_installation() {
+        let panel = PanelFixture::new();
+        let mut launched = false;
+        ensure_panel_started(
+            &panel.0,
+            |_| Ok(false),
+            |executable, root| {
+                assert_eq!(root, external_path(&fs::canonicalize(&panel.0).unwrap()));
+                assert_eq!(executable, root.join("bin/ospanel.exe"));
+                launched = true;
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(launched);
+    }
+
+    #[test]
+    fn startup_does_not_launch_an_existing_process_even_without_an_api() {
+        let panel = PanelFixture::new();
+        ensure_panel_started(&panel.0, |_| Ok(true), |_, _| panic!("duplicate launch")).unwrap();
+    }
+
+    #[test]
+    fn startup_rejects_a_missing_executable_without_falling_back() {
+        let panel = PanelFixture::new();
+        fs::remove_file(panel.0.join("bin/ospanel.exe")).unwrap();
+        let error =
+            ensure_panel_started(&panel.0, |_| panic!("invalid executable"), |_, _| panic!("invalid launch"))
+                .unwrap_err();
+        assert_eq!(error.code, "err.ospanelNotFound");
+    }
+
+    #[test]
+    fn startup_does_not_launch_if_process_detection_fails() {
+        let panel = PanelFixture::new();
+        let error = ensure_panel_started(
+            &panel.0,
+            |_| Err(CommandError::new("err.panelStartFailed")),
+            |_, _| panic!("unverified launch"),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "err.panelStartFailed");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn startup_process_detection_matches_the_full_executable_path() {
+        let executable = fs::canonicalize(std::env::current_exe().unwrap()).unwrap();
+        assert!(panel_process_running(&executable).unwrap());
+        let panel = PanelFixture::new();
+        assert!(!panel_process_running(&fs::canonicalize(panel.0.join("bin/ospanel.exe")).unwrap()).unwrap());
+    }
 
     // Overview metrics: enabled modules and their addresses; reachability is stubbed.
     #[test]

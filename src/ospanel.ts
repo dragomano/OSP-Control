@@ -853,6 +853,15 @@ export async function renameProject(project: OsPanelProject, newDomain: string):
   throw new Error('err.desktopOnly');
 }
 
+// Ensure the configured panel process exists, even while its HTTP API is still starting.
+export async function startOsPanel(): Promise<void> {
+  if (isTauri()) {
+    await invoke('start_ospanel', { customPath: settingsStorage.getItem('ospanel.path') ?? '' });
+    return;
+  }
+  throw new Error('err.desktopOnly');
+}
+
 // Panel restart: osp.bat exit, then ospanel.exe. At startup the panel
 // rescans home/ — the created domains make it into its project list.
 export async function restartOsPanel(): Promise<void> {

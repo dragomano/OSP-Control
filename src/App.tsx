@@ -77,6 +77,7 @@ import {
   refreshService,
   restartOsPanel,
   saveProjectSettings,
+  startOsPanel,
   waitForPanelReady,
 } from './ospanel';
 import { displayProjectDomain } from './projectDomain';
@@ -183,6 +184,9 @@ function App() {
   const logRequestRef = useRef(0);
   const inFlightServicesRef = useRef(new Set<string>());
   const panelRestartRef = useRef(false);
+  const panelStartupRef = useRef<Promise<boolean> | null>(null);
+  const [panelStarting, setPanelStarting] = useState(() => isDesktopApp());
+  const panelStartingRef = useRef(panelStarting);
   const updateBusyRef = useRef(false);
   const autostartBusyRef = useRef(false);
   const [autostartBusy, setAutostartBusy] = useState(false);
@@ -311,6 +315,7 @@ function App() {
   // service command sent in that window would be lost.
   const restartPanelNow = async (toastKey: string, errorKey: string): Promise<boolean> => {
     if (
+      panelStartingRef.current ||
       panelRestartRef.current ||
       updateBusyRef.current ||
       appUpdatingRef.current ||
@@ -432,11 +437,6 @@ function App() {
     await restartPanelNow('projects.toastPanelRestarting', 'projects.toastPanelRestartFailed');
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the snapshot is needed once at startup — loadSnapshot is recreated on language change, a full refetch is not needed
-  useEffect(() => {
-    void loadSnapshot();
-  }, []);
-
   // Live panel status: a lightweight HTTP API poll every 5 seconds and on returning
   // to the window. A status change rereads the whole snapshot — services, projects
   // and metrics sync with the panel's real state.
@@ -506,6 +506,7 @@ function App() {
   const clearSelectedLogs = async (source: string | null): Promise<string | null> => {
     if (
       logClearingRef.current ||
+      panelStartingRef.current ||
       panelRestartRef.current ||
       updateBusyRef.current ||
       appUpdatingRef.current ||
@@ -743,9 +744,9 @@ function App() {
     action: 'start' | 'stop' | 'restart',
     announce = true,
   ): Promise<boolean> => {
-    // The panel is restarting: its API is unreachable, so the command would fail — and the
-    // busy state already tells the user why the controls are disabled.
+    // Starting or restarting the panel temporarily makes its API unavailable.
     if (
+      panelStartingRef.current ||
       panelRestartRef.current ||
       updateBusyRef.current ||
       appUpdatingRef.current ||
@@ -791,6 +792,7 @@ function App() {
     // A running panel restart is the same kind of operation: starting modules through osp.bat
     // in parallel would race it.
     if (
+      panelStartingRef.current ||
       panelRestartRef.current ||
       updateBusyRef.current ||
       appUpdatingRef.current ||
@@ -815,14 +817,54 @@ function App() {
     }
   }, [notify, t, loadSnapshot]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: project autostart runs once at app startup
+  // biome-ignore lint/correctness/useExhaustiveDependencies: startup runs once; language changes must not launch the panel again
   useEffect(() => {
-    if (!isDesktopApp() || settingsStorage.getItem('ospanel.autostartProjects') !== '1') return;
-
-    // Let the initial snapshot load pass without competing for osp.bat.
-    const timer = window.setTimeout(() => void runProjectAutostart(), 1500);
-    return () => window.clearTimeout(timer);
-    // Once at app startup; t/loadSnapshot in the closure are current at call time.
+    let cancelled = false;
+    const pathMissing = isDesktopApp() && !settingsStorage.getItem('ospanel.path')?.trim();
+    if (isDesktopApp() && !pathMissing) {
+      // StrictMode replays effects: both passes share the same native launch and readiness wait.
+      panelStartupRef.current ??= startOsPanel().then(() => waitForPanelReady());
+    }
+    const initialize = async () => {
+      let ready = false;
+      let startupError: unknown;
+      try {
+        if (panelStartupRef.current) {
+          ready = await panelStartupRef.current;
+          if (!ready) startupError = new Error('err.panelNotReady');
+        }
+      } catch (error) {
+        startupError = error;
+      }
+      if (cancelled) return;
+      await loadSnapshot();
+      if (cancelled) return;
+      panelStartingRef.current = false;
+      if (pathMissing) {
+        // Setup guidance stays visible until dismissed, including when routine notifications are off.
+        if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+        setToast({
+          message: t('startup.pathRequired'),
+          action: {
+            label: t('nav.openSettings'),
+            run: () => {
+              setSettingsTab('general');
+              setPage('settings');
+            },
+          },
+        });
+      } else if (startupError) {
+        notify(errorText(t, startupError, 'err.panelStartFailed'));
+      } else if (ready && settingsStorage.getItem('ospanel.autostartProjects') === '1') {
+        await runProjectAutostart();
+      }
+      if (!cancelled) setPanelStarting(false);
+    };
+    void initialize();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -880,12 +922,15 @@ function App() {
     <I18nContext.Provider value={{ lang, t, plural }}>
       <ModuleUpdatesProvider
         refresh={loadSnapshot}
-        blocked={appUpdating || panelRestarting || autostartBusy || pendingServices.size > 0}
+        startupReady={!panelStarting}
+        blocked={panelStarting || appUpdating || panelRestarting || autostartBusy || pendingServices.size > 0}
         onBusy={onUpdateBusy}
       >
         <div className={`app-shell ${isLight ? 'light' : ''}`}>
           <AppUpdatesProvider
-            blocked={moduleUpdating || panelRestarting || autostartBusy || pendingServices.size > 0}
+            blocked={
+              panelStarting || moduleUpdating || panelRestarting || autostartBusy || pendingServices.size > 0
+            }
             onBusy={onAppUpdateBusy}
           >
             <aside className={`sidebar ${sidebarNarrow ? 'collapsed' : ''}`}>
