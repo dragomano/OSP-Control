@@ -113,6 +113,14 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
     });
   });
 
+  it('uses punycode for the created project and folder in browser mode', async () => {
+    await expect(createProject({ domain: ' café.test ' })).resolves.toMatchObject({
+      domain: 'xn--caf-dma.test',
+      path: 'C:\\OSPanel\\home\\xn--caf-dma.test',
+    });
+    await expect(createProject({ domain: 'xn--.test' })).rejects.toThrow('err.invalidDomain');
+  });
+
   it('uses a synthetic identity in the browser demo', async () => {
     await expect(getUserInfo()).resolves.toEqual({ name: 'Demo User' });
   });
@@ -281,6 +289,27 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
       id: 'menu-1700000000000000000',
       customPath: 'X:\\TestPanel',
     });
+  });
+
+  it('normalizes IDNs before invoking project creation and renaming', async () => {
+    invokeMock.mockResolvedValue({});
+    await createProject({ domain: 'CAFÉ.test', phpEngine: 'PHP-8.3' });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      'create_project',
+      expect.objectContaining({
+        params: { domain: 'xn--caf-dma.test', phpEngine: 'PHP-8.3' },
+      }),
+    );
+    await renameProject(
+      { domain: 'old.test', path: 'X:\\TestPanel\\home\\old.test', php: '-', type: '', ssl: false },
+      'cafe\u0301.test',
+    );
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      'rename_project',
+      expect.objectContaining({
+        newDomain: 'xn--caf-dma.test',
+      }),
+    );
   });
 });
 

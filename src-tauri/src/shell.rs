@@ -34,16 +34,60 @@ pub(crate) struct ConfigFile {
     modified_at: u64,
 }
 
-#[tauri::command]
-pub fn open_in_browser(url: String) -> Result<(), CommandError> {
+fn browser_url(url: &str) -> Result<String, CommandError> {
     let lower = url.to_ascii_lowercase();
     if !(lower.starts_with("http://") || lower.starts_with("https://")) {
         return Err(CommandError::new("err.urlProtocolOnly"));
     }
-    if !url.chars().all(|c| c.is_ascii_alphanumeric() || "-._~:/?#[]@!$&'()*+,;=%".contains(c)) {
+    if url.chars().any(|c| {
+        c.is_control()
+            || c.is_whitespace()
+            || (c.is_ascii() && !c.is_ascii_alphanumeric() && !"-._~:/?#[]@!$&'()*+,;=%".contains(c))
+    }) {
         return Err(CommandError::new("err.urlInvalid"));
     }
-    Command::new("cmd").args(["/C", "start", "", &url]).spawn().map_err(spawn_failed)?;
+    let parsed = reqwest::Url::parse(url).map_err(|_| CommandError::new("err.urlInvalid"))?;
+    if parsed.host_str().is_none() || !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err(CommandError::new("err.urlInvalid"));
+    }
+    // The URL parser applies IDNA to the host and percent-encodes non-ASCII URL components.
+    Ok(parsed.into())
+}
+
+#[tauri::command]
+pub fn open_in_browser(url: String) -> Result<(), CommandError> {
+    let url = browser_url(&url)?;
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Com::{
+            COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
+        };
+        use windows::Win32::UI::Shell::{
+            SEE_MASK_FLAG_NO_UI, SEE_MASK_NOASYNC, SHELLEXECUTEINFOW, ShellExecuteExW,
+        };
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+        use windows::core::{PCWSTR, w};
+
+        let target: Vec<u16> = url.encode_utf16().chain(Some(0)).collect();
+        let mut info = SHELLEXECUTEINFOW {
+            cbSize: size_of::<SHELLEXECUTEINFOW>() as u32,
+            fMask: SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI,
+            lpVerb: w!("open"),
+            lpFile: PCWSTR(target.as_ptr()),
+            nShow: SW_SHOWNORMAL.0,
+            ..Default::default()
+        };
+        // Pass the URL directly to the registered handler, without cmd.exe interpreting it.
+        let initialized =
+            unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) }.is_ok();
+        let result = unsafe { ShellExecuteExW(&mut info) };
+        if initialized {
+            unsafe { CoUninitialize() };
+        }
+        result.map_err(|error| spawn_failed(std::io::Error::other(error)))?;
+    }
+    #[cfg(not(windows))]
+    Command::new("xdg-open").arg(&url).spawn().map_err(spawn_failed)?;
     Ok(())
 }
 
@@ -715,6 +759,50 @@ pub fn open_in_editor(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn browser_urls_normalize_idns_and_preserve_ports_paths_queries_and_fragments() {
+        for (input, expected) in [
+            ("https://café.test", "https://xn--caf-dma.test/"),
+            ("http://XN--CAF-DMA.TEST", "http://xn--caf-dma.test/"),
+            (
+                "https://\u{0432}\u{0430}\u{043b}\u{044e}\u{0442}\u{0430}.test",
+                "https://xn--80aae1b9a9d.test/",
+            ),
+            (
+                "http://café.test:8080/catalog?q=café&sort=asc#item",
+                "http://xn--caf-dma.test:8080/catalog?q=caf%C3%A9&sort=asc#item",
+            ),
+            (
+                "https://example.test/releases?v=1&download=all",
+                "https://example.test/releases?v=1&download=all",
+            ),
+            ("http://127.0.0.1:8080/", "http://127.0.0.1:8080/"),
+            ("https://[::1]/", "https://[::1]/"),
+        ] {
+            assert_eq!(browser_url(input).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn invalid_browser_urls_fail_before_launching_any_handler() {
+        for input in ["file:///example.test", "javascript:alert(1)", "ftp://example.test", ""] {
+            assert_eq!(open_in_browser(input.into()).unwrap_err().code, "err.urlProtocolOnly");
+        }
+        for input in [
+            "https://",
+            "https://bad name.test",
+            "https://café.test\r\n&whoami",
+            "https://café.test\\escape",
+            "https://xn--a.test",
+            "https://user:password@café.test",
+            "https://café.test:invalid",
+            "https://café.test/\"quoted\"",
+            "https://caf\u{0000}é.test",
+        ] {
+            assert_eq!(open_in_browser(input.into()).unwrap_err().code, "err.urlInvalid", "{input:?}");
+        }
+    }
 
     #[test]
     fn module_recovery_only_starts_explicitly_disabled_modules() {

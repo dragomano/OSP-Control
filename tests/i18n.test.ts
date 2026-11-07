@@ -385,6 +385,17 @@ describe('localeIssues', () => {
 });
 
 describe('errorText', () => {
+  it('displays decoded domain error parameters without changing paths or the original error', () => {
+    const translate = makeTranslator({ 'err.projectExists': 'Project {domain} already exists: {path}' }, {});
+    const params = { domain: 'xn--caf-dma.test', path: 'X:/TestPanel/home/xn--caf-dma.test' };
+    const error = Object.assign(new Error('err.projectExists'), { params });
+    expect(errorText(translate, error, 'fallback')).toBe(
+      'Project café.test already exists: X:/TestPanel/home/xn--caf-dma.test',
+    );
+    expect(error.params).toEqual(params);
+    expect(params.domain).toBe('xn--caf-dma.test');
+  });
+
   it('translates a nested command failure with its original details without mutating the error', () => {
     const translate = makeTranslator(
       {

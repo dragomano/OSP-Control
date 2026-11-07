@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use crate::error::CommandError;
 use crate::panel_api::{Project, projects_from_api};
-use crate::paths::{is_valid_domain, resolve_installation};
+use crate::paths::{normalize_project_domain, resolve_installation};
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -28,13 +28,14 @@ impl ProjectActivity {
 }
 
 fn project_directory(root: &Path, domain: &str, projects: &[Project]) -> Result<PathBuf, CommandError> {
-    if !is_valid_domain(domain) {
-        return Err(CommandError::new("err.invalidDomain"));
-    }
+    let domain = normalize_project_domain(domain)?;
     // API paths are a whitelist: a registered project may live outside home/.
     // New projects are absent from the API until a panel restart, so allow their
     // validated home/<domain> directory too, without accepting arbitrary paths.
-    if let Some(project) = projects.iter().find(|p| p.domain.eq_ignore_ascii_case(domain)) {
+    if let Some(project) = projects
+        .iter()
+        .find(|project| normalize_project_domain(&project.domain).is_ok_and(|name| name == domain))
+    {
         let path = fs::canonicalize(&project.path)?;
         if !path.is_dir() {
             return Err(CommandError::new("err.projectNotFound").with("domain", domain));
@@ -42,7 +43,7 @@ fn project_directory(root: &Path, domain: &str, projects: &[Project]) -> Result<
         return Ok(path);
     }
     let home = fs::canonicalize(root.join("home"))?;
-    let path = fs::canonicalize(home.join(domain))?;
+    let path = fs::canonicalize(home.join(&domain))?;
     if !path.starts_with(&home) || path == home || !path.is_dir() {
         return Err(CommandError::new("err.accessDenied"));
     }
@@ -156,39 +157,39 @@ fn scan_project(domain: &str, root: &Path) -> ProjectActivity {
     ProjectActivity { domain: domain.into(), modified_at, last_file, status }
 }
 
+fn scan_project_activity(root: &Path, domains: &[String], projects: &[Project]) -> Vec<ProjectActivity> {
+    let mut seen = HashSet::new();
+    let unique: Vec<&String> = domains.iter().filter(|domain| seen.insert(domain.to_lowercase())).collect();
+    // Scan the (typically disjoint) project trees in parallel instead of walking
+    // them one after another — the filesystem walk dominates the total time.
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = unique
+            .iter()
+            .map(|domain| {
+                let domain: &str = domain;
+                // Invalid or unavailable projects must not suppress the other results.
+                scope.spawn(|| match project_directory(root, domain, projects) {
+                    Ok(path) => scan_project(domain, &path),
+                    Err(_) => ProjectActivity::unavailable(domain),
+                })
+            })
+            .collect();
+        handles.into_iter().map(|handle| handle.join().expect("activity scan thread panicked")).collect()
+    })
+}
+
 #[tauri::command]
 pub async fn project_activity(
     domains: Vec<String>,
     custom_path: Option<String>,
 ) -> Result<Vec<ProjectActivity>, CommandError> {
-    if domains.iter().any(|domain| !is_valid_domain(domain)) {
-        return Err(CommandError::new("err.invalidDomain"));
-    }
     if domains.is_empty() {
         return Ok(Vec::new());
     }
     tauri::async_runtime::spawn_blocking(move || {
         let root = resolve_installation(custom_path.as_deref())?;
         let projects = projects_from_api(&root);
-        let mut seen = HashSet::new();
-        let unique: Vec<&String> =
-            domains.iter().filter(|domain| seen.insert(domain.to_lowercase())).collect();
-        // Scan the (typically disjoint) project trees in parallel instead of walking
-        // them one after another — the filesystem walk dominates the total time.
-        let results: Vec<ProjectActivity> = std::thread::scope(|scope| {
-            let handles: Vec<_> = unique
-                .iter()
-                .map(|domain| {
-                    let domain: &str = domain;
-                    scope.spawn(|| match project_directory(&root, domain, &projects) {
-                        Ok(path) => scan_project(domain, &path),
-                        Err(_) => ProjectActivity::unavailable(domain),
-                    })
-                })
-                .collect();
-            handles.into_iter().map(|handle| handle.join().expect("activity scan thread panicked")).collect()
-        });
-        Ok(results)
+        Ok(scan_project_activity(&root, &domains, &projects))
     })
     .await
     .map_err(|error| CommandError::new("err.ioFailed").with("detail", error.to_string()))?
@@ -359,5 +360,62 @@ mod tests {
             fs::remove_dir(link).unwrap();
         }
         assert!(external.0.join("outside.php").exists());
+    }
+
+    #[test]
+    fn mixed_activity_batch_scans_idns_and_keeps_other_projects_ready_on_invalid_input() {
+        let fixture = Fixture::new();
+        fixture.file("home/plain.test/index.php", 100);
+        fixture.file("home/xn--caf-dma.test/src/latest.php", 300);
+        fixture.file("home/xn--80aae1b9a9d.test/index.html", 200);
+        let domains = [
+            "plain.test",
+            "café.test",
+            "xn--caf-dma.test",
+            "\u{0432}\u{0430}\u{043b}\u{044e}\u{0442}\u{0430}.test",
+            "missing.test",
+            "../escape",
+            "xn--.test",
+        ]
+        .map(str::to_string);
+        let results = scan_project_activity(&fixture.0, &domains, &[]);
+        assert_eq!(results.len(), domains.len());
+        for (index, (file, modified)) in
+            [("index.php", 100), ("src/latest.php", 300), ("src/latest.php", 300), ("index.html", 200)]
+                .into_iter()
+                .enumerate()
+        {
+            assert_eq!(results[index].domain, domains[index]);
+            assert_eq!(results[index].status, "ready");
+            assert_eq!(results[index].last_file.as_deref(), Some(file));
+            assert_eq!(results[index].modified_at, Some(modified));
+        }
+        for index in 4..domains.len() {
+            assert_eq!(results[index], ProjectActivity::unavailable(&domains[index]));
+        }
+    }
+
+    #[test]
+    fn idn_activity_resolves_api_paths_after_panel_restart_in_both_domain_forms() {
+        let fixture = Fixture::new();
+        let external = Fixture::new();
+        external.file("src/latest.php", 300);
+        for api_name in ["café.test", "xn--caf-dma.test"] {
+            let json = serde_json::json!({"_children": [{
+                "key": api_name, "value": {"_children": [
+                    {"key": "base_dir", "value": {"_value": external.0.to_string_lossy()}}
+                ]}
+            }]});
+            let projects = crate::panel_api::projects_from_json(&json, &fixture.0);
+            let domains = ["café.test", "xn--caf-dma.test"].map(str::to_string);
+            let results = scan_project_activity(&fixture.0, &domains, &projects);
+            assert_eq!(results.len(), 2);
+            for (index, result) in results.iter().enumerate() {
+                assert_eq!(result.domain, domains[index]);
+                assert_eq!(result.status, "ready");
+                assert_eq!(result.last_file.as_deref(), Some("src/latest.php"));
+                assert_eq!(result.modified_at, Some(300));
+            }
+        }
     }
 }

@@ -7,6 +7,7 @@ import {
   getProjectModuleOptions,
   type ProjectModuleOptions,
 } from '../../ospanel';
+import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
 import { type Notify, useDismiss } from '../shared';
 import { ModuleSelect } from './ModuleSelect';
 
@@ -30,6 +31,7 @@ export function CreateProjectDialog({
   const [busy, setBusy] = useState(false);
   const windowRef = useRef<HTMLDivElement>(null);
   const domainRef = useRef<HTMLInputElement>(null);
+  const normalizedDomain = normalizeProjectDomain(domain);
 
   // Focus after mounting — otherwise the browser returns it to the previous element.
   useEffect(() => {
@@ -51,7 +53,7 @@ export function CreateProjectDialog({
   useDismiss(windowRef, onClose);
 
   const create = async () => {
-    if (!domain.trim()) {
+    if (!normalizedDomain) {
       notify(t('err.invalidDomain'));
       return;
     }
@@ -60,14 +62,14 @@ export function CreateProjectDialog({
 
     try {
       const created = await createProject({
-        domain: domain.trim(),
+        domain: normalizedDomain,
         httpEngine: httpEngine === 'auto' ? undefined : httpEngine,
         phpEngine: phpEngine === 'auto' ? undefined : phpEngine,
         nodeEngine: nodeEngine === 'auto' ? undefined : nodeEngine,
       });
 
       onCreated(created);
-      notify(t('projects.toastCreated', { domain: created.domain }), {
+      notify(t('projects.toastCreated', { domain: displayProjectDomain(created.domain) }), {
         label: t('projects.restartPanel'),
         run: onRestartPanel,
       });
@@ -106,10 +108,16 @@ export function CreateProjectDialog({
                 ref={domainRef}
                 type="text"
                 value={domain}
+                aria-invalid={!!domain.trim() && !normalizedDomain}
                 onChange={(event) => setDomain(event.target.value)}
                 placeholder={t('projects.createDomainPlaceholder')}
               />
             </label>
+            {domain.trim() && !normalizedDomain && (
+              <p className="modal-hint" role="alert">
+                {t('err.invalidDomain')}
+              </p>
+            )}
             <ModuleSelect
               label={t('projects.createHttpEngine')}
               value={httpEngine}
@@ -139,7 +147,9 @@ export function CreateProjectDialog({
           <div className="empty-note">{t('common.loading')}</div>
         )}
         <div className="modal-foot">
-          <span className="modal-path">{domain ? `home/${domain}/.osp/project.ini` : '\u00A0'}</span>
+          <span className="modal-path">
+            {normalizedDomain ? `home/${normalizedDomain}/.osp/project.ini` : '\u00A0'}
+          </span>
           <div className="row-actions">
             <button type="button" className="secondary-button" onClick={onClose}>
               {t('common.close')}
@@ -147,7 +157,7 @@ export function CreateProjectDialog({
             <button
               type="button"
               className="primary-button"
-              disabled={!domain.trim() || busy || !options}
+              disabled={!normalizedDomain || busy || !options}
               onClick={() => void create()}
             >
               {t('projects.create')}

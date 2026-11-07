@@ -110,6 +110,52 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('Projects browser opening', () => {
+  it('displays a decoded IDN while activity, opening and renaming keep canonical identifiers', async () => {
+    const notify = vi.fn<Notify>();
+    const onRenamed = vi.fn();
+    const canonical = 'xn--80aae1b9a9d.test';
+    const readable = '\u0432\u0430\u043b\u044e\u0442\u0430.test';
+    const idn = Object.freeze({ ...shopProject, domain: canonical, path: `C:\\OSPanel\\home\\${canonical}` });
+    mocks.openInBrowser.mockResolvedValue(undefined);
+    mocks.getProjectActivity.mockResolvedValue([
+      {
+        domain: canonical,
+        modifiedAt: 1_700_000_000,
+        lastFile: 'index.php',
+        status: 'ready',
+      },
+    ]);
+    const renamed = { domain: 'xn--caf-dma.test', path: 'C:\\OSPanel\\home\\xn--caf-dma.test' };
+    mocks.renameProject.mockResolvedValue(renamed);
+    renderProjects(notify, [idn], onRenamed);
+
+    expect(screen.getByText(readable, { selector: 'b' })).toHaveAttribute('title', canonical);
+    expect(screen.getByText(idn.path)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: `Show the last modified file in ${readable}` }),
+    ).toBeInTheDocument();
+    expect(mocks.getProjectActivity).toHaveBeenCalledWith([canonical]);
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith(`${readable} opened in browser`));
+    expect(mocks.openInBrowser).toHaveBeenCalledWith(`https://${canonical}`);
+
+    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Rename domain' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rename domain' });
+    const input = within(dialog).getByLabelText('New domain');
+    const submit = within(dialog).getByRole('button', { name: 'Rename domain' });
+    expect(input).toHaveValue(readable);
+    expect(submit).toBeDisabled();
+    fireEvent.change(input, { target: { value: 'café.test' } });
+    fireEvent.click(submit);
+    await vi.waitFor(() => expect(onRenamed).toHaveBeenCalledWith(canonical, { ...idn, ...renamed }));
+    expect(mocks.renameProject).toHaveBeenCalledWith(idn, renamed.domain);
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining(`${readable} renamed to café.test`),
+      expect.any(Object),
+    );
+    expect(idn.domain).toBe(canonical);
+  });
+
   it('opens hosts from the existing header without replacing the project table', async () => {
     renderProjects(vi.fn());
     fireEvent.click(screen.getByRole('button', { name: 'Hosts' }));
@@ -255,7 +301,7 @@ describe('Projects row menu', () => {
     fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Open folder' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to open folder'));
-    expect(mocks.openProjectFolder).toHaveBeenCalledWith('C:\\OSPanel\\domains\\my-shop');
+    expect(mocks.openProjectFolder).toHaveBeenCalledWith(shopProject.path);
   });
 
   it('opens the project in the chosen editor', async () => {
@@ -318,6 +364,31 @@ describe('Projects row menu', () => {
 });
 
 describe('Projects domain renaming', () => {
+  it('detects equivalent IDNs and previews and submits a punycode name', async () => {
+    const onRenamed = vi.fn();
+    const existing = { ...landingProject, domain: 'xn--caf-dma.test' };
+    const renamed = { domain: 'xn--bcher-kva.test', path: 'C:\\OSPanel\\home\\xn--bcher-kva.test' };
+    mocks.renameProject.mockResolvedValue(renamed);
+    renderProjects(vi.fn(), [shopProject, existing], onRenamed);
+    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Rename domain' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rename domain' });
+    const input = within(dialog).getByLabelText('New domain');
+    const submit = within(dialog).getByRole('button', { name: 'Rename domain' });
+
+    fireEvent.change(input, { target: { value: 'café.test' } });
+    expect(submit).toBeDisabled();
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('already exists');
+
+    fireEvent.change(input, { target: { value: 'BÜCHER.test' } });
+    expect(submit).toBeEnabled();
+    expect(within(dialog).getByText('my-shop.test → xn--bcher-kva.test')).toBeInTheDocument();
+    fireEvent.click(submit);
+    await waitFor(() =>
+      expect(onRenamed).toHaveBeenCalledWith(shopProject.domain, { ...shopProject, ...renamed }),
+    );
+    expect(mocks.renameProject).toHaveBeenCalledExactlyOnceWith(shopProject, renamed.domain);
+  });
+
   it('validates names, prevents duplicate submits and keeps tags, engines and TLS', async () => {
     const notify = vi.fn<Notify>();
     const onRenamed = vi.fn();

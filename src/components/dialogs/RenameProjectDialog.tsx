@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { errorText, useI18n } from '../../i18n';
 import { type OsPanelProject, renameProject } from '../../ospanel';
+import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
 import { useDismiss } from '../shared';
 
 export function RenameProjectDialog({
@@ -16,19 +17,18 @@ export function RenameProjectDialog({
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const [domain, setDomain] = useState(project.domain);
+  const [domain, setDomain] = useState(() => displayProjectDomain(project.domain));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const pending = useRef(false);
   const windowRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hintId = useId();
-  const newDomain = domain.trim().toLowerCase();
-  const unchanged = newDomain === project.domain.toLowerCase();
-  const valid =
-    newDomain.length <= 253 &&
-    newDomain.split('.').every((label) => /^[a-z0-9](?:[a-z0-9_-]{0,61}[a-z0-9])?$/.test(label));
-  const exists = !unchanged && projects.some((item) => item.domain.toLowerCase() === newDomain);
+  const newDomain = normalizeProjectDomain(domain);
+  const unchanged = newDomain === normalizeProjectDomain(project.domain);
+  const valid = newDomain !== null;
+  const exists =
+    valid && !unchanged && projects.some((item) => normalizeProjectDomain(item.domain) === newDomain);
   const dismiss = () => {
     if (!pending.current) onClose();
   };
@@ -39,7 +39,7 @@ export function RenameProjectDialog({
   }, []);
 
   const rename = async () => {
-    if (pending.current || unchanged || !valid || exists) return;
+    if (pending.current || unchanged || !newDomain || exists) return;
     pending.current = true;
     setBusy(true);
     setError('');
@@ -103,13 +103,16 @@ export function RenameProjectDialog({
             </label>
             {(error || exists || !valid) && (
               <p className="modal-hint" role="alert">
-                {error || (exists ? t('err.projectExists', { domain: newDomain }) : t('err.invalidDomain'))}
+                {error ||
+                  (exists
+                    ? t('err.projectExists', { domain: displayProjectDomain(newDomain ?? '') })
+                    : t('err.invalidDomain'))}
               </p>
             )}
           </div>
           <div className="modal-foot">
             <span className="modal-path">
-              {project.domain} → {newDomain}
+              {project.domain} → {newDomain ?? domain.trim()}
             </span>
             <div className="row-actions">
               <button type="button" className="secondary-button" disabled={busy} onClick={dismiss}>

@@ -179,6 +179,38 @@ pub(crate) fn is_valid_domain(domain: &str) -> bool {
     is_safe_component(domain, 255)
 }
 
+// Canonical project identity for API names, new directories and domain-based commands.
+pub(crate) fn normalize_project_domain(input: &str) -> Result<String, CommandError> {
+    let input = input.trim();
+    let invalid = || CommandError::new("err.invalidDomain");
+    if input.chars().any(|c| {
+        c.is_whitespace()
+            || c.is_control()
+            || (c.is_ascii() && !c.is_ascii_alphanumeric() && !matches!(c, '-' | '_' | '.'))
+    }) {
+        return Err(invalid());
+    }
+    // UTS #46 validates existing A-labels too, so malformed punycode cannot reach disk.
+    let domain = idna::domain_to_ascii(input).map_err(|_| invalid())?;
+    if !is_valid_domain(&domain)
+        || domain.len() > 253
+        || !domain.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label.as_bytes().first().is_some_and(u8::is_ascii_alphanumeric)
+                && label.as_bytes().last().is_some_and(u8::is_ascii_alphanumeric)
+        })
+        || [
+            "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
+            "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+        ]
+        .contains(&domain.split('.').next().unwrap_or_default())
+    {
+        return Err(invalid());
+    }
+    Ok(domain)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

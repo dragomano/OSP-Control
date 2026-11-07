@@ -32,6 +32,7 @@ import {
   openInEditor,
   openProjectFolder,
 } from '../../ospanel';
+import { displayProjectDomain } from '../../projectDomain';
 import {
   editProjectTags,
   knownProjectTags,
@@ -255,7 +256,7 @@ function ProjectsContent({
   const openProject = async (project: OsPanelProject) => {
     try {
       await openInBrowser(`${project.ssl ? 'https' : 'http'}://${project.domain}`);
-      notify(t('projects.toastOpened', { domain: project.domain }));
+      notify(t('projects.toastOpened', { domain: displayProjectDomain(project.domain) }));
     } catch (error) {
       notify(errorText(t, error, 'projects.toastOpenFailed'));
     }
@@ -263,7 +264,7 @@ function ProjectsContent({
   const openProjectDir = async (project: OsPanelProject) => {
     try {
       await openProjectFolder(project.path);
-      notify(t('projects.toastFolderOpened', { domain: project.domain }));
+      notify(t('projects.toastFolderOpened', { domain: displayProjectDomain(project.domain) }));
     } catch (error) {
       notify(errorText(t, error, 'projects.toastFolderFailed'));
     }
@@ -271,7 +272,9 @@ function ProjectsContent({
   const openProjectIn = async (project: OsPanelProject, editorId: string, editorName: string) => {
     try {
       await openInEditor(editorId, project.path);
-      notify(t('projects.toastOpenedIn', { domain: project.domain, editor: editorName }));
+      notify(
+        t('projects.toastOpenedIn', { domain: displayProjectDomain(project.domain), editor: editorName }),
+      );
     } catch (error) {
       notify(errorText(t, error, 'projects.toastOpenInFailed'));
     }
@@ -439,6 +442,7 @@ function ProjectsContent({
         ) : (
           activityGroups.flatMap((group) =>
             group.projects.map((project, index) => {
+              const displayDomain = displayProjectDomain(project.domain);
               const entry = activity[project.domain];
               const modified = activityDate(entry);
               const expanded = expandedProject === project.domain;
@@ -457,12 +461,12 @@ function ProjectsContent({
                   >
                     <ProjectSelection
                       checked={selected.has(project.domain)}
-                      label={t('projects.tagsSelectProject', { domain: project.domain })}
+                      label={t('projects.tagsSelectProject', { domain: displayDomain })}
                       onChange={(checked) => toggleSelected(project.domain, checked)}
                     />
                     <div className="project-activity-identity">
                       <div className="project-activity-title">
-                        <b>{project.domain}</b>
+                        <b title={project.domain}>{displayDomain}</b>
                         {modified && entry.lastFile ? (
                           <button
                             type="button"
@@ -472,7 +476,7 @@ function ProjectsContent({
                             aria-controls={detailsId}
                             aria-label={t(
                               expanded ? 'projects.activityHideFile' : 'projects.activityShowFile',
-                              { domain: project.domain },
+                              { domain: displayDomain },
                             )}
                             title={modified.toLocaleString(localeTag(lang))}
                           >
@@ -514,7 +518,7 @@ function ProjectsContent({
                         <button
                           type="button"
                           className="project-tag-add"
-                          aria-label={t('projects.tagsEditFor', { domain: project.domain })}
+                          aria-label={t('projects.tagsEditFor', { domain: displayDomain })}
                           aria-expanded={editingTags === project.domain}
                           onClick={() =>
                             setEditingTags(editingTags === project.domain ? null : project.domain)
@@ -536,7 +540,7 @@ function ProjectsContent({
                         onClick={() => onToggleSsl(project.domain, !project.ssl)}
                         aria-pressed={project.ssl}
                         title={t(project.ssl ? 'projects.sslToggleOff' : 'projects.sslToggleOn', {
-                          domain: project.domain,
+                          domain: displayDomain,
                         })}
                       >
                         {project.ssl ? <ShieldCheck size={13} /> : <ShieldOff size={13} />}
@@ -619,7 +623,7 @@ function ProjectsContent({
                   </div>
                   {editingTags === project.domain && (
                     <ProjectTagEditor
-                      domain={project.domain}
+                      domain={displayDomain}
                       tags={tagsForProject(projectTags, project.domain)}
                       available={tagCatalog}
                       colors={tagColors}
@@ -677,7 +681,10 @@ function ProjectsContent({
           onClose={() => setRenameFor(null)}
           onRenamed={(renamed) => {
             const next = renameProjectTags(tagsRef.current, renameFor.domain, renamed.domain);
-            let message = t('projects.toastRenamed', { from: renameFor.domain, domain: renamed.domain });
+            let message = t('projects.toastRenamed', {
+              from: displayProjectDomain(renameFor.domain),
+              domain: displayProjectDomain(renamed.domain),
+            });
             try {
               writeProjectTags(tagStorageKey, next, colorsRef.current);
             } catch (error) {

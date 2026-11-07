@@ -5,6 +5,7 @@ import esJson from '../src-tauri/resources/locales/es.json';
 import ruJson from '../src-tauri/resources/locales/ru.json';
 import ukJson from '../src-tauri/resources/locales/uk.json';
 import { isDesktopApp } from './ospanel';
+import { displayProjectDomain } from './projectDomain';
 
 export type Dict = Record<string, string>;
 // A dictionary file: plain keys with a string value and plural families with an
@@ -328,6 +329,7 @@ export function errorText(t: Translator, error: unknown, fallback: string): stri
   if (!(error instanceof Error)) return t(fallback);
 
   let params = (error as Error & { params?: Record<string, string> }).params;
+  if (params?.domain) params = { ...params, domain: displayProjectDomain(params.domain) };
   if (params?.rollbackCause?.startsWith('err.')) {
     const rollbackParams = Object.fromEntries(
       Object.entries(params)

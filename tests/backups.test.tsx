@@ -223,6 +223,22 @@ describe('Backups creation', () => {
     expect(mocks.createProjectBackup).toHaveBeenCalledWith('my-shop.test');
   });
 
+  it('displays readable project names but backs up the canonical domain', async () => {
+    const domain = 'xn--caf-dma.test';
+    mocks.listBackups.mockResolvedValue([{ ...projectBackup, subject: domain }]);
+    mocks.createProjectBackup.mockResolvedValue({ ...projectBackup, subject: domain });
+    const notify = vi.fn();
+    renderBackups(notify, { projects: [{ ...project, domain }] });
+    expect(await screen.findByText('Project: café.test')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'café.test' })).toHaveValue(domain);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project backups' }), {
+      target: { value: domain },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create archive' }));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Project archive saved: café.test'));
+    expect(mocks.createProjectBackup).toHaveBeenCalledWith(domain);
+  });
+
   it('disables dumping and archiving without targets', async () => {
     renderBackups(vi.fn());
 

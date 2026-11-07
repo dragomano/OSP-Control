@@ -180,7 +180,7 @@
   "projects.createTitle": "Новы праект",
   "projects.createDomain": "Назва дамена",
   "projects.createDomainPlaceholder": "my-project.test",
-  "projects.createHint": "Будзе створана папка home/<дамен> з файлам .osp\\project.ini. Дамен: толькі лацінскія літары, лічбы, кропка і працяжнік.",
+  "projects.createHint": "Будзе створана папка home/<дамен> з файлам .osp\\project.ini.",
   "projects.createHttpEngine": "HTTP-рухавік",
   "projects.createPhpEngine": "Версія PHP",
   "projects.createNodeEngine": "Версія Node.js",

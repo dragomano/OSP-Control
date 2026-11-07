@@ -79,6 +79,7 @@ import {
   saveProjectSettings,
   waitForPanelReady,
 } from './ospanel';
+import { displayProjectDomain } from './projectDomain';
 import { settingsStorage } from './settingsStorage';
 import { applyAccentTheme, applyFont, applyUiScale, type ThemeMode, useSystemPrefersLight } from './theme';
 
@@ -357,13 +358,19 @@ function App() {
   // Project deletion: the home/<domain> directory is wiped entirely, and the panel
   // learns about it after a restart — until then the domain is kept out of the list locally.
   const removeProject = async (domain: string) => {
-    if (!(await askConfirm(t('projects.deleteConfirm', { domain }), t('common.confirmTitle')))) return;
+    if (
+      !(await askConfirm(
+        t('projects.deleteConfirm', { domain: displayProjectDomain(domain) }),
+        t('common.confirmTitle'),
+      ))
+    )
+      return;
     try {
       await deleteProject(domain);
       localDeletedRef.current.add(domain.toLowerCase());
       localAddedRef.current.delete(domain.toLowerCase());
       setProjects((current) => current.filter((item) => item.domain.toLowerCase() !== domain.toLowerCase()));
-      notify(t('projects.toastDeleted', { domain }), {
+      notify(t('projects.toastDeleted', { domain: displayProjectDomain(domain) }), {
         label: t('projects.restartPanel'),
         run: () => void restartPanel(),
       });
@@ -405,10 +412,13 @@ function App() {
       setProjects((list) =>
         list.map((item) => (item.domain.toLowerCase() === key ? { ...item, ssl: next } : item)),
       );
-      notify(t(next ? 'projects.toastSslOn' : 'projects.toastSslOff', { domain }), {
-        label: t('projects.restartPanel'),
-        run: () => void restartPanel(),
-      });
+      notify(
+        t(next ? 'projects.toastSslOn' : 'projects.toastSslOff', { domain: displayProjectDomain(domain) }),
+        {
+          label: t('projects.restartPanel'),
+          run: () => void restartPanel(),
+        },
+      );
     } catch (error) {
       notify(errorText(t, error, 'projects.toastSslFailed'));
     }

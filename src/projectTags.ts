@@ -1,4 +1,5 @@
 import type { OsPanelProject } from './ospanel';
+import { displayProjectDomain } from './projectDomain';
 import { settingsStorage } from './settingsStorage';
 
 export type ProjectTags = Record<string, string[]>;
@@ -166,7 +167,9 @@ export function matchesProjectTags(tags: string[], selected: (string | null)[], 
 
 export function matchesProjectSearch(project: OsPanelProject, query: string, tags: string[]): boolean {
   const terms = query.trim().match(/#"[^"]+"|"[^"]+"|[^\s]+/gu) ?? [];
-  const text = tagKey(`${project.domain} ${project.path} ${tags.join(' ')}`);
+  const text = tagKey(
+    `${project.domain} ${displayProjectDomain(project.domain)} ${project.path} ${tags.join(' ')}`,
+  );
   return terms.every((term) => {
     if (term.startsWith('#')) {
       const needle = tagKey(term.slice(1).replace(/^"|"$/g, ''));
@@ -184,14 +187,14 @@ export function sortTaggedProjects(
 ): OsPanelProject[] {
   const compare = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }).compare;
   return [...projects].sort((a, b) => {
-    if (sort === 'domain') return compare(a.domain, b.domain);
+    const domainOrder = compare(displayProjectDomain(a.domain), displayProjectDomain(b.domain));
+    if (sort === 'domain') return domainOrder;
     const left = [...tagsForProject(tags, a.domain)].sort(compare);
     const right = [...tagsForProject(tags, b.domain)].sort(compare);
     if (!left.length || !right.length)
-      return left.length === right.length ? compare(a.domain, b.domain) : left.length ? -1 : 1;
+      return left.length === right.length ? domainOrder : left.length ? -1 : 1;
     return (
-      (sort === 'tags-desc' ? -1 : 1) * compare(left.join('\u0001'), right.join('\u0001')) ||
-      compare(a.domain, b.domain)
+      (sort === 'tags-desc' ? -1 : 1) * compare(left.join('\u0001'), right.join('\u0001')) || domainOrder
     );
   });
 }

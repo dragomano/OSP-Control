@@ -18,6 +18,7 @@ import {
   restoreMenuBackup,
   restoreProjectBackup,
 } from '../../ospanel';
+import { displayProjectDomain } from '../../projectDomain';
 import { formatSize, type Notify, type Service } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
 
@@ -150,7 +151,13 @@ export function Backups({
         await runOne(target);
         created += 1;
       }
-      notify(targets.length > 1 ? plural(keys.many, created) : t(keys.one, { [subjectVar]: targets[0] }));
+      notify(
+        targets.length > 1
+          ? plural(keys.many, created)
+          : t(keys.one, {
+              [subjectVar]: subjectVar === 'domain' ? displayProjectDomain(targets[0]) : targets[0],
+            }),
+      );
     } catch (error) {
       failure = error;
     } finally {
@@ -179,7 +186,7 @@ export function Backups({
     item.kind === 'db'
       ? t('settings.backupsKindDb', { module: item.subject ?? '' })
       : item.kind === 'project'
-        ? t('settings.backupsKindProject', { domain: item.subject ?? '' })
+        ? t('settings.backupsKindProject', { domain: displayProjectDomain(item.subject ?? '') })
         : item.kind === 'menu'
           ? t('settings.backupsKindMenu')
           : t('settings.backupsKindConfig');
@@ -199,7 +206,7 @@ export function Backups({
       },
       project: {
         confirmKey: 'settings.backupsConfirmProject',
-        confirmVars: { date, domain: subject },
+        confirmVars: { date, domain: displayProjectDomain(subject) },
         doneKey: 'settings.backupsDoneProject',
         restore: () => restoreProjectBackup(item.id),
       },
@@ -365,7 +372,7 @@ export function Backups({
                   <option value={ALL_TARGETS}>{t('settings.backupsAll')}</option>
                   {projectDomains.map((domain) => (
                     <option key={domain} value={domain}>
-                      {domain}
+                      {displayProjectDomain(domain)}
                     </option>
                   ))}
                 </select>

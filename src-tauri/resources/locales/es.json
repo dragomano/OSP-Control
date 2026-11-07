@@ -180,7 +180,7 @@
   "projects.createTitle": "Nuevo proyecto",
   "projects.createDomain": "Nombre de dominio",
   "projects.createDomainPlaceholder": "mi-proyecto.test",
-  "projects.createHint": "Se creará la carpeta home/<dominio> con el archivo .osp\\project.ini. Dominio: solo letras latinas, dígitos, punto y guion.",
+  "projects.createHint": "Se creará la carpeta home/<dominio> con el archivo .osp\\project.ini.",
   "projects.createHttpEngine": "Motor HTTP",
   "projects.createPhpEngine": "Versión de PHP",
   "projects.createNodeEngine": "Versión de Node.js",

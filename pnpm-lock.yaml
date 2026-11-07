@@ -29,6 +29,9 @@ importers:
       preact:
         specifier: ^11.1.1
         version: 11.1.1
+      punycode:
+        specifier: ^2.3.1
+        version: 2.3.1
       react:
         specifier: ^19.3.1
         version: 19.3.1

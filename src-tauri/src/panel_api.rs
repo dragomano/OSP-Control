@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::Path;
 
+use crate::paths::normalize_project_domain;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -215,11 +216,14 @@ pub(crate) fn projects_from_json(json: &serde_json::Value, root: &Path) -> Vec<P
     let mut list: Vec<Project> = projects
         .iter()
         .filter_map(|(domain, node)| {
+            // OSPanel may return a decoded IDN even when the folder and INI use punycode.
+            // Preserve unsupported names so they remain visible and can fail independently.
+            let domain = normalize_project_domain(domain).unwrap_or_else(|_| domain.to_string());
             let fields = dat_node_map(node)?;
             let text = |key: &str| fields.get(key).map(|field| dat_string_value(field)).unwrap_or_default();
             let base_dir = text("base_dir");
             let path = if base_dir.is_empty() {
-                root.join("home").join(domain).to_string_lossy().into_owned()
+                root.join("home").join(&domain).to_string_lossy().into_owned()
             } else {
                 base_dir
             };
@@ -229,7 +233,7 @@ pub(crate) fn projects_from_json(json: &serde_json::Value, root: &Path) -> Vec<P
             let php = php_engine.strip_prefix("PHP-").unwrap_or(&php_engine);
             let http_engine = text("http_engine");
             Some(Project {
-                domain: domain.to_string(),
+                domain,
                 path,
                 php: if php.is_empty() { "-".into() } else { php.into() },
                 r#type: if http_engine.is_empty() { "-".into() } else { http_engine },
@@ -435,6 +439,31 @@ mod tests {
         assert_eq!(old.r#type, "-");
         assert_eq!(old.php, "-");
         assert!(!old.ssl);
+    }
+
+    #[test]
+    fn decoded_idns_from_api_keep_the_canonical_identity_and_actual_project_path() {
+        let root = Path::new(r"X:\TestPanel");
+        for (name, expected) in [
+            ("café.test", "xn--caf-dma.test"),
+            ("CAFE\u{0301}.TEST", "xn--caf-dma.test"),
+            ("XN--CAF-DMA.TEST", "xn--caf-dma.test"),
+            ("\u{0432}\u{0430}\u{043b}\u{044e}\u{0442}\u{0430}.test", "xn--80aae1b9a9d.test"),
+        ] {
+            for base in ["", r"X:\Workspace\custom-project"] {
+                let json = serde_json::json!({"_children": [{
+                    "key": name, "value": {"_children": [
+                        {"key": "base_dir", "value": {"_value": base}}
+                    ]}
+                }]});
+                let projects = projects_from_json(&json, root);
+                assert_eq!(projects.len(), 1);
+                assert_eq!(projects[0].domain, expected);
+                let expected_path =
+                    if base.is_empty() { root.join("home").join(expected) } else { base.into() };
+                assert_eq!(Path::new(&projects[0].path), expected_path);
+            }
+        }
     }
 
     // The panel's JSON contains a BOM and raw control bytes (NUL env blocks) — we parse it.

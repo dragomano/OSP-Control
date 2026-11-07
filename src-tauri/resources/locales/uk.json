@@ -180,7 +180,7 @@
   "projects.createTitle": "Новий проєкт",
   "projects.createDomain": "Назва домену",
   "projects.createDomainPlaceholder": "my-project.test",
-  "projects.createHint": "Буде створено теку home/<домен> із файлом .osp\\project.ini. Домен: лише латинські літери, цифри, крапка та дефіс.",
+  "projects.createHint": "Буде створено теку home/<домен> із файлом .osp\\project.ini.",
   "projects.createHttpEngine": "HTTP-движок",
   "projects.createPhpEngine": "Версія PHP",
   "projects.createNodeEngine": "Версія Node.js",

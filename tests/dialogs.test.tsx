@@ -192,6 +192,33 @@ describe('CreateProjectDialog', () => {
     });
   });
 
+  it.each([
+    ['café.test', 'xn--caf-dma.test'],
+    ['XN--CAF-DMA.TEST', 'xn--caf-dma.test'],
+    ['\u0432\u0430\u043b\u044e\u0442\u0430.test', 'xn--80aae1b9a9d.test'],
+  ])('previews and submits the normalized project domain for %s', async (input, domain) => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    const created = { ...createdProject, domain, path: `C:\\OSPanel\\home\\${domain}` };
+    mocks.createProject.mockResolvedValue(created);
+    const { onCreated } = renderDialog();
+
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: input } });
+    expect(screen.getByText(`home/${domain}/.osp/project.ini`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+
+    await vi.waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
+    expect(mocks.createProject).toHaveBeenCalledWith(expect.objectContaining({ domain }));
+  });
+
+  it('rejects malformed punycode before creating a project', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'xn--.test' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Invalid domain name');
+    expect(screen.getByRole('button', { name: 'Create project' })).toBeDisabled();
+    expect(mocks.createProject).not.toHaveBeenCalled();
+  });
+
   it('sends only the engines changed away from auto', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
     mocks.createProject.mockResolvedValue(createdProject);

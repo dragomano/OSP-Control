@@ -15,7 +15,9 @@ use crate::error::{CommandError, spawn_failed};
 use crate::panel_api::{
     Service, dat_field, dat_node_map, dat_string_value, modules_from_api, parse_osp_json, projects_from_api,
 };
-use crate::paths::{external_path, hidden_command, is_valid_domain, resolve_installation};
+use crate::paths::{
+    external_path, hidden_command, is_valid_domain, normalize_project_domain, resolve_installation,
+};
 
 // --- Per-project module versions (home/<domain>/.osp/project.ini) ---
 // The file is edited by the user: only the values of the needed keys are changed,
@@ -448,22 +450,6 @@ pub(crate) struct RenamedProject {
     path: String,
 }
 
-fn valid_rename_domain(domain: &str) -> bool {
-    is_valid_domain(domain)
-        && domain.len() <= 253
-        && domain.split('.').all(|label| {
-            !label.is_empty()
-                && label.len() <= 63
-                && label.as_bytes().first().is_some_and(u8::is_ascii_alphanumeric)
-                && label.as_bytes().last().is_some_and(u8::is_ascii_alphanumeric)
-        })
-        && ![
-            "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
-            "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
-        ]
-        .contains(&domain.split('.').next().unwrap_or_default().to_ascii_lowercase().as_str())
-}
-
 fn rename_project_section(content: &str, domain: &str, new_domain: &str) -> Result<String, CommandError> {
     let sections = ini_sections(content);
     if sections.len() != 1 || !sections[0].0.eq_ignore_ascii_case(domain) {
@@ -494,8 +480,9 @@ fn rename_project_directory(
     expected_path: &Path,
     registered: &[crate::panel_api::Project],
 ) -> Result<RenamedProject, CommandError> {
-    if !is_valid_domain(domain) || !valid_rename_domain(new_domain) || domain.eq_ignore_ascii_case(new_domain)
-    {
+    let normalized = normalize_project_domain(new_domain)?;
+    let new_domain = normalized.as_str();
+    if !is_valid_domain(domain) || domain.eq_ignore_ascii_case(new_domain) {
         return Err(CommandError::new("err.invalidDomain"));
     }
     let home = fs::canonicalize(root.join("home"))?;
@@ -602,13 +589,7 @@ pub async fn rename_project(
         let _guard = PROJECT_RENAME_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let root = resolve_installation(custom_path.as_deref())?;
         let registered = projects_from_api(&root);
-        rename_project_directory(
-            &root,
-            &domain,
-            &new_domain.trim().to_ascii_lowercase(),
-            Path::new(&path),
-            &registered,
-        )
+        rename_project_directory(&root, &domain, &new_domain, Path::new(&path), &registered)
     })
     .await
     .map_err(|error| CommandError::new("err.ioFailed").with("detail", error.to_string()))?
@@ -798,9 +779,7 @@ pub fn create_project(
 ) -> Result<CreatedProject, CommandError> {
     let root = resolve_installation(custom_path.as_deref())?;
 
-    if !is_valid_domain(&params.domain) {
-        return Err(CommandError::new("err.invalidDomain"));
-    }
+    let domain = normalize_project_domain(&params.domain)?;
 
     // Engines are validated before directories are created: on error no garbage is left behind.
     let options = scan_module_options(&root);
@@ -811,10 +790,10 @@ pub fn create_project(
     validate_engine_value(&options, "php_engine", &php)?;
     validate_engine_value(&options, "node_engine", &node)?;
 
-    let project_dir = root.join("home").join(&params.domain);
+    let project_dir = root.join("home").join(&domain);
     // A project with this domain already exists — an error.
     if project_dir.exists() {
-        return Err(CommandError::new("err.projectExists").with("domain", params.domain.clone()));
+        return Err(CommandError::new("err.projectExists").with("domain", domain));
     }
 
     let osp_dir = project_dir.join(".osp");
@@ -824,7 +803,7 @@ pub fn create_project(
     let ini = osp_dir.join("project.ini");
     let content = format!(
         "\u{feff}[{}]\r\n\r\nhttp_engine       = {}\r\nphp_engine        = {}\r\nnode_engine       = {}\r\n",
-        params.domain, http, php, node
+        domain, http, php, node
     );
     fs::write(&ini, content)?;
 
@@ -834,7 +813,7 @@ pub fn create_project(
         if stripped.is_empty() || stripped == ENGINE_AUTO { "-".into() } else { stripped.into() }
     };
     Ok(CreatedProject {
-        domain: params.domain,
+        domain,
         path: project_dir.to_string_lossy().into_owned(),
         http: engine_display(&http, false),
         php: engine_display(&php, true),
@@ -893,6 +872,140 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    #[test]
+    fn project_domains_are_normalized_and_validated_after_idna_conversion() {
+        for (input, expected) in [
+            (" Shop.TEST ", "shop.test"),
+            ("my_app.test", "my_app.test"),
+            ("café.test", "xn--caf-dma.test"),
+            ("CAFE\u{0301}.TEST", "xn--caf-dma.test"),
+            ("XN--CAF-DMA.TEST", "xn--caf-dma.test"),
+            ("\u{0432}\u{0430}\u{043b}\u{044e}\u{0442}\u{0430}.test", "xn--80aae1b9a9d.test"),
+            (
+                "\u{0432}\u{0430}\u{043b}\u{044e}\u{0442}\u{0430}.\u{0440}\u{0444}.test",
+                "xn--80aae1b9a9d.xn--p1ai.test",
+            ),
+            ("café\u{3002}test", "xn--caf-dma.test"),
+            ("123", "123"),
+        ] {
+            assert_eq!(normalize_project_domain(input).unwrap(), expected);
+        }
+        let max_label = format!("{}.test", "a".repeat(63));
+        assert_eq!(normalize_project_domain(&max_label).unwrap(), max_label);
+        let long_domain = format!("{}.test", vec!["a".repeat(60); 4].join("."));
+        assert_eq!(normalize_project_domain(&long_domain).unwrap(), long_domain);
+        for invalid in [
+            "",
+            "   ",
+            "../escape",
+            "..\\escape",
+            "bad/name.test",
+            "https://café.test",
+            "user@café.test",
+            "café.test:80",
+            "café.test?query",
+            "café.test#fragment",
+            "caf%65.test",
+            "caf\té.test",
+            "bad name.test",
+            "café..test",
+            ".café.test",
+            "café.test.",
+            "-bad.test",
+            "bad-.test",
+            "xn--.test",
+            "xn--a.test",
+            "CON.test",
+            "lpt1.test",
+            "bad\u{200d}.test",
+            &format!("{}.test", "a".repeat(64)),
+            &format!("{}.test", "é".repeat(58)),
+            &format!("{}.test", vec!["a".repeat(63); 4].join(".")),
+        ] {
+            assert_eq!(
+                normalize_project_domain(invalid).unwrap_err().code,
+                "err.invalidDomain",
+                "{invalid:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn idn_projects_use_punycode_on_disk_and_reject_equivalent_duplicates() {
+        for (input, duplicate, domain) in [
+            (" CAFÉ.test ", "cafe\u{0301}.test", "xn--caf-dma.test"),
+            ("xn--caf-dma.test", "café.test", "xn--caf-dma.test"),
+            (
+                "\u{0432}\u{0430}\u{043b}\u{044e}\u{0442}\u{0430}.\u{0440}\u{0444}.test",
+                "XN--80AAE1B9A9D.XN--P1AI.TEST",
+                "xn--80aae1b9a9d.xn--p1ai.test",
+            ),
+        ] {
+            let fixture = RenameFixture::empty();
+            let custom = Some(fixture.0.to_string_lossy().into_owned());
+            let create = |name: &str| {
+                create_project(
+                    CreateProjectParams {
+                        domain: name.into(),
+                        http_engine: None,
+                        php_engine: None,
+                        node_engine: None,
+                    },
+                    custom.clone(),
+                )
+            };
+            let created = create(input).unwrap();
+            assert_eq!(created.domain, domain);
+            assert_eq!(fs::canonicalize(&created.path).unwrap(), fixture.0.join("home").join(domain));
+            let ini = Path::new(&created.path).join(".osp/project.ini");
+            let content = fs::read_to_string(&ini).unwrap();
+            assert!(content.starts_with(&format!("\u{feff}[{domain}]\r\n\r\n")));
+            assert_eq!(read_project_settings(domain.into(), custom.clone()).unwrap().domain, domain);
+            let error = create(duplicate).unwrap_err();
+            assert_eq!(error.code, "err.projectExists");
+            assert_eq!(error.params["domain"], domain);
+            assert_eq!(fs::read_to_string(ini).unwrap(), content);
+            assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 1);
+        }
+    }
+
+    #[test]
+    fn creating_invalid_idns_leaves_no_project_files() {
+        let fixture = RenameFixture::empty();
+        for invalid in ["xn--.test", "café/escape.test", "caf\té.test"] {
+            let error = create_project(
+                CreateProjectParams {
+                    domain: invalid.into(),
+                    http_engine: None,
+                    php_engine: None,
+                    node_engine: None,
+                },
+                Some(fixture.0.to_string_lossy().into_owned()),
+            )
+            .unwrap_err();
+            assert_eq!(error.code, "err.invalidDomain");
+            assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 0);
+        }
+    }
+
+    #[test]
+    fn renaming_to_an_idn_normalizes_the_folder_and_ini_section() {
+        for input in [" café.test ", "XN--CAF-DMA.TEST"] {
+            let fixture = RenameFixture::new();
+            let renamed = fixture.rename(input).unwrap();
+            assert_eq!(renamed.domain, "xn--caf-dma.test");
+            assert_eq!(fs::canonicalize(&renamed.path).unwrap(), fixture.0.join("home/xn--caf-dma.test"));
+            assert_eq!(
+                fs::read_to_string(Path::new(&renamed.path).join(".osp/project.ini")).unwrap(),
+                SAMPLE.replacen("[example.test]", "[xn--caf-dma.test]", 1),
+            );
+            assert!(!fixture.0.join("home/example.test").exists());
+        }
+        let fixture = RenameFixture::new();
+        fs::create_dir(fixture.0.join("home/xn--caf-dma.test")).unwrap();
+        assert_eq!(fixture.rename("café.test").unwrap_err().code, "err.projectExists");
     }
 
     #[test]

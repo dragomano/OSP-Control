@@ -1,5 +1,6 @@
 import type { HostsDocument, HostsSaveResult } from './hosts';
 import type { OsPanelMenuDocument, OsPanelMenuItem, OsPanelMenuSaveResult } from './menu';
+import { normalizeProjectDomain } from './projectDomain';
 import { matchesProjectSearch, type ProjectTags, tagsForProject } from './projectTags';
 import { settingsStorage } from './settingsStorage';
 
@@ -823,11 +824,14 @@ export type CreatedProject = {
 };
 
 export async function createProject(params: CreateProjectParams): Promise<CreatedProject> {
-  if (isTauri()) return invoke<CreatedProject>('create_project', { params, ...customPathArgs() });
+  const domain = normalizeProjectDomain(params.domain);
+  if (!domain) throw new Error('err.invalidDomain');
+  if (isTauri())
+    return invoke<CreatedProject>('create_project', { params: { ...params, domain }, ...customPathArgs() });
 
   return {
-    domain: params.domain,
-    path: `C:\\OSPanel\\home\\${params.domain}`,
+    domain,
+    path: `C:\\OSPanel\\home\\${domain}`,
     http: params.httpEngine ?? 'auto',
     php: (params.phpEngine ?? 'auto').replace(/^PHP-/, ''),
     ssl: false,
@@ -837,10 +841,12 @@ export async function createProject(params: CreateProjectParams): Promise<Create
 export type RenamedProject = Pick<OsPanelProject, 'domain' | 'path'>;
 
 export async function renameProject(project: OsPanelProject, newDomain: string): Promise<RenamedProject> {
+  const domain = normalizeProjectDomain(newDomain);
+  if (!domain) throw new Error('err.invalidDomain');
   if (isTauri())
     return invoke<RenamedProject>('rename_project', {
       domain: project.domain,
-      newDomain,
+      newDomain: domain,
       path: project.path,
       ...customPathArgs(),
     });

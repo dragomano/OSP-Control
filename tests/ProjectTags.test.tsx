@@ -185,6 +185,22 @@ describe('project tag metadata', () => {
     );
     expect(projects.map((project) => project.domain)).toEqual(['shop.test', 'api.test', 'empty.test']);
   });
+
+  it('searches both IDN forms and sorts by readable domain names while retaining tag keys', () => {
+    const idn = { ...projects[0], domain: 'xn--caf-dma.test', path: 'X:/TestPanel/home/xn--caf-dma.test' };
+    const items = [idn, { ...projects[0], domain: 'mango.test' }];
+    const tags = { [idn.domain]: ['Client'] };
+    for (const query of ['café', 'xn--caf-dma', 'café #client']) {
+      expect(filterProjects(items, query, tags)).toEqual([idn]);
+    }
+    for (const sort of ['domain', 'tags'] as const) {
+      expect(sortTaggedProjects(items, {}, sort, 'en').map(({ domain }) => domain)).toEqual([
+        'xn--caf-dma.test',
+        'mango.test',
+      ]);
+    }
+    expect(tagsForProject(tags, idn.domain)).toEqual(['Client']);
+  });
 });
 
 describe('project tags UI', () => {

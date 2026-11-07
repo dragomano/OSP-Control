@@ -13,6 +13,7 @@ import {
   type ProjectSettings,
   saveProjectSettings,
 } from '../../ospanel';
+import { displayProjectDomain } from '../../projectDomain';
 import { type Notify, useDismiss } from '../shared';
 import { ModuleSelect } from './ModuleSelect';
 
@@ -86,7 +87,7 @@ export function ProjectModulesDialog({
         tlsEnabled: next.tlsEnabled,
       });
 
-      notify(t('projects.toastModulesSaved', { domain: project.domain }));
+      notify(t('projects.toastModulesSaved', { domain: displayProjectDomain(project.domain) }));
     } catch (error) {
       notify(errorText(t, error, 'projects.toastModulesFailed'));
     } finally {
@@ -122,7 +123,7 @@ export function ProjectModulesDialog({
         <div className="modal-head">
           <div>
             <span className="eyebrow">{t('projects.menuModules')}</span>
-            <h3 className="modal-title">{project.domain}</h3>
+            <h3 className="modal-title">{displayProjectDomain(project.domain)}</h3>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
             <X size={16} />
