@@ -1,14 +1,12 @@
 # OSP Control
 
+![Stack](https://skillicons.dev/icons?i=tauri,rust,react,ts,vite)
+
 **English** · [Русский](README.ru.md)
 
 A UI companion for OSPanel 6. Local environment management: services, projects, domains, configurations, logs, backups — in a single window, with themes and a multilingual interface.
 
 > An unofficial tool created for research purposes, not affiliated with OSPanel / OpenServerPanel. The name "OSPanel" is a trademark of its respective owner.
-
-## Stack
-
-Tauri 2 (Rust) · React 19 · TypeScript · Vite · highlight.js · marked
 
 ## Features
 
