@@ -16,8 +16,15 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         codeSplitting: {
-          // Cache the Preact (React-compat) runtime independently of application code and dictionaries.
-          groups: [{ name: 'preact-vendor', test: /[\\/]node_modules[\\/](?:preact)[\\/]/ }],
+          groups: [
+            // Keep the runtime, embedded fallback dictionaries and syntax engine independently cacheable.
+            { name: 'preact-vendor', test: /[\\/]node_modules[\\/](?:preact)[\\/]/ },
+            { name: 'locales', test: /[\\/]src-tauri[\\/]resources[\\/]locales[\\/][^\\/]+\.json$/ },
+            {
+              name: 'syntax-highlighter',
+              test: /[\\/](?:node_modules[\\/]highlight\.js[\\/]|src[\\/]highlight\.ts$)/,
+            },
+          ],
         },
       },
     },
