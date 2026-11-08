@@ -4,6 +4,7 @@ import { errorText, useI18n } from '../../i18n';
 import { type OsPanelProject, renameProject } from '../../ospanel';
 import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
 import { useDismiss } from '../shared';
+import { PathText } from '../widgets/PathText';
 
 export function RenameProjectDialog({
   project,
@@ -84,7 +85,7 @@ export function RenameProjectDialog({
             </button>
           </div>
           <p className="modal-hint" id={hintId}>
-            {t('projects.renameHint')}
+            <PathText text={t('projects.renameHint')} />
           </p>
           <div className="modal-body">
             <label className="module-select">
@@ -103,10 +104,14 @@ export function RenameProjectDialog({
             </label>
             {(error || exists || !valid) && (
               <p className="modal-hint" role="alert">
-                {error ||
-                  (exists
-                    ? t('err.projectExists', { domain: displayProjectDomain(newDomain ?? '') })
-                    : t('err.invalidDomain'))}
+                <PathText
+                  text={
+                    error ||
+                    (exists
+                      ? t('err.projectExists', { domain: displayProjectDomain(newDomain ?? '') })
+                      : t('err.invalidDomain'))
+                  }
+                />
               </p>
             )}
           </div>

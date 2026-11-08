@@ -21,6 +21,7 @@ import {
 import { displayProjectDomain } from '../../projectDomain';
 import { formatSize, type Notify, type Service } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
+import { PathText } from '../widgets/PathText';
 
 // "All" sentinel for the backup subject selects: '*' can never collide with a module or domain name.
 const ALL_TARGETS = '*';
@@ -309,7 +310,9 @@ export function Backups({
         <div className="setting-block">
           <div>
             <h3>{t('settings.backupsMenuTitle')}</h3>
-            <p>{t('settings.backupsMenuText')}</p>
+            <p>
+              <PathText text={t('settings.backupsMenuText')} />
+            </p>
           </div>
           <button
             type="button"

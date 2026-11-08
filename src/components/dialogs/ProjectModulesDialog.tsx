@@ -15,6 +15,7 @@ import {
 } from '../../ospanel';
 import { displayProjectDomain } from '../../projectDomain';
 import { type Notify, useDismiss } from '../shared';
+import { PathText } from '../widgets/PathText';
 import { ModuleSelect } from './ModuleSelect';
 
 export function ProjectModulesDialog({
@@ -135,7 +136,9 @@ export function ProjectModulesDialog({
             <X size={16} />
           </button>
         </div>
-        <p className="modal-hint">{t('projects.modulesHint')}</p>
+        <p className="modal-hint">
+          <PathText text={t('projects.modulesHint')} />
+        </p>
         {options && draft ? (
           <div className="modal-body">
             <ModuleSelect

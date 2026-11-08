@@ -54,6 +54,7 @@ import { MENU_TREE_KEY, settingsStorage } from '../../settingsStorage';
 import { MenuIconPicker } from '../dialogs/MenuIconPicker';
 import { type Notify, useDismiss } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
+import { PathText } from '../widgets/PathText';
 import './menuEditor.css';
 
 type Selection = { kind: 'item'; id: string } | { kind: 'category'; path: string };
@@ -880,7 +881,7 @@ export function MenuEditor({
           <p className="menu-file-note">
             <Info size={14} />
             <button type="button" className="text-button menu-backup-hint" onClick={onOpenBackups}>
-              {t('menu.saveHint')}
+              <PathText text={t('menu.saveHint')} />
             </button>
             <button
               type="button"

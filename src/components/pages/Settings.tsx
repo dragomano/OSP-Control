@@ -25,6 +25,7 @@ import { ACCENT_THEMES, accentSwatch, FONT_OPTIONS, type ThemeMode } from '../..
 import type { Notify, SettingsTab } from '../shared';
 import { ModuleUpdateSources } from '../widgets/ModuleUpdateSources';
 import { PageHeader } from '../widgets/PageHeader';
+import { PathText } from '../widgets/PathText';
 import { RowMenu } from '../widgets/RowMenu';
 import './settings.css';
 
@@ -312,7 +313,9 @@ export function Settings({
                 <div className="setting-block">
                   <div>
                     <h3>{t('settings.projectAutostartTitle')}</h3>
-                    <p>{t('settings.projectAutostartText')}</p>
+                    <p>
+                      <PathText text={t('settings.projectAutostartText')} />
+                    </p>
                   </div>
                   <button
                     type="button"

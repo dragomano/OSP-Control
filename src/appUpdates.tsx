@@ -14,6 +14,7 @@ import {
 } from 'react';
 import { version } from '../package.json';
 import { formatSize, useDismiss } from './components/shared';
+import { PathText } from './components/widgets/PathText';
 import { errorText, useI18n } from './i18n';
 import {
   type AppUpdate,
@@ -267,7 +268,9 @@ function UpdateDialog({
         ) : (
           <p className="modal-hint">{t(checked ? 'appUpdates.current' : 'appUpdates.checkHint')}</p>
         )}
-        <p className="modal-hint">{t('appUpdates.preserve')}</p>
+        <p className="modal-hint">
+          <PathText text={t('appUpdates.preserve')} />
+        </p>
         {busy && progress && (
           <div role="status">
             <b>{t(`appUpdates.phase.${progress.phase}`)}</b>
