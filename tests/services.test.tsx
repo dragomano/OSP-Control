@@ -14,6 +14,12 @@ const service: Service = {
   kind: 'web',
   icon: Activity,
 };
+const t = makeTranslator(embeddedDict('en'), embeddedDict('en'));
+const servicesView = (props: React.ComponentProps<typeof Services>) => (
+  <I18nContext.Provider value={{ lang: 'en', t, plural: (key) => key }}>
+    <Services {...props} />
+  </I18nContext.Provider>
+);
 
 const renderServices = (overrides: Partial<React.ComponentProps<typeof Services>> = {}) => {
   const props: React.ComponentProps<typeof Services> = {
@@ -26,17 +32,7 @@ const renderServices = (overrides: Partial<React.ComponentProps<typeof Services>
     ...overrides,
   };
   return {
-    ...render(
-      <I18nContext.Provider
-        value={{
-          lang: 'en',
-          t: makeTranslator(embeddedDict('en'), embeddedDict('en')),
-          plural: (key) => key,
-        }}
-      >
-        <Services {...props} />
-      </I18nContext.Provider>,
-    ),
+    ...render(servicesView(props)),
     props,
   };
 };
@@ -44,6 +40,37 @@ const renderServices = (overrides: Partial<React.ComponentProps<typeof Services>
 afterEach(() => cleanup());
 
 describe('Services async actions', () => {
+  it('opens profiles from the active name and refreshes the label with the module snapshot', () => {
+    const onProfiles = vi.fn();
+    const current = { ...service, profile: 'default' };
+    const { props, rerender } = renderServices({ services: [current], onProfiles });
+    const button = screen.getByRole('button', {
+      name: t('profiles.open', { name: current.name, profile: current.profile }),
+    });
+    expect(button).toHaveTextContent('default');
+    fireEvent.click(button);
+    expect(onProfiles).toHaveBeenCalledWith(current);
+    const updated = { ...current, profile: 'development+debug' };
+    rerender(servicesView({ ...props, services: [updated] }));
+    const next = screen.getByRole('button', {
+      name: t('profiles.open', { name: updated.name, profile: updated.profile }),
+    });
+    expect(next).toHaveTextContent(updated.profile);
+    expect(next).toHaveAttribute(
+      'title',
+      t('profiles.open', { name: updated.name, profile: updated.profile }),
+    );
+  });
+
+  it('does not invent a default profile when the snapshot has no profile data', () => {
+    renderServices({ onProfiles: vi.fn() });
+    const button = screen.getByRole('button', {
+      name: t('profiles.open', { name: service.name, profile: t('common.unknown') }),
+    });
+    expect(button).toHaveTextContent(t('common.unknown'));
+    expect(button).not.toHaveTextContent('default');
+  });
+
   it('waits for sync before showing the success toast', async () => {
     let resolveSync!: (success: boolean) => void;
     const onSync = vi.fn(

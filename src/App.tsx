@@ -55,6 +55,7 @@ import {
 } from './i18n';
 import { ModuleUpdatesProvider } from './moduleUpdates';
 import {
+  activateModuleProfile,
   askConfirm,
   autostartFromProjects,
   type CreatedProject,
@@ -90,6 +91,11 @@ export { buildActivityRows } from './components/tables/Logs';
 const Configs = lazy(() =>
   import('./components/tables/Configs').then((module) => ({ default: module.Configs })),
 );
+const ModuleProfilesDialog = lazy(() =>
+  import('./components/dialogs/ModuleProfilesDialog').then((module) => ({
+    default: module.ModuleProfilesDialog,
+  })),
+);
 const MenuEditor = lazy(() =>
   import('./components/pages/MenuEditor').then((module) => ({ default: module.MenuEditor })),
 );
@@ -108,6 +114,7 @@ const isTypingTarget = (target: EventTarget | null): boolean =>
 
 function App() {
   const [page, setPage] = useState<Page>('overview');
+  const [profileService, setProfileService] = useState<Service | null>(null);
   const [menuVisited, setMenuVisited] = useState(false);
   const [backupFilter, setBackupFilter] = useState<BackupFilter>('all');
   const [menuState, setMenuState] = useState({ dirty: false, busy: false });
@@ -1145,6 +1152,7 @@ function App() {
                     notify={notify}
                     onSync={loadSnapshot}
                     onRestartAll={restartAllServices}
+                    onProfiles={setProfileService}
                     panelRestarting={panelRestarting}
                     pendingServices={pendingServices}
                   />
@@ -1296,6 +1304,41 @@ function App() {
               </div>
             )}
             <QuickSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={navigateTo} />
+            {profileService && (
+              <Suspense fallback={null}>
+                <ModuleProfilesDialog
+                  key={profileService.name}
+                  service={profileService}
+                  notify={notify}
+                  blocked={panelRestarting || moduleUpdating || appUpdating || autostartBusy || panelStarting}
+                  onClose={() => setProfileService(null)}
+                  onBusyChange={(busy) => {
+                    if (busy) inFlightServicesRef.current.add(profileService.name);
+                    else inFlightServicesRef.current.delete(profileService.name);
+                    setServicePending(profileService.name, busy);
+                    if (!busy) void loadSnapshot();
+                  }}
+                  onActivate={async (profile) => {
+                    if (
+                      !(await restartPanelNow(
+                        'projects.toastPanelRestarting',
+                        'projects.toastPanelRestartFailed',
+                      ))
+                    )
+                      throw new Error('err.profileActivation');
+                    inFlightServicesRef.current.add(profileService.name);
+                    setServicePending(profileService.name, true);
+                    try {
+                      await activateModuleProfile(profileService.name, profile);
+                      await loadSnapshot();
+                    } finally {
+                      inFlightServicesRef.current.delete(profileService.name);
+                      setServicePending(profileService.name, false);
+                    }
+                  }}
+                />
+              </Suspense>
+            )}
           </AppUpdatesProvider>
         </div>
       </ModuleUpdatesProvider>

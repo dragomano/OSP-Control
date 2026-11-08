@@ -10,6 +10,7 @@ mod hosts;
 mod locales;
 mod menu;
 mod module_health;
+mod module_profiles;
 mod module_releases;
 mod module_updates;
 mod panel_api;
@@ -256,6 +257,14 @@ fn main() {
             services::start_ospanel,
             services::overview_metrics,
             services::service_action,
+            module_profiles::list_module_profiles,
+            module_profiles::read_module_profile,
+            module_profiles::read_profile_file,
+            module_profiles::save_profile_file,
+            module_profiles::create_module_profile,
+            module_profiles::rename_module_profile,
+            module_profiles::delete_module_profile,
+            module_profiles::activate_module_profile,
             projects::project_module_options,
             projects::read_project_settings,
             projects::write_project_settings,

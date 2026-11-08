@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ChevronDown, ChevronRight, Layers, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useI18n } from '../../i18n';
 import { ModuleUpdateAction, ModuleUpdateToolbar, useModuleUpdates } from '../../moduleUpdates';
@@ -26,6 +26,7 @@ export function Services({
   onRestartAll,
   panelRestarting = false,
   pendingServices,
+  onProfiles,
 }: {
   services: Service[];
   onToggle: (index: number) => void;
@@ -37,6 +38,7 @@ export function Services({
   // command cannot be sent to a panel that is still starting.
   panelRestarting?: boolean;
   pendingServices?: ReadonlySet<string>;
+  onProfiles?: (service: Service) => void;
 }) {
   const { t } = useI18n();
   const updates = useModuleUpdates();
@@ -161,6 +163,8 @@ export function Services({
                     const toggle = stopStartAction(service, t);
                     const busy = isBusy(service.name);
                     const toggleDisabled = toggle.disabled || busy || updates.busy;
+                    const profileName = service.profile || t('common.unknown');
+                    const profilesLabel = t('profiles.open', { name: service.name, profile: profileName });
 
                     return (
                       <div
@@ -190,6 +194,20 @@ export function Services({
                             )}
                           </div>
                           <div className="row-actions">
+                            {onProfiles && (
+                              <button
+                                type="button"
+                                className="secondary-button profiles-trigger"
+                                disabled={busy || updates.busy}
+                                onClick={() => onProfiles(service)}
+                                aria-label={profilesLabel}
+                                title={profilesLabel}
+                              >
+                                <Layers size={14} />
+                                <span className="profiles-trigger-name">{profileName}</span>
+                                <ChevronDown size={12} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="secondary-button"

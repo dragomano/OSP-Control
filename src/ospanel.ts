@@ -1,5 +1,6 @@
 import type { HostsDocument, HostsSaveResult } from './hosts';
 import type { OsPanelMenuDocument, OsPanelMenuItem, OsPanelMenuSaveResult } from './menu';
+import type { ModuleProfiles, ProfileDocument, ProfileSave } from './moduleProfiles';
 import { normalizeProjectDomain } from './projectDomain';
 import { matchesProjectSearch, type ProjectTags, tagsForProject } from './projectTags';
 import { settingsStorage } from './settingsStorage';
@@ -10,6 +11,7 @@ export type OsPanelService = {
   name: string;
   version: string;
   port: string;
+  profile?: string | null;
   status: ServiceStatus;
   detail: string;
   kind:
@@ -334,7 +336,15 @@ export async function discoverOsPanel(): Promise<OsPanelSnapshot> {
   const customPath = settingsStorage.getItem('ospanel.path');
 
   if (!isTauri()) {
-    return { ...mockSnapshot, path: customPath ?? mockSnapshot.path, checkedAt: new Date().toISOString() };
+    return {
+      ...mockSnapshot,
+      services: mockSnapshot.services.map((service) => ({
+        ...service,
+        profile: demoActiveProfiles.get(service.name) ?? 'default',
+      })),
+      path: customPath ?? mockSnapshot.path,
+      checkedAt: new Date().toISOString(),
+    };
   }
 
   return invoke<OsPanelSnapshot>('discover_ospanel', { customPath });
@@ -357,7 +367,11 @@ export async function refreshService(
 
     if (!service) throw new Error('err.serviceNotFound');
 
-    return { ...service, status: action === 'stop' ? 'stopped' : 'running' };
+    return {
+      ...service,
+      profile: demoActiveProfiles.get(name) ?? 'default',
+      status: action === 'stop' ? 'stopped' : 'running',
+    };
   }
 
   return invoke<OsPanelService>('service_action', { name, action, ...customPathArgs() });
@@ -664,6 +678,111 @@ export async function readConfigFile(path: string): Promise<string> {
   if (isTauri()) return invoke<string>('read_config', { path, ...customPathArgs() });
 
   return '# Demo config content (browser preview mode)';
+}
+
+// Browser previews use an isolated, synthetic profile store; desktop calls always use disk/API data.
+const demoProfiles = new Map<string, Map<string, Record<string, string>>>();
+const demoActiveProfiles = new Map<string, string>();
+function browserProfiles(name: string) {
+  let profiles = demoProfiles.get(name);
+  if (!profiles) {
+    profiles = new Map([
+      [
+        'default',
+        {
+          'settings.ini': '[main]\nip = 127.0.1.10\nlog_level = error\n',
+          'templates/example.conf': '# Example module template\n',
+        },
+      ],
+    ]);
+    demoProfiles.set(name, profiles);
+  }
+  return profiles;
+}
+export async function listModuleProfiles(name: string): Promise<ModuleProfiles> {
+  if (isTauri()) return invoke('list_module_profiles', { name, ...customPathArgs() });
+  return {
+    active: demoActiveProfiles.get(name) ?? 'default',
+    online: true,
+    factoryAvailable: true,
+    factoryData: false,
+    profiles: [...browserProfiles(name).keys()].map((name) => ({
+      name,
+      builtin: name === 'default',
+      hasData: false,
+    })),
+  };
+}
+export async function readModuleProfile(name: string, profile: string): Promise<ProfileDocument> {
+  if (isTauri()) return invoke('read_module_profile', { name, profile, ...customPathArgs() });
+  const files = browserProfiles(name).get(profile);
+  if (!files) throw new Error('err.profileMissing');
+  return {
+    path: `C:/OSPanel/config/${name}/${profile}`,
+    files: Object.entries(files).map(([name, content]) => ({ name, sizeBytes: content.length })),
+  };
+}
+export async function readProfileFile(name: string, profile: string, file: string): Promise<string> {
+  if (isTauri()) return invoke('read_profile_file', { name, profile, file, ...customPathArgs() });
+  const content = browserProfiles(name).get(profile)?.[file];
+  if (content === undefined) throw new Error('err.profileMissing');
+  return content;
+}
+export async function saveProfileFile(
+  name: string,
+  profile: string,
+  file: string,
+  original: string,
+  content: string,
+): Promise<ProfileSave> {
+  if (isTauri())
+    return invoke('save_profile_file', { name, profile, file, original, content, ...customPathArgs() });
+  const files = browserProfiles(name).get(profile);
+  if (!files || files[file] !== original) throw new Error('err.profileConflict');
+  files[file] = content;
+  return { content, backupPath: `C:/OSPanel/backups/module-profiles/${name}/${profile}-example` };
+}
+export async function createModuleProfile(
+  name: string,
+  profile: string,
+  source: string,
+  factorySource: boolean,
+  copyData: boolean,
+): Promise<void> {
+  if (isTauri())
+    return invoke('create_module_profile', {
+      name,
+      profile,
+      source,
+      factorySource,
+      copyData,
+      ...customPathArgs(),
+    });
+  const profiles = browserProfiles(name);
+  if ([...profiles.keys()].some((p) => p.toLowerCase() === profile.toLowerCase()))
+    throw new Error('err.profileExists');
+  const files = profiles.get(factorySource ? 'default' : source);
+  if (!files) throw new Error('err.profileMissing');
+  profiles.set(profile, { ...files });
+}
+export async function renameModuleProfile(name: string, profile: string, next: string): Promise<void> {
+  if (isTauri()) return invoke('rename_module_profile', { name, profile, next, ...customPathArgs() });
+  const profiles = browserProfiles(name),
+    files = profiles.get(profile);
+  if (!files) throw new Error('err.profileMissing');
+  if (profiles.has(next)) throw new Error('err.profileExists');
+  profiles.set(next, files);
+  profiles.delete(profile);
+}
+export async function deleteModuleProfile(name: string, profile: string): Promise<string> {
+  if (isTauri()) return invoke('delete_module_profile', { name, profile, ...customPathArgs() });
+  browserProfiles(name).delete(profile);
+  return `C:/OSPanel/backups/module-profiles/${name}/${profile}-example`;
+}
+export async function activateModuleProfile(name: string, profile: string): Promise<void> {
+  if (isTauri()) return invoke('activate_module_profile', { name, profile, ...customPathArgs() });
+  if (!browserProfiles(name).has(profile)) throw new Error('err.profileMissing');
+  demoActiveProfiles.set(name, profile);
 }
 
 export interface AutostartReport {

@@ -12,6 +12,8 @@ pub(crate) struct Service {
     pub(crate) name: String,
     pub(crate) version: String,
     pub(crate) port: String,
+    #[serde(default)]
+    pub(crate) profile: Option<String>,
     pub(crate) status: String,
     pub(crate) detail: String,
     pub(crate) kind: String,
@@ -192,6 +194,7 @@ fn service_from_dat(name: &str, node: &serde_json::Value) -> Option<Service> {
         name: name.to_string(),
         version: text("version"),
         port,
+        profile: (!profile.is_empty()).then_some(profile),
         status: status.into(),
         detail: format!("svc.detail.{}", kind),
         kind: kind.into(),
@@ -399,6 +402,28 @@ mod tests {
     }
 
     // The port comes from the active profile; without one — the default by module name.
+    #[test]
+    fn active_profile_is_included_in_service_snapshots_even_for_stopped_modules() {
+        let mut node = serde_json::json!({"_children": [
+            {"key":"enabled", "value":{"_value":false}},
+            {"key":"handle", "value":{"_value":-1}},
+            {"key":"profile", "value":{"_value":"development"}},
+            {"key":"profiles", "value":{"_children":[
+                {"key":"default", "value":{"_children":[{"key":"port","value":{"_value":"3306"}}]}},
+                {"key":"development", "value":{"_children":[{"key":"port","value":{"_value":"3307"}}]}}
+            ]}}
+        ]});
+        let service = service_from_dat("MySQL-8.4", &node).unwrap();
+        assert_eq!(service.profile.as_deref(), Some("development"));
+        assert_eq!(service.port, ":3307");
+        assert_eq!(service.status, "stopped");
+        assert_eq!(serde_json::to_value(&service).unwrap()["profile"], "development");
+        node["_children"][2]["value"]["_value"] = "".into();
+        assert!(service_from_dat("MySQL-8.4", &node).unwrap().profile.is_none());
+        node["_children"].as_array_mut().unwrap().remove(2);
+        assert!(service_from_dat("MySQL-8.4", &node).unwrap().profile.is_none());
+    }
+
     #[test]
     fn module_port_falls_back_to_known_defaults() {
         assert_eq!(module_port("Bind"), ":53");
