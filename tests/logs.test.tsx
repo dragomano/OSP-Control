@@ -88,7 +88,7 @@ describe('Log cleanup', () => {
     expect(logMocks.clearLogs).toHaveBeenCalledExactlyOnceWith(null);
     expect(screen.getByText('Logs cleared (files: 3)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'general.log' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Domain: example.test error' }));
+    fireEvent.click(screen.getByRole('option', { name: 'example.test error' }));
     await waitFor(() => expect(screen.queryByText('[error] DOMAIN_ERROR')).not.toBeInTheDocument());
     expect(contents.get('domains/example.test_error.log')).toEqual([]);
     expect(
@@ -234,7 +234,7 @@ describe('Log source switching', () => {
   };
   const selectSource = (current: string, next: string) => {
     fireEvent.click(screen.getByRole('button', { name: current }));
-    fireEvent.click(screen.getByRole('menuitem', { name: next }));
+    fireEvent.click(screen.getByRole('option', { name: next }));
   };
 
   it.each(['empty', 'failed'] as const)(

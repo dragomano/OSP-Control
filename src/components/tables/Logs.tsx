@@ -1,11 +1,11 @@
-import { ChevronRight, Copy, Eraser, RefreshCw, Search, Terminal, Trash2 } from 'lucide-react';
+import { Copy, Eraser, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useI18n } from '../../i18n';
 import type { LogSource } from '../../ospanel';
 import { ClearLogsDialog } from '../dialogs/ClearLogsDialog';
 import { type ActivityEntry, copyText, type Notify } from '../shared';
+import { LogSourcePicker } from '../widgets/LogSourcePicker';
 import { PageHeader } from '../widgets/PageHeader';
-import { RowMenu } from '../widgets/RowMenu';
 
 type LogLevel = 'error' | 'warning' | 'info';
 export type LogAliases = Record<LogLevel, string[]>;
@@ -213,9 +213,6 @@ export function Logs({
         event.level === level && (event.text.toLowerCase().includes(needle) || event.time.includes(needle)),
     );
   }, [events, level, query]);
-  // Domain log labels come without the prefix — it is translated via logs.sourceDomain.
-  const sourceLabel = (item: LogSource) =>
-    item.domain ? t('logs.sourceDomain', { name: item.label }) : item.label;
   const activeSource = sources.find((item) => item.name === source);
   // The rows of the active tab: raw tail lines on "All events", merged events on the level tabs.
   const rendered =
@@ -277,28 +274,7 @@ export function Logs({
             placeholder={t('logs.searchPlaceholder')}
           />
         </div>
-        <RowMenu
-          trigger={({ onToggle, open }) => (
-            <button
-              type="button"
-              className="filter-button"
-              onClick={onToggle}
-              aria-haspopup="menu"
-              aria-expanded={open}
-              disabled={clearing}
-            >
-              <Terminal size={15} />
-              {activeSource ? sourceLabel(activeSource) : source}
-              <ChevronRight size={14} />
-            </button>
-          )}
-          entries={sources.map((item) => ({
-            label: sourceLabel(item),
-            icon: Terminal,
-            disabled: clearing,
-            onSelect: () => onSourceChange(item.name),
-          }))}
-        />
+        <LogSourcePicker sources={sources} value={source} onChange={onSourceChange} disabled={clearing} />
       </div>
       <div className="log-panel">
         <div className="log-tabs">

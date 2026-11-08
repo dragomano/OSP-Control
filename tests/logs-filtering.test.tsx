@@ -43,6 +43,19 @@ const selectLevel = (level: 'all' | 'error' | 'warning') =>
 afterEach(() => cleanup());
 
 describe('Log filter rendering', () => {
+  it('keeps source prefix search independent of the filter for log contents', () => {
+    const { container } = render(logs(repeatedLines));
+    fireEvent.change(screen.getByPlaceholderText('Filter log...'), {
+      target: { value: 'REPEATED_ERROR' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'general.log' }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'A' } });
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(screen.getByRole('option', { name: 'Apache.log' })).toBeInTheDocument();
+    expect(displayedLines(container)).toEqual(['[error] REPEATED_ERROR', '[error] REPEATED_ERROR']);
+    expect(screen.getByPlaceholderText('Filter log...')).toHaveValue('REPEATED_ERROR');
+  });
+
   it('preserves genuine repetitions without accumulating rows across filter switches', () => {
     const { container } = render(logs(repeatedLines));
     for (let cycle = 0; cycle < 10; cycle += 1) {
