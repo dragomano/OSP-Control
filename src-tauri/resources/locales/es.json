@@ -871,7 +871,7 @@
   "workspace.hint.environment": "Versiones de módulos y entorno de consola del proyecto.",
   "workspace.hint.web": "Directorios, conexión, TLS y proxy backend.",
   "workspace.hint.configs": "Fragmentos de configuración del dominio para cada servidor web.",
-  "workspace.hint.menu": "Edite .osp/menu.ini. El editor guarda los comandos sin ejecutarlos.",
+  "workspace.hint.menu": "Configure elementos, categorías e iconos del menú del proyecto. Los cambios se guardan en .osp/menu.ini.",
   "workspace.hint.tasks": "Edite .osp/tasks.ini: cinco campos cron, límite de ejecuciones, activación y comando.",
   "workspace.domain": "Dominio",
   "workspace.newDomain": "Nuevo dominio",

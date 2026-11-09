@@ -43,9 +43,12 @@ export function moveMenuItem(draft: MenuDraft, id: string, category: string, bef
   return { ...draft, items };
 }
 
-export function menuCategories(draft: MenuDraft): string[] {
-  const categories = new Set<string>(['', ...MENU_SPECIAL_CATEGORIES]);
-  for (const path of [...draft.categories, ...draft.items.map(categoryOf)]) {
+export function menuCategories(
+  draft: MenuDraft,
+  defaults: readonly string[] = MENU_SPECIAL_CATEGORIES,
+): string[] {
+  const categories = new Set<string>(['', ...defaults]);
+  for (const path of [...defaults, ...draft.categories, ...draft.items.map(categoryOf)]) {
     categories.add(path);
     const index = path.indexOf('\\');
     if (index > 0) categories.add(path.slice(0, index));
@@ -125,11 +128,17 @@ export function menuCaption(item: OsPanelMenuItem, t: Translator): string {
   });
 }
 
-export function newMenuId(items: OsPanelMenuItem[]): string {
+export function newMenuId(items: OsPanelMenuItem[], prefix = ''): string {
   const used = new Set(items.map((item) => item.id.toLowerCase()));
   let index = 1;
-  while (used.has(`custom_${index}`)) index++;
-  return `custom_${index}`;
+  while (used.has(`${prefix}custom_${index}`)) index++;
+  return `${prefix}custom_${index}`;
+}
+
+export function projectMenuIdPrefix(domain: string): string {
+  let hash = 2166136261;
+  for (const char of domain) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return `project_${domain.slice(0, 48)}_${(hash >>> 0).toString(16)}_`;
 }
 
 export function menuMatches(item: OsPanelMenuItem, query: string, t: Translator): boolean {

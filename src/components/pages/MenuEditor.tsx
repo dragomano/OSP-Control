@@ -25,12 +25,16 @@ import {
 import {
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
+  type Ref,
   useCallback,
   useEffect,
+  useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { errorText, useI18n } from '../../i18n';
+import type { OsPanelMenuSaveResult } from '../../menu';
 import {
   categoryLabel,
   categoryOf,
@@ -45,11 +49,21 @@ import {
   newMenuId,
   type OsPanelMenuDocument,
   type OsPanelMenuItem,
+  projectMenuIdPrefix,
   renameMenuCategory,
   validCategory,
 } from '../../menu';
 import { MenuIcon } from '../../menuIcons';
-import { askConfirm, isDesktopApp, openFileExternally, readMenu, writeMenu } from '../../ospanel';
+import {
+  askConfirm,
+  isDesktopApp,
+  type OsPanelProject,
+  openFileExternally,
+  readMenu,
+  readProjectMenu,
+  writeMenu,
+  writeProjectMenu,
+} from '../../ospanel';
 import { MENU_TREE_KEY, settingsStorage } from '../../settingsStorage';
 import { MenuIconPicker } from '../dialogs/MenuIconPicker';
 import { type Notify, useDismiss } from '../shared';
@@ -72,6 +86,8 @@ type Drag = {
 };
 const emptyHistory = (draft: MenuDraft): History => ({ past: [], present: draft, future: [] });
 
+export type MenuEditorHandle = { save: () => Promise<boolean>; reload: () => Promise<void> };
+
 function readCollapsedCategories(categories: string[], fallback: string[]): string[] {
   try {
     const stored: unknown = JSON.parse(settingsStorage.getItem(MENU_TREE_KEY) ?? 'null');
@@ -92,17 +108,35 @@ export function MenuEditor({
   onOpenBackups,
   onStateChange,
   reloadVersion = 0,
+  project,
+  domains,
+  editorRef,
+  onSaveRequest,
+  onSaved,
 }: {
   notify: Notify;
   installationPath: string | null;
   active: boolean;
   blocked: boolean;
   onRestart: () => void;
-  onOpenBackups: () => void;
+  onOpenBackups?: () => void;
   onStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
   reloadVersion?: number;
+  project?: OsPanelProject;
+  domains?: string[];
+  editorRef?: Ref<MenuEditorHandle>;
+  onSaveRequest?: () => void;
+  onSaved?: (result: OsPanelMenuSaveResult) => void;
 }) {
   const { t } = useI18n();
+  const isProject = Boolean(project);
+  const categoryKey = (domains?.length ? domains : project ? [project.domain] : []).join('\0');
+  const categoryDefaults = useMemo<readonly string[]>(
+    () =>
+      isProject ? categoryKey.split('\0').map((domain) => `projects\\${domain}`) : MENU_SPECIAL_CATEGORIES,
+    [isProject, categoryKey],
+  );
+  const defaultCategory = project ? `projects\\${project.domain}` : '';
   const [saved, setSaved] = useState<OsPanelMenuDocument | null>(null);
   const [history, setHistory] = useState<History>(() => emptyHistory(menuDraft([])));
   const [selection, setSelection] = useState<Selection>({ kind: 'category', path: '' });
@@ -111,6 +145,7 @@ export function MenuEditor({
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
   const [iconOpen, setIconOpen] = useState(false);
   const [categoryDialog, setCategoryDialog] = useState(false);
   const [categoryName, setCategoryName] = useState('');
@@ -118,6 +153,7 @@ export function MenuEditor({
   const [categoryEdit, setCategoryEdit] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
   const requestRef = useRef(0);
+  const savingRef = useRef(false);
   const loadedRef = useRef(false);
   const savedCollapsedRef = useRef('');
   const editBatchRef = useRef('');
@@ -128,15 +164,18 @@ export function MenuEditor({
   useDismiss(categoryDialogRef, () => setCategoryDialog(false), categoryDialog && active);
   const draft = history.present;
   const dirty = saved !== null && JSON.stringify(draft.items) !== JSON.stringify(saved.items);
-  const categories = menuCategories(draft);
+  const categories = menuCategories(draft, categoryDefaults);
   const item = selection.kind === 'item' ? draft.items.find((item) => item.id === selection.id) : undefined;
   const selectedCategory = selection.kind === 'category' ? selection.path : item ? categoryOf(item) : '';
-  const isSpecial = MENU_SPECIAL_CATEGORIES.some((path) => path === selectedCategory);
+  const isSpecial =
+    MENU_SPECIAL_CATEGORIES.some((path) => path === selectedCategory) ||
+    (isProject && categoryDefaults.includes(selectedCategory));
   const disabled = busy || loading || blocked;
 
   useEffect(() => {
     onStateChange?.({ dirty, busy: busy || loading });
   }, [dirty, busy, loading, onStateChange]);
+  useEffect(() => () => onStateChange?.({ dirty: false, busy: false }), [onStateChange]);
 
   const change = (next: MenuDraft, batch = '') => {
     const merge = batch !== '' && editBatchRef.current === batch;
@@ -170,19 +209,22 @@ export function MenuEditor({
     loadedRef.current = false;
     setLoading(true);
     setLoadError('');
+    setSaveError('');
     try {
-      const document = await readMenu(installationPath);
+      const document = project ? await readProjectMenu(project) : await readMenu(installationPath);
       if (request !== requestRef.current) return;
       const nextDraft = menuDraft(document.items);
       setSaved(document);
       setHistory(emptyHistory(nextDraft));
       const first = document.items.find((item) => !categoryOf(item)) ?? document.items[0];
-      setSelection(first ? { kind: 'item', id: first.id } : { kind: 'category', path: '' });
+      setSelection(first ? { kind: 'item', id: first.id } : { kind: 'category', path: defaultCategory });
       setQuery('');
-      const nextCollapsed = readCollapsedCategories(
-        menuCategories(nextDraft),
-        MENU_SPECIAL_CATEGORIES.filter((path) => path !== (first ? categoryOf(first) : '')),
-      );
+      const nextCollapsed = project
+        ? []
+        : readCollapsedCategories(
+            menuCategories(nextDraft, categoryDefaults),
+            MENU_SPECIAL_CATEGORIES.filter((path) => path !== (first ? categoryOf(first) : '')),
+          );
       savedCollapsedRef.current = JSON.stringify(nextCollapsed);
       setCollapsed(nextCollapsed);
       loadedRef.current = true;
@@ -193,7 +235,7 @@ export function MenuEditor({
     } finally {
       if (request === requestRef.current) setLoading(false);
     }
-  }, [installationPath, t]);
+  }, [installationPath, t, project, categoryDefaults, defaultCategory]);
   // The locale may hot-reload while a draft is edited; it must never trigger a disk reload.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reload only for installation changes or a confirmed restore
   useEffect(() => {
@@ -202,9 +244,9 @@ export function MenuEditor({
     return () => {
       requestRef.current++;
     };
-  }, [installationPath, reloadVersion]);
+  }, [installationPath, reloadVersion, project?.path, project?.domain]);
   useEffect(() => {
-    if (loading || !loadedRef.current) return;
+    if (isProject || loading || !loadedRef.current) return;
     const serialized = JSON.stringify(collapsed);
     if (serialized === savedCollapsedRef.current) return;
     try {
@@ -213,7 +255,7 @@ export function MenuEditor({
     } catch {
       // The current view remains usable if preference storage is unavailable.
     }
-  }, [collapsed, loading]);
+  }, [collapsed, loading, isProject]);
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -232,30 +274,45 @@ export function MenuEditor({
     };
   }, [categoryDialog, active]);
 
-  const save = async () => {
-    if (!saved || !dirty || disabled) return;
+  const save = async (): Promise<boolean> => {
+    if (!dirty) return !loading && !loadError;
+    if (!saved || disabled || savingRef.current || loadError) return false;
+    savingRef.current = true;
     const request = requestRef.current;
     setBusy(true);
+    setSaveError('');
     try {
-      const result = await writeMenu(draft.items, saved.revision, installationPath);
-      if (request !== requestRef.current) return;
+      const result = project
+        ? await writeProjectMenu(project, draft.items, saved.revision)
+        : await writeMenu(draft.items, saved.revision, installationPath);
+      if (request !== requestRef.current) return false;
       setSaved(result.document);
       setHistory(emptyHistory(menuDraft(result.document.items)));
-      notify(
-        t(isDesktopApp() ? 'menu.saved' : 'menu.demoSaved'),
-        isDesktopApp()
-          ? {
-              label: t('projects.restartPanel'),
-              run: onRestart,
-            }
-          : undefined,
-      );
+      onSaved?.(result);
+      if (!project)
+        notify(
+          t(isDesktopApp() ? 'menu.saved' : 'menu.demoSaved'),
+          isDesktopApp()
+            ? {
+                label: t('projects.restartPanel'),
+                run: onRestart,
+              }
+            : undefined,
+        );
+      return true;
     } catch (error) {
-      if (request === requestRef.current) notify(errorText(t, error, 'menu.saveFailed'));
+      if (request === requestRef.current) {
+        const message = errorText(t, error, 'menu.saveFailed');
+        setSaveError(message);
+        if (!project) notify(message);
+      }
+      return false;
     } finally {
+      savingRef.current = false;
       setBusy(false);
     }
   };
+  useImperativeHandle(editorRef, () => ({ save, reload: load }));
   const undo = (redo = false) => {
     editBatchRef.current = '';
     setHistory((previous) => {
@@ -274,6 +331,7 @@ export function MenuEditor({
       return;
     }
     const key = (event: KeyboardEvent) => {
+      if (rootRef.current?.closest('[hidden]')) return;
       if (event.key === 'Escape') {
         setIconOpen(false);
         setCategoryDialog(false);
@@ -282,7 +340,8 @@ export function MenuEditor({
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        void save();
+        if (onSaveRequest) onSaveRequest();
+        else void save();
       }
     };
     window.addEventListener('keydown', key);
@@ -303,7 +362,7 @@ export function MenuEditor({
     move(item.id, categoryOf(item), direction < 0 ? peers[index - 1].id : peers[index + 2]?.id);
   };
   const addItem = (category = selectedCategory) => {
-    const id = newMenuId(draft.items);
+    const id = newMenuId(draft.items, project ? projectMenuIdPrefix(project.domain) : '');
     const next = { id, fields: { caption: t('menu.newItem'), category, command: '', icon: 'terminal' } };
     change({ ...draft, items: [...draft.items, next] });
     setSelection({ kind: 'item', id });
@@ -508,43 +567,50 @@ export function MenuEditor({
     categoryEdit !== '' &&
     validCategory(categoryEdit) &&
     !categories.includes(categoryEdit) &&
-    menuCategories(draft)
+    categories
       .filter((path) => path.startsWith(`${selectedCategory}\\`))
       .every((path) => validCategory(`${categoryEdit}${path.slice(selectedCategory.length)}`));
 
   return (
-    <div className="menu-editor" ref={rootRef}>
-      <PageHeader
-        eyebrow={t('nav.workspace')}
-        heading={t('nav.menu')}
-        description={t('menu.subtitle')}
-        action={
-          <div className="menu-header-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={busy || blocked}
-              onClick={onOpenBackups}
-            >
-              <Copy size={16} />
-              {t('nav.backups')}
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              disabled={!dirty || disabled || !!loadError}
-              onClick={() => void save()}
-            >
-              <Check size={16} />
-              {t('common.save')}
-            </button>
-          </div>
-        }
-      />
-      {!isDesktopApp() && (
+    <div className={`menu-editor${project ? ' project-menu-editor' : ''}`} ref={rootRef}>
+      {!project && (
+        <PageHeader
+          eyebrow={t('nav.workspace')}
+          heading={t('nav.menu')}
+          description={t('menu.subtitle')}
+          action={
+            <div className="menu-header-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={busy || blocked}
+                onClick={onOpenBackups}
+              >
+                <Copy size={16} />
+                {t('nav.backups')}
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={!dirty || disabled || !!loadError}
+                onClick={() => void save()}
+              >
+                <Check size={16} />
+                {t('common.save')}
+              </button>
+            </div>
+          }
+        />
+      )}
+      {!project && !isDesktopApp() && (
         <div className="menu-notice">
           <Info size={15} />
           <span>{t('menu.browserNotice')}</span>
+        </div>
+      )}
+      {saveError && (
+        <div className="backup-load-error" role="alert">
+          {saveError}
         </div>
       )}
       {loadError ? (
@@ -661,7 +727,13 @@ export function MenuEditor({
                 </div>
               </div>
               <ul className="menu-tree">
-                {categories.filter((path) => !path.includes('\\')).map((path) => renderCategory(path))}
+                {categories
+                  .filter(
+                    (path) =>
+                      !path.includes('\\') &&
+                      (!project || path !== '' || draft.items.some((entry) => !categoryOf(entry))),
+                  )
+                  .map((path) => renderCategory(path))}
               </ul>
               {query &&
                 !draft.items.some((entry) => menuMatches(entry, query, t)) &&
@@ -728,7 +800,7 @@ export function MenuEditor({
                       onClick={() => {
                         const copy: OsPanelMenuItem = {
                           ...item,
-                          id: newMenuId(draft.items),
+                          id: newMenuId(draft.items, project ? projectMenuIdPrefix(project.domain) : ''),
                           fields: {
                             ...item.fields,
                             caption: t('menu.copyName', { name: menuCaption(item, t) }),
@@ -880,22 +952,26 @@ export function MenuEditor({
             <span role="status">{dirty ? t('menu.unsaved') : t('menu.upToDate')}</span>
           </div>
           <p className="menu-file-note">
-            <Info size={14} />
-            <button type="button" className="text-button menu-backup-hint" onClick={onOpenBackups}>
-              <PathText text={t('menu.saveHint')} />
-            </button>
+            {!project && (
+              <>
+                <Info size={14} />
+                <button type="button" className="text-button menu-backup-hint" onClick={onOpenBackups}>
+                  <PathText text={t('menu.saveHint')} />
+                </button>
+              </>
+            )}
             <button
               type="button"
               className="text-button"
               disabled={!isDesktopApp()}
               onClick={() =>
-                void openFileExternally(`${installationPath}\\system\\menu.dat`).catch((error) =>
-                  notify(errorText(t, error, 'menu.loadFailed')),
-                )
+                void openFileExternally(
+                  project ? `${project.path}\\.osp\\menu.ini` : `${installationPath}\\system\\menu.dat`,
+                ).catch((error) => notify(errorText(t, error, 'menu.loadFailed')))
               }
             >
               <FileCode2 size={13} />
-              system/menu.dat
+              {project ? '.osp/menu.ini' : 'system/menu.dat'}
             </button>
           </p>
         </fieldset>

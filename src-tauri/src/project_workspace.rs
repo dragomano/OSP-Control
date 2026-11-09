@@ -430,6 +430,65 @@ pub fn read_project_workspace(
     workspace(&fs::canonicalize(resolve_installation(custom_path.as_deref())?)?, &domain, &base_dir)
 }
 
+fn project_menu_document(content: Option<&str>) -> Result<crate::menu::MenuDocument, CommandError> {
+    let mut document = crate::menu::document(content.unwrap_or(""))?;
+    // A missing file and an externally created empty file must have different revisions.
+    document.revision =
+        format!("{}:{}", if content.is_some() { "file" } else { "missing" }, document.revision);
+    Ok(document)
+}
+
+fn read_menu(root: &Path, domain: &str, base_dir: &str) -> Result<crate::menu::MenuDocument, CommandError> {
+    let dir = base(root, domain, base_dir)?;
+    project_menu_document(read(&file_path(&dir, domain, "menu.ini", false)?)?.as_deref())
+}
+
+fn write_menu(
+    root: &Path,
+    domain: &str,
+    base_dir: &str,
+    items: &[crate::menu::MenuItem],
+    expected_revision: &str,
+) -> Result<crate::menu::MenuSaveResult, CommandError> {
+    let dir = base(root, domain, base_dir)?;
+    let original = read(&file_path(&dir, domain, "menu.ini", false)?)?;
+    if project_menu_document(original.as_deref())?.revision != expected_revision {
+        return Err(conflict());
+    }
+    let content = crate::menu::render(original.as_deref().unwrap_or(""), items)?;
+    let saved = save(root, domain, base_dir, "menu.ini", original.as_deref(), &content)?;
+    Ok(crate::menu::MenuSaveResult {
+        document: project_menu_document(Some(&saved.content))?,
+        backup_path: saved.backup_path,
+    })
+}
+
+#[tauri::command]
+pub fn read_project_menu(
+    domain: String,
+    base_dir: String,
+    custom_path: Option<String>,
+) -> Result<crate::menu::MenuDocument, CommandError> {
+    read_menu(&fs::canonicalize(resolve_installation(custom_path.as_deref())?)?, &domain, &base_dir)
+}
+
+#[tauri::command]
+pub fn write_project_menu(
+    domain: String,
+    base_dir: String,
+    items: Vec<crate::menu::MenuItem>,
+    expected_revision: String,
+    custom_path: Option<String>,
+) -> Result<crate::menu::MenuSaveResult, CommandError> {
+    write_menu(
+        &fs::canonicalize(resolve_installation(custom_path.as_deref())?)?,
+        &domain,
+        &base_dir,
+        &items,
+        &expected_revision,
+    )
+}
+
 #[tauri::command]
 pub fn read_project_file(
     domain: String,
@@ -494,11 +553,15 @@ mod tests {
         let content = fs::read_to_string(sample.join(".osp/project.ini")).unwrap();
         let domains = parse(&content).unwrap();
         assert!(domains.len() > 1);
+        let original_menu = fs::read_to_string(sample.join(".osp/menu.ini")).unwrap();
         for domain in domains.keys() {
             let doc = workspace(root, domain, sample.to_str().unwrap()).unwrap();
             assert!(doc.files.contains(&format!("caddy/{domain}.conf")));
             assert!(doc.files.contains(&format!("nginx/{domain}.conf")));
             assert!(doc.files.contains(&format!("apache/{domain}.conf")));
+            let menu = read_menu(root, domain, sample.to_str().unwrap()).unwrap();
+            assert!(!menu.items.is_empty());
+            assert_eq!(crate::menu::render(&original_menu, &menu.items).unwrap(), original_menu);
         }
     }
     #[test]
@@ -550,6 +613,63 @@ mod tests {
                 Some(old.as_str())
             );
         }
+    }
+    #[test]
+    fn project_menu_uses_shared_codec_and_leaves_global_menu_and_settings_untouched() {
+        let f = Fixture::new();
+        let original = "\u{feff}; Project menu\r\n[shop.test-action]\r\n\r\ncaption  = {lang_project_action}\r\ncategory = projects\\shop.test\r\ncommand  = cmd.exe /c \"echo {host} & echo {base_dir}\"\r\nfuture_key = retain\r\n";
+        let path = f.0.join("home/shared/.osp/menu.ini");
+        fs::write(&path, original).unwrap();
+        fs::create_dir_all(f.0.join("system")).unwrap();
+        fs::write(f.0.join("system/menu.dat"), "global menu sentinel").unwrap();
+        let project_ini = workspace(&f.0, "shop.test", &f.dir()).unwrap().content;
+        let mut doc = read_menu(&f.0, "shop.test", &f.dir()).unwrap();
+        doc.items[0].fields.insert("caption".into(), "Project action".into());
+        let result = write_menu(&f.0, "shop.test", &f.dir(), &doc.items, &doc.revision).unwrap();
+        assert_eq!(fs::read_to_string(result.backup_path.unwrap()).unwrap(), original);
+        let changed = fs::read_to_string(&path).unwrap();
+        assert_eq!(changed, original.replace("{lang_project_action}", "Project action"));
+        assert_eq!(fs::read_to_string(f.0.join("system/menu.dat")).unwrap(), "global menu sentinel");
+        assert_eq!(workspace(&f.0, "api.shop.test", &f.dir()).unwrap().content, project_ini);
+        assert_eq!(read_menu(&f.0, "api.shop.test", &f.dir()).unwrap().revision, result.document.revision);
+        assert_eq!(
+            write_menu(&f.0, "shop.test", &f.dir(), &doc.items, &doc.revision).unwrap_err().code,
+            "err.projectWorkspaceConflict"
+        );
+    }
+    #[test]
+    fn project_menu_creation_rejects_external_empty_creation_and_unsafe_source_paths() {
+        let f = Fixture::new();
+        let path = f.0.join("home/shared/.osp/menu.ini");
+        let missing = read_menu(&f.0, "shop.test", &f.dir()).unwrap();
+        assert!(!path.exists());
+        fs::write(&path, "").unwrap();
+        assert_eq!(
+            write_menu(&f.0, "shop.test", &f.dir(), &[], &missing.revision).unwrap_err().code,
+            "err.projectWorkspaceConflict"
+        );
+        fs::remove_file(&path).unwrap();
+        let item = crate::menu::MenuItem {
+            id: "project_shop_action".into(),
+            fields: BTreeMap::from([
+                ("caption".into(), "Open tools".into()),
+                ("category".into(), "projects\\shop.test".into()),
+                ("command".into(), "echo {project_root}".into()),
+            ]),
+        };
+        let saved = write_menu(&f.0, "shop.test", &f.dir(), &[item.clone()], &missing.revision).unwrap();
+        assert!(saved.backup_path.is_none());
+        assert_eq!(saved.document.items.len(), 1);
+        let mut invalid = item;
+        invalid.fields.insert("caption".into(), "unsafe\n[injected]".into());
+        let previous = fs::read(&path).unwrap();
+        assert_eq!(
+            write_menu(&f.0, "shop.test", &f.dir(), &[invalid], &saved.document.revision).unwrap_err().code,
+            "err.menuInvalid"
+        );
+        assert_eq!(fs::read(&path).unwrap(), previous);
+        assert!(read_menu(&f.0, "unknown.test", &f.dir()).is_err());
+        assert!(read_menu(&f.0, "shop.test", f.0.to_str().unwrap()).is_err());
     }
     #[cfg(windows)]
     #[test]

@@ -866,7 +866,7 @@
   "workspace.hint.environment": "Module versions and the project console environment.",
   "workspace.hint.web": "Directories, connection settings, TLS and backend proxy.",
   "workspace.hint.configs": "Domain configuration snippets for each web server.",
-  "workspace.hint.menu": "Edit .osp/menu.ini. Commands are saved as configuration and are not executed by this editor.",
+  "workspace.hint.menu": "Build the project menu using items, categories and icons. Changes are saved to .osp/menu.ini.",
   "workspace.hint.tasks": "Edit .osp/tasks.ini: five cron fields, execution limit, enabled flag, then command.",
   "workspace.domain": "Domain",
   "workspace.newDomain": "New domain",

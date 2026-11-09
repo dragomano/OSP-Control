@@ -43,7 +43,9 @@ A UI companion for OSPanel 6. Local environment management: services, projects, 
 
 ### Project settings
 
-Open a project's name or choose **Project settings** from its row menu to access the tabbed workspace. The existing project list keeps its search, filters and tags when returning. The workspace supports domains sharing one project folder, aliases, module versions, directories, ports, TLS and backend proxy settings. Environment variables, project menu and tasks are edited in their `.osp` INI files.
+Open a project's name or choose **Project settings** from its row menu to access the tabbed workspace. The existing project list keeps its search, filters and tags when returning. The workspace supports domains sharing one project folder, aliases, module versions, directories, ports, TLS and backend proxy settings. Environment variables and tasks are edited in their `.osp` INI files.
+
+The **Menu** tab reuses the visual OSPanel menu editor: tree, categories, drag and drop, item properties, icon picker and undo/redo. The workspace's shared Save button writes `.osp/menu.ini` with an exact backup, preserving comments and unknown fields. The global menu is unaffected, and menu drafts survive project tab changes.
 
 Domain configuration files have separate Nginx, Apache and Caddyfile highlighting. Direct `project.ini` editing is also available. Existing files receive exact backups under `backups/project-settings` before replacement; external edits are detected before saving. Restart OSPanel to apply changes.
 

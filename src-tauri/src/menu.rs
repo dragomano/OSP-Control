@@ -1,4 +1,4 @@
-//! Lossless menu.dat editing. Commands are configuration data and are never executed here.
+//! Lossless menu.dat and project menu.ini editing. Commands are data and are never executed here.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -25,21 +25,21 @@ static SAVE_LOCK: Mutex<()> = Mutex::new(());
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct MenuItem {
-    id: String,
-    fields: BTreeMap<String, String>,
+    pub(crate) id: String,
+    pub(crate) fields: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
 pub(crate) struct MenuDocument {
-    items: Vec<MenuItem>,
-    revision: String,
+    pub(crate) items: Vec<MenuItem>,
+    pub(crate) revision: String,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct MenuSaveResult {
-    document: MenuDocument,
-    backup_path: Option<String>,
+    pub(crate) document: MenuDocument,
+    pub(crate) backup_path: Option<String>,
 }
 
 struct Section {
@@ -122,12 +122,12 @@ fn parse(content: &str) -> Result<(String, Vec<Section>), CommandError> {
     Ok((preamble, sections))
 }
 
-fn document(content: &str) -> Result<MenuDocument, CommandError> {
+pub(crate) fn document(content: &str) -> Result<MenuDocument, CommandError> {
     let (_, sections) = parse(content)?;
     Ok(MenuDocument { items: sections.into_iter().map(|s| s.item).collect(), revision: revision(content) })
 }
 
-fn render(original: &str, items: &[MenuItem]) -> Result<String, CommandError> {
+pub(crate) fn render(original: &str, items: &[MenuItem]) -> Result<String, CommandError> {
     let (mut output, sections) = parse(original)?;
     let newline = if original.contains("\r\n") { "\r\n" } else { "\n" };
     let mut ids = HashSet::new();

@@ -273,6 +273,8 @@ fn main() {
             project_workspace::read_project_workspace,
             project_workspace::read_project_file,
             project_workspace::save_project_file,
+            project_workspace::read_project_menu,
+            project_workspace::write_project_menu,
             projects::write_project_settings,
             projects::global_project_engines,
             projects::create_project,

@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { lazy, type ReactNode, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { errorText, useI18n } from '../../i18n';
 import {
   askConfirm,
@@ -46,6 +46,11 @@ import { ConfigEditor } from '../widgets/ConfigEditor';
 import { PageHeader } from '../widgets/PageHeader';
 import '../widgets/formControls.css';
 import './projectWorkspace.css';
+import type { MenuEditorHandle } from './MenuEditor';
+
+const ProjectMenuEditor = lazy(() =>
+  import('./MenuEditor').then((module) => ({ default: module.MenuEditor })),
+);
 
 const TABS = [
   ['overview', LayoutGrid],
@@ -93,28 +98,34 @@ export function ProjectWorkspace({
   const [restartNeeded, setRestartNeeded] = useState(false);
   const [newDomain, setNewDomain] = useState('');
   const [advanced, setAdvanced] = useState(false);
+  const [menuVisited, setMenuVisited] = useState(false);
+  const [menuState, setMenuState] = useState({ dirty: false, busy: false });
+  const [menuReloadVersion, setMenuReloadVersion] = useState(0);
+  const menuEditor = useRef<MenuEditorHandle>(null);
   const pending = useRef(false);
   const request = useRef(0);
   const tabsRef = useRef<HTMLDivElement>(null);
   const domains = useMemo(() => projectDomains(ini, project.domain), [ini, project.domain]);
   const values = domains.find((item) => item.domain === domain)?.values ?? {};
   const iniDirty = doc !== null && ini !== (doc.content ?? emptyIni(project.domain));
-  const dirty = iniDirty || Object.values(files).some((file) => file.draft !== (file.original ?? ''));
-  const locked = busy || blocked;
+  const dirty =
+    iniDirty || menuState.dirty || Object.values(files).some((file) => file.draft !== (file.original ?? ''));
+  const locked = busy || blocked || menuState.busy;
   const file = advanced
     ? 'project.ini'
-    : tab === 'menu'
-      ? 'menu.ini'
-      : tab === 'tasks'
-        ? 'tasks.ini'
-        : tab === 'environment'
-          ? 'env.ini'
-          : `${engine}/${domain}.conf`;
+    : tab === 'tasks'
+      ? 'tasks.ini'
+      : tab === 'environment'
+        ? 'env.ini'
+        : `${engine}/${domain}.conf`;
   const fileState = file === 'project.ini' ? { original: doc?.content ?? null, draft: ini } : files[file];
-  const editingFile = advanced || ['configs', 'menu', 'tasks', 'environment'].includes(tab);
+  const editingFile = advanced || ['configs', 'tasks', 'environment'].includes(tab);
   const selectedDomain = displayProjectDomain(domain);
   const inherited = (key: string, global?: string) =>
     values[key] && values[key] !== 'auto' ? values[key] : global || t('projects.engineUnset');
+  useEffect(() => {
+    if (tab === 'menu') setMenuVisited(true);
+  }, [tab]);
 
   const load = async () => {
     const current = ++request.current;
@@ -147,8 +158,8 @@ export function ProjectWorkspace({
   }, [project.domain, project.path]);
 
   useEffect(() => {
-    onStateChange?.({ dirty, busy: busy || fileBusy });
-  }, [dirty, busy, fileBusy, onStateChange]);
+    onStateChange?.({ dirty, busy: busy || fileBusy || menuState.busy });
+  }, [dirty, busy, fileBusy, menuState.busy, onStateChange]);
   useEffect(() => () => onStateChange?.({ dirty: false, busy: false }), [onStateChange]);
   useEffect(() => {
     if (!dirty) return;
@@ -199,9 +210,16 @@ export function ProjectWorkspace({
   const save = async () => {
     if (!doc || !dirty || pending.current || locked) return;
     pending.current = true;
+    // Start the child save before the parent locks its controls; its own save lock prevents reentry.
+    const menuSave = menuState.dirty ? menuEditor.current?.save() : null;
     setBusy(true);
     setError('');
     try {
+      if (menuState.dirty && (!menuSave || !(await menuSave))) {
+        setAdvanced(false);
+        setTab('menu');
+        return;
+      }
       if (iniDirty) {
         const result = await saveProjectFile(project, 'project.ini', doc.content, ini);
         setDoc((current) => current && { ...current, content: result.content });
@@ -628,8 +646,37 @@ export function ProjectWorkspace({
                     </p>
                   </>
                 )}
-                {(tab === 'menu' || tab === 'tasks') && codeEditor}
+                {tab === 'tasks' && codeEditor}
               </>
+            )}
+            {menuVisited && (
+              <div hidden={advanced || tab !== 'menu'}>
+                <Suspense
+                  fallback={
+                    <div className="empty-note" role="status">
+                      {t('common.loading')}
+                    </div>
+                  }
+                >
+                  <ProjectMenuEditor
+                    project={project}
+                    domains={domains.map((item) => item.domain)}
+                    installationPath={null}
+                    active={tab === 'menu' && !advanced}
+                    blocked={busy || blocked}
+                    notify={notify}
+                    onRestart={onRestartPanel}
+                    onStateChange={setMenuState}
+                    editorRef={menuEditor}
+                    reloadVersion={menuReloadVersion}
+                    onSaveRequest={() => void save()}
+                    onSaved={(result) => {
+                      if (result.backupPath) setBackup(result.backupPath);
+                      setRestartNeeded(true);
+                    }}
+                  />
+                </Suspense>
+              </div>
             )}
           </div>
           <footer className="workspace-footer">
@@ -663,6 +710,7 @@ export function ProjectWorkspace({
                   void (async () => {
                     if (await confirmDiscard()) {
                       setAdvanced(false);
+                      setMenuReloadVersion((value) => value + 1);
                       await load();
                     }
                   })()

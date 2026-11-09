@@ -876,7 +876,7 @@
   "workspace.hint.environment": "Версіі модуляў і асяроддзе кансолі праекта.",
   "workspace.hint.web": "Каталогі, параметры злучэння, TLS і backend-проксі.",
   "workspace.hint.configs": "Фрагменты канфігурацыі дамена для кожнага вэб-сервера.",
-  "workspace.hint.menu": "Рэдагаванне .osp/menu.ini. Каманды захоўваюцца ў канфігурацыі і не выконваюцца рэдактарам.",
+  "workspace.hint.menu": "Наладжвайце пункты, катэгорыі і значкі меню праекта. Змены захоўваюцца ў .osp/menu.ini.",
   "workspace.hint.tasks": "Рэдагаванне .osp/tasks.ini: пяць палёў cron, ліміт запускаў, сцяг уключэння, затым каманда.",
   "workspace.domain": "Дамен",
   "workspace.newDomain": "Новы дамен",

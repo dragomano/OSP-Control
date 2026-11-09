@@ -943,6 +943,7 @@ export async function saveProjectSettings(
 }
 
 const demoProjectFiles = new Map<string, string>();
+const demoProjectMenus = new Map<string, OsPanelMenuDocument>();
 const projectFileArgs = (project: OsPanelProject) => ({
   domain: project.domain,
   baseDir: project.path,
@@ -975,6 +976,34 @@ export async function readProjectWorkspace(project: OsPanelProject): Promise<Pro
 export async function readProjectFile(project: OsPanelProject, file: string): Promise<string | null> {
   if (isTauri()) return invoke<string | null>('read_project_file', { ...projectFileArgs(project), file });
   return demoProjectFiles.get(`${project.path}/${file}`) ?? null;
+}
+
+export async function readProjectMenu(project: OsPanelProject): Promise<OsPanelMenuDocument> {
+  if (isTauri()) return invoke<OsPanelMenuDocument>('read_project_menu', projectFileArgs(project));
+  return structuredClone(
+    demoProjectMenus.get(project.path.toLowerCase().replace(/\\/g, '/')) ?? {
+      items: [],
+      revision: 'project-menu-missing',
+    },
+  );
+}
+
+export async function writeProjectMenu(
+  project: OsPanelProject,
+  items: OsPanelMenuItem[],
+  expectedRevision: string,
+): Promise<OsPanelMenuSaveResult> {
+  if (isTauri())
+    return invoke<OsPanelMenuSaveResult>('write_project_menu', {
+      ...projectFileArgs(project),
+      items,
+      expectedRevision,
+    });
+  if ((await readProjectMenu(project)).revision !== expectedRevision)
+    throw new Error('err.projectWorkspaceConflict');
+  const document = { items: structuredClone(items), revision: crypto.randomUUID() };
+  demoProjectMenus.set(project.path.toLowerCase().replace(/\\/g, '/'), document);
+  return { document: structuredClone(document), backupPath: null };
 }
 
 export async function saveProjectFile(

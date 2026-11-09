@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => ({
   getProjectModuleOptions: vi.fn(),
   getGlobalProjectEngines: vi.fn(),
   askConfirm: vi.fn(),
+  readProjectMenu: vi.fn(),
+  writeProjectMenu: vi.fn(),
+  readMenu: vi.fn(),
+  writeMenu: vi.fn(),
 }));
 vi.mock('../src/ospanel', async (original) => ({
   ...(await original<typeof import('../src/ospanel')>()),
@@ -54,10 +58,102 @@ beforeEach(() => {
     backupPath: null,
   }));
   mocks.askConfirm.mockResolvedValue(false);
+  mocks.readProjectMenu.mockResolvedValue({ items: [], revision: 'project-initial' });
+  mocks.writeProjectMenu.mockImplementation(async (_project, items) => ({
+    document: { items, revision: 'project-saved' },
+    backupPath: null,
+  }));
 });
 afterEach(cleanup);
 
 describe('project workspace drafts', () => {
+  it('creates a project-scoped visual menu item and retains it across tabs before the shared save', async () => {
+    const { onClose } = setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Menu', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: t('menu.addItem'), exact: true }));
+    fireEvent.change(screen.getByRole('textbox', { name: t('menu.name'), exact: true }), {
+      target: { value: 'Project tools' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: t('menu.command'), exact: true }), {
+      target: { value: 'echo {project_root}' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Web server' }));
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Domain', exact: true }), {
+      target: { value: 'api.shop.test' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Public directory' }), {
+      target: { value: '{base_dir}\\api\\public' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Menu', exact: true }));
+    expect(await screen.findByRole('textbox', { name: t('menu.name'), exact: true })).toHaveValue(
+      'Project tools',
+    );
+    expect(screen.getByRole('combobox', { name: t('menu.category'), exact: true })).toHaveValue(
+      'projects\\shop.test',
+    );
+    expect(screen.getByRole('combobox', { name: t('menu.category'), exact: true })).toHaveTextContent(
+      'api.shop.test',
+    );
+    expect(screen.queryByRole('textbox', { name: 'Contents of menu.ini' })).not.toBeInTheDocument();
+    expect(localStorage.getItem('ospanel.menuTree')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() =>
+      expect(mocks.writeProjectMenu).toHaveBeenCalledWith(
+        project,
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: expect.stringMatching(/^project_shop\.test_/),
+            fields: expect.objectContaining({
+              caption: 'Project tools',
+              category: 'projects\\shop.test',
+              command: 'echo {project_root}',
+            }),
+          }),
+        ]),
+        'project-initial',
+      ),
+    );
+    await waitFor(() =>
+      expect(mocks.saveProjectFile).toHaveBeenCalledWith(
+        project,
+        'project.ini',
+        content,
+        expect.stringContaining('{base_dir}\\api\\public'),
+      ),
+    );
+    expect(mocks.readMenu).not.toHaveBeenCalled();
+    expect(mocks.writeMenu).not.toHaveBeenCalled();
+    expect(mocks.readProjectFile).not.toHaveBeenCalledWith(project, 'menu.ini');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'All projects' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mocks.askConfirm).not.toHaveBeenCalled();
+  });
+  it('retains a menu draft and other settings if the menu was changed by an external editor', async () => {
+    const { onClose } = setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Domains' }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Domain aliases' }), {
+      target: { value: 'www.shop.test' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Menu', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: t('menu.addItem'), exact: true }));
+    fireEvent.change(screen.getByRole('textbox', { name: t('menu.name'), exact: true }), {
+      target: { value: 'Local action' },
+    });
+    mocks.writeProjectMenu.mockRejectedValueOnce(new Error('err.projectWorkspaceConflict'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Web server' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed by another program');
+    expect(screen.getByRole('tab', { name: 'Menu', exact: true })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('textbox', { name: t('menu.name'), exact: true })).toHaveValue('Local action');
+    expect(mocks.saveProjectFile).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
+    await waitFor(() => expect(mocks.askConfirm).toHaveBeenCalled());
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() => expect(mocks.saveProjectFile).toHaveBeenCalled());
+  });
   it('keeps file drafts across web-server tabs and preserves them after an external conflict', async () => {
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
