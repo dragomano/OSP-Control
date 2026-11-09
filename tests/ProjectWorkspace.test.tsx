@@ -67,6 +67,118 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('project workspace drafts', () => {
+  it('edits tasks visually, keeps incomplete drafts across tabs and domains and saves only tasks.ini', async () => {
+    const original =
+      '; Automation\r\n[shop.test]\r\nBuild = */5 * * * * * 0 echo {host}\r\n\r\n[api.shop.test]\r\nCheck = 0 9 * * 1-5 0 * echo api\r\n';
+    mocks.readProjectFile.mockResolvedValue(original);
+    const { onClose } = setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tasks', exact: true }));
+    const name = await screen.findByRole('textbox', { name: 'Name', exact: true });
+    expect(name).toHaveValue('Build');
+    fireEvent.change(name, { target: { value: 'Compile assets' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Minute', exact: true }), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview', exact: true }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Tasks', exact: true }));
+    expect(await screen.findByRole('textbox', { name: 'Minute', exact: true })).toHaveValue('');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Domain', exact: true }), {
+      target: { value: 'api.shop.test' },
+    });
+    expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Check');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Domain', exact: true }), {
+      target: { value: 'shop.test' },
+    });
+    expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Compile assets');
+    expect(screen.getByRole('textbox', { name: 'Minute', exact: true })).toHaveValue('');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Schedule', exact: true }), {
+      target: { value: 'daily' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Task enabled' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Execution limit' }), {
+      target: { value: 'limited' },
+    });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Number of launches' }), {
+      target: { value: '3' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Command', exact: true }), {
+      target: { value: 'cmd.exe /c "osp project {host} & pnpm build"' },
+    });
+    expect(screen.queryByRole('textbox', { name: 'Contents of tasks.ini' })).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true });
+    await waitFor(() =>
+      expect(mocks.saveProjectFile).toHaveBeenCalledWith(
+        project,
+        'tasks.ini',
+        original,
+        '; Automation\r\n[shop.test]\r\nCompile assets = 0 0 * * * 3 1 cmd.exe /c "osp project {host} & pnpm build"\r\n\r\n[api.shop.test]\r\nCheck = 0 9 * * 1-5 0 * echo api\r\n',
+      ),
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'All projects' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mocks.askConfirm).not.toHaveBeenCalled();
+    expect(mocks.saveProjectFile).toHaveBeenCalledTimes(1);
+  });
+  it('creates, duplicates and deletes tasks, blocks invalid schedules and retains drafts after conflicts', async () => {
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tasks', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add task', exact: true }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name', exact: true }), {
+      target: { value: 'Run job' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Command', exact: true }), {
+      target: { value: 'echo {host} & echo x=y' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Weekday', exact: true }), {
+      target: { value: '0' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(t('tasks.fixErrors'));
+    expect(screen.getByRole('tab', { name: 'Tasks', exact: true })).toHaveAttribute('aria-selected', 'true');
+    expect(mocks.saveProjectFile).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Weekday', exact: true }), {
+      target: { value: '7' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate task', exact: true }));
+    expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Run job (copy)');
+    expect(screen.getByRole('checkbox', { name: 'Task enabled' })).not.toBeChecked();
+    mocks.askConfirm.mockResolvedValueOnce(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete task', exact: true }));
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Run job'),
+    );
+    mocks.saveProjectFile.mockRejectedValueOnce(new Error('err.projectWorkspaceConflict'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed by another program');
+    expect(screen.getByRole('textbox', { name: 'Command', exact: true })).toHaveValue(
+      'echo {host} & echo x=y',
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() => expect(mocks.saveProjectFile).toHaveBeenCalledTimes(2));
+    expect(mocks.saveProjectFile.mock.calls[1]).toEqual([
+      project,
+      'tasks.ini',
+      null,
+      '[shop.test]\nRun job = * * * * 7 * 0 echo {host} & echo x=y\n',
+    ]);
+  });
+  it('keeps the selected new task open after saving the file', async () => {
+    mocks.readProjectFile.mockResolvedValue('[shop.test]\nFirst = * * * * * * 0 echo first\n');
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tasks', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add task', exact: true }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name', exact: true }), {
+      target: { value: 'Second action' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Command', exact: true }), {
+      target: { value: 'echo second' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'All projects' })).toBeEnabled());
+    expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Second action');
+    expect(screen.getByRole('textbox', { name: 'Command', exact: true })).toHaveValue('echo second');
+  });
   it('creates a project-scoped visual menu item and retains it across tabs before the shared save', async () => {
     const { onClose } = setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Menu', exact: true }));

@@ -3,7 +3,8 @@
 .workspace-setting input,
 .workspace-setting select,
 .workspace-domain-select select,
-.workspace-add-domain input {
+.workspace-add-domain input,
+.tasks-field :is(input, select, textarea) {
   min-width: 0;
   height: 36px;
   padding: 0 10px;
@@ -19,7 +20,8 @@
 .workspace-setting input:focus,
 .workspace-setting select:focus,
 .workspace-domain-select select:focus,
-.workspace-add-domain input:focus {
+.workspace-add-domain input:focus,
+.tasks-field :is(input, select, textarea):focus {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

@@ -43,9 +43,11 @@ A UI companion for OSPanel 6. Local environment management: services, projects, 
 
 ### Project settings
 
-Open a project's name or choose **Project settings** from its row menu to access the tabbed workspace. The existing project list keeps its search, filters and tags when returning. The workspace supports domains sharing one project folder, aliases, module versions, directories, ports, TLS and backend proxy settings. Environment variables and tasks are edited in their `.osp` INI files.
+Open a project's name or choose **Project settings** from its row menu to access the tabbed workspace. The existing project list keeps its search, filters and tags when returning. The workspace supports domains sharing one project folder, aliases, module versions, directories, ports, TLS and backend proxy settings. Environment variables are edited in `.osp/env.ini`.
 
 The **Menu** tab reuses the visual OSPanel menu editor: tree, categories, drag and drop, item properties, icon picker and undo/redo. The workspace's shared Save button writes `.osp/menu.ini` with an exact backup, preserving comments and unknown fields. The global menu is unaffected, and menu drafts survive project tab changes.
+
+The **Tasks** tab edits `.osp/tasks.ini` visually for each domain: add, duplicate, delete, rename, enable/disable, schedule presets or five numeric cron fields, launch limits and commands. Weekdays follow OSPanel numbering (1 = Monday, 7 = Sunday). Drafts, including incomplete fields, survive tab and domain changes. Shared Save (or Ctrl+S on the Tasks tab) validates definitions and preserves comments, other domains, BOM and line endings, with the same backup and conflict checks as other project files. Restart OSPanel to apply changes.
 
 Domain configuration files have separate Nginx, Apache and Caddyfile highlighting. Direct `project.ini` editing is also available. Existing files receive exact backups under `backups/project-settings` before replacement; external edits are detected before saving. Restart OSPanel to apply changes.
 

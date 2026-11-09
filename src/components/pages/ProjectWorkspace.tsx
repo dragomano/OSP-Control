@@ -33,6 +33,7 @@ import {
   saveProjectFile,
 } from '../../ospanel';
 import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
+import { type ProjectTask, parseProjectTasks, renderProjectTasks, taskErrors } from '../../projectTasks';
 import {
   appendProjectDomain,
   patchProjectIni,
@@ -50,6 +51,9 @@ import type { MenuEditorHandle } from './MenuEditor';
 
 const ProjectMenuEditor = lazy(() =>
   import('./MenuEditor').then((module) => ({ default: module.MenuEditor })),
+);
+const ProjectTasksEditor = lazy(() =>
+  import('./ProjectTasksEditor').then((module) => ({ default: module.ProjectTasksEditor })),
 );
 
 const TABS = [
@@ -89,6 +93,7 @@ export function ProjectWorkspace({
   const [options, setOptions] = useState<ProjectModuleOptions | null>(null);
   const [globals, setGlobals] = useState<GlobalProjectEngines | null>(null);
   const [files, setFiles] = useState<Record<string, FileDraft>>({});
+  const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
   const [engine, setEngine] = useState('nginx');
   const [fileBusy, setFileBusy] = useState(false);
   const [fileRetry, setFileRetry] = useState(0);
@@ -108,8 +113,16 @@ export function ProjectWorkspace({
   const domains = useMemo(() => projectDomains(ini, project.domain), [ini, project.domain]);
   const values = domains.find((item) => item.domain === domain)?.values ?? {};
   const iniDirty = doc !== null && ini !== (doc.content ?? emptyIni(project.domain));
+  const tasksDocument = useMemo(
+    () => parseProjectTasks(files['tasks.ini']?.draft ?? ''),
+    [files['tasks.ini']?.draft],
+  );
+  const tasksDirty = tasks !== null && JSON.stringify(tasks) !== JSON.stringify(tasksDocument.tasks);
   const dirty =
-    iniDirty || menuState.dirty || Object.values(files).some((file) => file.draft !== (file.original ?? ''));
+    iniDirty ||
+    menuState.dirty ||
+    tasksDirty ||
+    Object.values(files).some((file) => file.draft !== (file.original ?? ''));
   const locked = busy || blocked || menuState.busy;
   const file = advanced
     ? 'project.ini'
@@ -143,6 +156,7 @@ export function ProjectWorkspace({
       setOptions(available);
       setGlobals(global);
       setFiles({});
+      setTasks(null);
     } catch (error) {
       if (current === request.current) setError(errorText(t, error, 'workspace.failed'));
     } finally {
@@ -179,8 +193,10 @@ export function ProjectWorkspace({
     setError('');
     void readProjectFile(project, file)
       .then((content) => {
-        if (!cancelled)
+        if (!cancelled) {
           setFiles((current) => ({ ...current, [file]: { original: content, draft: content ?? '' } }));
+          if (file === 'tasks.ini') setTasks(parseProjectTasks(content ?? '').tasks);
+        }
       })
       .catch((error) => {
         if (!cancelled) setError(errorText(t, error, 'workspace.failed'));
@@ -209,6 +225,17 @@ export function ProjectWorkspace({
   };
   const save = async () => {
     if (!doc || !dirty || pending.current || locked) return;
+    if (tasksDirty && tasks) {
+      const invalidTask = tasks.find((task) => taskErrors(task, tasks).length);
+      if (invalidTask || tasksDocument.errors.length) {
+        setError(t('tasks.fixErrors'));
+        setAdvanced(false);
+        setTab('tasks');
+        if (invalidTask && domains.some((item) => item.domain === invalidTask.domain))
+          setDomain(invalidTask.domain);
+        return;
+      }
+    }
     pending.current = true;
     // Start the child save before the parent locks its controls; its own save lock prevents reentry.
     const menuSave = menuState.dirty ? menuEditor.current?.save() : null;
@@ -228,9 +255,12 @@ export function ProjectWorkspace({
         setRestartNeeded(true);
       }
       for (const [name, draft] of Object.entries(files)) {
-        if (draft.draft === (draft.original ?? '')) continue;
-        const result = await saveProjectFile(project, name, draft.original, draft.draft);
+        const content =
+          name === 'tasks.ini' && tasksDirty && tasks ? renderProjectTasks(draft.draft, tasks) : draft.draft;
+        if (content === (draft.original ?? '')) continue;
+        const result = await saveProjectFile(project, name, draft.original, content);
         setFiles((current) => ({ ...current, [name]: { original: result.content, draft: result.content } }));
+        if (name === 'tasks.ini') setTasks(parseProjectTasks(result.content).tasks);
         if (result.backupPath) setBackup(result.backupPath);
         setRestartNeeded(true);
       }
@@ -242,6 +272,18 @@ export function ProjectWorkspace({
       setBusy(false);
     }
   };
+  useEffect(() => {
+    if (tab !== 'tasks' || advanced) return;
+    const key = (event: KeyboardEvent) => {
+      if (tabsRef.current?.closest('[hidden]')) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        void save();
+      }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  });
   const run = async (action: () => Promise<unknown>) => {
     try {
       await action();
@@ -646,7 +688,56 @@ export function ProjectWorkspace({
                     </p>
                   </>
                 )}
-                {tab === 'tasks' && codeEditor}
+                {tab === 'tasks' &&
+                  (fileBusy ? (
+                    <div className="empty-note" role="status">
+                      {t('common.loading')}
+                    </div>
+                  ) : files['tasks.ini'] && tasks ? (
+                    <Suspense
+                      fallback={
+                        <div className="empty-note" role="status">
+                          {t('common.loading')}
+                        </div>
+                      }
+                    >
+                      <div className="workspace-file-head">
+                        <div>
+                          <FileCode2 size={15} />
+                          <b>.osp/tasks.ini</b>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={locked || files['tasks.ini'].original === null}
+                          onClick={() =>
+                            void run(() => openFileExternally(`${project.path}\\.osp\\tasks.ini`))
+                          }
+                        >
+                          {t('configs.open')}
+                        </button>
+                      </div>
+                      <ProjectTasksEditor
+                        document={tasksDocument}
+                        tasks={tasks}
+                        domain={domain}
+                        disabled={locked}
+                        onChange={setTasks}
+                      />
+                      {files['tasks.ini'].original === null && (
+                        <p className="workspace-hint">{t('workspace.createFile')}</p>
+                      )}
+                    </Suspense>
+                  ) : (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={locked}
+                      onClick={() => setFileRetry((value) => value + 1)}
+                    >
+                      {t('workspace.reload')}
+                    </button>
+                  ))}
               </>
             )}
             {menuVisited && (

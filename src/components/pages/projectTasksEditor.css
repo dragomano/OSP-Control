@@ -1,0 +1,220 @@
+.tasks-editor {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.tasks-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.tasks-toolbar .search-field {
+  max-width: 390px;
+  min-width: 180px;
+  margin-right: auto;
+}
+.tasks-editor .secondary-button,
+.tasks-panel-head strong {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.tasks-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.4fr);
+  gap: 18px;
+  align-items: start;
+}
+.tasks-list-panel,
+.tasks-inspector {
+  background: var(--panel);
+}
+.tasks-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.tasks-panel-head > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.tasks-list {
+  padding: 9px;
+  max-height: 580px;
+  overflow-y: auto;
+}
+.tasks-list-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 11px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--text);
+  text-align: left;
+}
+.tasks-list-item:hover {
+  background: var(--panel2);
+}
+.tasks-list-item.selected {
+  border-color: var(--k-4d3b26);
+  background: var(--k-332a1e);
+}
+.tasks-list-item > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.tasks-invalid-mark {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.tasks-list-item b {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.tasks-list-item code {
+  display: block;
+  font-size: 11px;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.tasks-list-item small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.tasks-state {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: transparent;
+}
+.tasks-state.enabled {
+  color: var(--accent);
+  border-color: var(--k-4d3b26);
+}
+.tasks-state svg {
+  margin: 2px;
+}
+.tasks-inspector {
+  padding: 18px;
+}
+.tasks-inspector-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.tasks-task-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.tasks-inspector-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.tasks-inspector-head :where(strong, span) {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.tasks-inspector-head strong {
+  margin-top: 7px;
+  font-size: 13px;
+}
+.tasks-inspector-head div > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.tasks-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 8px;
+  margin-bottom: 17px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.tasks-cron-fields {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+}
+.tasks-cron-fields .tasks-field {
+  margin-bottom: 0;
+}
+.tasks-cron-fields input,
+.tasks-field textarea {
+  font-family: Consolas, monospace;
+}
+.tasks-field textarea {
+  height: auto;
+  min-height: 84px;
+  padding: 10px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.tasks-limit-fields {
+  display: flex;
+  gap: 12px;
+}
+.tasks-limit-fields .tasks-field {
+  flex: 1;
+}
+.tasks-enabled {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+.tasks-enabled input {
+  accent-color: var(--accent);
+}
+.tasks-help {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 10px 0 20px;
+}
+.tasks-help:last-child {
+  margin-bottom: 0;
+}
+.tasks-field-error {
+  color: var(--accent);
+  font-size: 11px;
+}
+.tasks-field [aria-invalid="true"] {
+  border-color: var(--accent);
+}
+.tasks-empty-inspector {
+  text-align: center;
+  padding: 40px 15px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 1000px) {
+  .tasks-cron-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 800px) {
+  .tasks-editor-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
