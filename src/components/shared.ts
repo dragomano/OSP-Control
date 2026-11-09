@@ -23,8 +23,8 @@ import {
   Terminal,
 } from 'lucide-react';
 import { type ReactNode, type RefObject, useEffect } from 'react';
-import type { Translator } from '../i18n';
-import type { OsPanelService, ServiceStatus } from '../ospanel';
+import { errorText, type Translator } from '../i18n';
+import { type ModuleOpenAction, type OsPanelService, openModule, type ServiceStatus } from '../ospanel';
 
 export type Page =
   | 'overview'
@@ -205,10 +205,30 @@ export const serviceMenuEntries = (
     });
   }
 
+  const openEntry = (action: ModuleOpenAction, icon: typeof Activity): MenuEntry => ({
+    label: t(`services.open.${action}`),
+    icon,
+    disabled: blocked,
+    onSelect: () => {
+      if (blocked) return;
+      void openModule(service.name, action).catch((error) =>
+        notify(errorText(t, error, 'services.openFailed')),
+      );
+    },
+  });
+
+  const opening: MenuEntry[] = [];
+  if (service.moduleActions?.browser) opening.push(openEntry('browser', Globe2));
+  if (service.moduleActions?.shell) opening.push(openEntry('shell', Code2));
+  opening.push(openEntry('console', Terminal), openEntry('explorer', FolderOpen));
+  opening[0].separatorBefore = actions.length > 0;
+
   return [
     ...actions,
+    ...opening,
     {
       label: t('common.copyName'),
+      separatorBefore: true,
       icon: Copy,
       onSelect: () => void copyText(t, service.name, 'label.serviceName', notify),
     },

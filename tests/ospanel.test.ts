@@ -22,6 +22,7 @@ import {
   openFileExternally,
   openInBrowser,
   openInEditor,
+  openModule,
   openProjectFolder,
   panelOnline,
   persistOsPanelPath,
@@ -83,6 +84,10 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
   it('does not pretend to clear real logs outside the desktop app', async () => {
     await expect(clearLogs('general.log')).rejects.toThrow('err.desktopOnly');
     await expect(clearLogs(null)).rejects.toThrow('err.desktopOnly');
+  });
+
+  it('reports desktop-only module shortcuts in browser mode', async () => {
+    await expect(openModule('Example', 'console')).rejects.toThrow('err.desktopOnly');
   });
 
   it('refreshService toggles status; an unknown service rejects with err.serviceNotFound', async () => {
@@ -221,6 +226,20 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
     delete tauriFlag().__TAURI_INTERNALS__;
     invokeMock.mockReset();
   });
+
+  it.each(['console', 'explorer', 'browser', 'shell'] as const)(
+    'passes the module %s shortcut and configured installation to Rust',
+    async (action) => {
+      persistOsPanelPath('X:\\TestPanel');
+      invokeMock.mockResolvedValueOnce(undefined);
+      await openModule('Example', action);
+      expect(invokeMock).toHaveBeenLastCalledWith('open_module', {
+        name: 'Example',
+        action,
+        customPath: 'X:\\TestPanel',
+      });
+    },
+  );
 
   it.each(['Example User', 'Another User'])(
     'uses the desktop identity returned by the backend: %s',

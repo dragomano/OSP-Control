@@ -240,6 +240,7 @@ pub fn discover_ospanel(custom_path: Option<String>) -> Snapshot {
                 status: "stopped".into(),
                 detail: "svc.detail.web".into(),
                 kind: "web".into(),
+                module_actions: Default::default(),
             },
             Service {
                 name: "PHP".into(),
@@ -249,6 +250,7 @@ pub fn discover_ospanel(custom_path: Option<String>) -> Snapshot {
                 status: "stopped".into(),
                 detail: "svc.detail.runtime".into(),
                 kind: "runtime".into(),
+                module_actions: Default::default(),
             },
             Service {
                 name: "MySQL".into(),
@@ -258,6 +260,7 @@ pub fn discover_ospanel(custom_path: Option<String>) -> Snapshot {
                 status: "stopped".into(),
                 detail: "svc.detail.database".into(),
                 kind: "database".into(),
+                module_actions: Default::default(),
             },
         ];
     }
@@ -333,6 +336,7 @@ pub fn service_action(
         status: new_status.into(),
         detail: format!("svc.detail.{}", kind),
         kind: kind.into(),
+        module_actions: Default::default(),
     })
 }
 

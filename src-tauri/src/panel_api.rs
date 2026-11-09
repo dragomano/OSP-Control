@@ -17,6 +17,32 @@ pub(crate) struct Service {
     pub(crate) status: String,
     pub(crate) detail: String,
     pub(crate) kind: String,
+    #[serde(default)]
+    pub(crate) module_actions: ModuleActions,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct ModuleActions {
+    pub(crate) browser: bool,
+    pub(crate) shell: bool,
+}
+
+// The stock menu requires need_state=on plus need_web_ui/need_shell=on.
+// State means enabled, independently of whether the process has a valid handle.
+pub(crate) fn module_actions(node: &serde_json::Value) -> ModuleActions {
+    let enabled = dat_field(node, "enabled").and_then(|field| field.get("_value"))
+        == Some(&serde_json::Value::Bool(true));
+    let profile = dat_field(node, "profile").map(dat_string_value).unwrap_or_default();
+    let settings = active_profile_settings(node, &profile);
+    let configured = |key| {
+        settings
+            .and_then(|settings| dat_field(settings, key))
+            .is_some_and(|field| !dat_string_value(field).trim().is_empty())
+    };
+    ModuleActions {
+        browser: enabled && configured("web_ui_url"),
+        shell: enabled && configured("shell_command"),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,6 +224,7 @@ fn service_from_dat(name: &str, node: &serde_json::Value) -> Option<Service> {
         status: status.into(),
         detail: format!("svc.detail.{}", kind),
         kind: kind.into(),
+        module_actions: module_actions(node),
     })
 }
 

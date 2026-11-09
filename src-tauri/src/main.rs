@@ -9,6 +9,7 @@ mod error;
 mod hosts;
 mod locales;
 mod menu;
+mod module_actions;
 mod module_health;
 mod module_profiles;
 mod module_releases;
@@ -257,6 +258,7 @@ fn main() {
             services::start_ospanel,
             services::overview_metrics,
             services::service_action,
+            module_actions::open_module,
             module_profiles::list_module_profiles,
             module_profiles::read_module_profile,
             module_profiles::read_profile_file,

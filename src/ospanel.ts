@@ -12,6 +12,7 @@ export type OsPanelService = {
   version: string;
   port: string;
   profile?: string | null;
+  moduleActions?: { browser: boolean; shell: boolean };
   status: ServiceStatus;
   detail: string;
   kind:
@@ -121,6 +122,7 @@ const mockSnapshot: OsPanelSnapshot = {
     },
     {
       name: 'PHP',
+      moduleActions: { browser: false, shell: true },
       version: '8.3.14',
       port: ':9000',
       status: 'running',
@@ -129,6 +131,7 @@ const mockSnapshot: OsPanelSnapshot = {
     },
     {
       name: 'MySQL',
+      moduleActions: { browser: false, shell: true },
       version: '8.0.40',
       port: ':3306',
       status: 'running',
@@ -161,6 +164,7 @@ const mockSnapshot: OsPanelSnapshot = {
     },
     {
       name: 'Mailpit',
+      moduleActions: { browser: true, shell: false },
       version: '1.28.4',
       port: ':25',
       status: 'running',
@@ -371,6 +375,7 @@ export async function refreshService(
       ...service,
       profile: demoActiveProfiles.get(name) ?? 'default',
       status: action === 'stop' ? 'stopped' : 'running',
+      moduleActions: action === 'stop' ? { browser: false, shell: false } : service.moduleActions,
     };
   }
 
@@ -467,6 +472,17 @@ export async function openInBrowser(url: string): Promise<void> {
 export async function openProjectFolder(path: string): Promise<void> {
   if (isTauri()) {
     await invoke('open_folder', { path, ...customPathArgs() });
+    return;
+  }
+
+  throw new Error('err.desktopOnly');
+}
+
+export type ModuleOpenAction = 'console' | 'explorer' | 'browser' | 'shell';
+
+export async function openModule(name: string, action: ModuleOpenAction): Promise<void> {
+  if (isTauri()) {
+    await invoke('open_module', { name, action, ...customPathArgs() });
     return;
   }
 
