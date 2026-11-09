@@ -49,6 +49,8 @@ The **Menu** tab reuses the visual OSPanel menu editor: tree, categories, drag a
 
 The **Tasks** tab edits `.osp/tasks.ini` visually for each domain: add, duplicate, delete, rename, enable/disable, schedule presets or five numeric cron fields, launch limits and commands. Weekdays follow OSPanel numbering (1 = Monday, 7 = Sunday). Drafts, including incomplete fields, survive tab and domain changes. Shared Save (or Ctrl+S on the Tasks tab) validates definitions and preserves comments, other domains, BOM and line endings, with the same backup and conflict checks as other project files. Restart OSPanel to apply changes.
 
+The **Diagnostics** tab runs read-only checks for the selected saved domain: project configuration and active state, required modules, pending settings, project/public directories, DNS, TCP connections to HTTP/HTTPS/backend endpoints, TLS file availability, local configuration snippet readability, menu/task definitions and the last 64 KiB of the domain error log. Results distinguish passed, warning, problem and unchecked states, include repair guidance and links to the relevant project tabs, and can be filtered to issues. Unsaved edits and outdated results are marked. Checks never execute project scripts, request application pages, modify files or restart OSPanel automatically; TCP checks do not validate HTTP responses, TLS trust or full server configuration syntax.
+
 Domain configuration files have separate Nginx, Apache and Caddyfile highlighting. Direct `project.ini` editing is also available. Existing files receive exact backups under `backups/project-settings` before replacement; external edits are detected before saving. Restart OSPanel to apply changes.
 
 ### Configurations

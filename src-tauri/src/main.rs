@@ -18,6 +18,7 @@ mod panel_api;
 mod paths;
 mod php_releases;
 mod project_activity;
+mod project_diagnostics;
 mod project_workspace;
 mod projects;
 mod services;
@@ -271,6 +272,7 @@ fn main() {
             projects::project_module_options,
             projects::read_project_settings,
             project_workspace::read_project_workspace,
+            project_diagnostics::diagnose_project,
             project_workspace::read_project_file,
             project_workspace::save_project_file,
             project_workspace::read_project_menu,

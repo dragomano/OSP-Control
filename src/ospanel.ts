@@ -950,6 +950,116 @@ const projectFileArgs = (project: OsPanelProject) => ({
   ...customPathArgs(),
 });
 
+export async function diagnoseProject(
+  project: OsPanelProject,
+  selectedDomain: string,
+): Promise<import('./projectDiagnostics').ProjectDiagnosticReport> {
+  const { taskDiagnostic } = await import('./projectDiagnostics');
+  const request = isTauri()
+    ? invoke<import('./projectDiagnostics').ProjectDiagnosticReport>('diagnose_project', {
+        ...projectFileArgs(project),
+        selectedDomain,
+      })
+    : Promise.resolve<import('./projectDiagnostics').ProjectDiagnosticReport>({
+        domain: selectedDomain,
+        checkedAt: Date.now(),
+        checks: [
+          {
+            id: 'config',
+            group: 'configuration',
+            status: 'ok',
+            title: 'diag.title.config',
+            message: 'diag.config.ok',
+            hint: null,
+            params: {},
+            evidence: '',
+            tab: 'overview',
+            filePath: null,
+          },
+          {
+            id: 'api',
+            group: 'runtime',
+            status: 'ok',
+            title: 'diag.title.api',
+            message: 'diag.api.ok',
+            hint: null,
+            params: {},
+            evidence: '',
+            tab: null,
+            filePath: null,
+          },
+          {
+            id: 'module:PHP',
+            group: 'runtime',
+            status: 'ok',
+            title: 'diag.title.module',
+            message: 'diag.module.ok',
+            hint: null,
+            params: { name: `PHP-${project.php}` },
+            evidence: '',
+            tab: 'environment',
+            filePath: null,
+          },
+          {
+            id: 'webRoot',
+            group: 'files',
+            status: 'error',
+            title: 'diag.title.webRoot',
+            message: 'diag.webRoot.missing',
+            hint: 'diag.hint.webRoot',
+            params: {},
+            evidence: `${project.path}\\public`,
+            tab: 'web',
+            filePath: null,
+          },
+          {
+            id: 'dns',
+            group: 'network',
+            status: 'warning',
+            title: 'diag.title.dns',
+            message: 'diag.dns.mismatch',
+            hint: 'diag.hint.dns',
+            params: { domain: selectedDomain },
+            evidence: '127.0.0.1',
+            tab: null,
+            filePath: null,
+          },
+          {
+            id: 'http',
+            group: 'network',
+            status: 'skipped',
+            title: 'diag.title.http',
+            message: 'diag.connection.unknown',
+            hint: null,
+            params: {},
+            evidence: '',
+            tab: 'web',
+            filePath: null,
+          },
+        ],
+      });
+  const [result, tasks] = await Promise.allSettled([request, readProjectFile(project, 'tasks.ini')]);
+  if (result.status === 'rejected') throw result.reason;
+  const report = result.value;
+  report.checks.push(
+    tasks.status === 'fulfilled'
+      ? taskDiagnostic(tasks.value, selectedDomain)
+      : {
+          id: 'tasks',
+          group: 'configuration',
+          status: 'skipped',
+          title: 'diag.title.tasks',
+          message: 'diag.tasks.unknown',
+          hint: null,
+          params: {},
+          evidence: '',
+          tab: 'tasks',
+          filePath: null,
+        },
+  );
+  return report;
+}
+
 export async function readProjectWorkspace(project: OsPanelProject): Promise<ProjectWorkspace> {
   if (isTauri()) return invoke<ProjectWorkspace>('read_project_workspace', projectFileArgs(project));
   const key = `${project.path}/project.ini`;

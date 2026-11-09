@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   writeProjectMenu: vi.fn(),
   readMenu: vi.fn(),
   writeMenu: vi.fn(),
+  diagnoseProject: vi.fn(),
 }));
 vi.mock('../src/ospanel', async (original) => ({
   ...(await original<typeof import('../src/ospanel')>()),
@@ -59,6 +60,24 @@ beforeEach(() => {
   }));
   mocks.askConfirm.mockResolvedValue(false);
   mocks.readProjectMenu.mockResolvedValue({ items: [], revision: 'project-initial' });
+  mocks.diagnoseProject.mockResolvedValue({
+    domain: 'shop.test',
+    checkedAt: 1234,
+    checks: [
+      {
+        id: 'config',
+        group: 'configuration',
+        status: 'error',
+        title: 'diag.title.config',
+        message: 'diag.config.invalid',
+        hint: 'diag.hint.config',
+        params: {},
+        evidence: '',
+        tab: null,
+        filePath: null,
+      },
+    ],
+  });
   mocks.writeProjectMenu.mockImplementation(async (_project, items) => ({
     document: { items, revision: 'project-saved' },
     backupPath: null,
@@ -67,6 +86,33 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('project workspace drafts', () => {
+  it('allows diagnostics even when project settings cannot be loaded', async () => {
+    mocks.readProjectWorkspace.mockRejectedValue(new Error('err.projectWorkspaceInvalid'));
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: t('workspace.tab.diagnostics'), exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: t('diag.run'), exact: true }));
+    expect(await screen.findByText(t('diag.config.invalid'))).toBeInTheDocument();
+    expect(mocks.diagnoseProject).toHaveBeenCalledWith(project, 'shop.test');
+    expect(mocks.saveProjectFile).not.toHaveBeenCalled();
+  });
+  it('marks diagnostics stale after saving settings but not after reading another tab', async () => {
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: t('workspace.tab.diagnostics'), exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: t('diag.run'), exact: true }));
+    await screen.findByText(t('diag.config.invalid'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Tasks', exact: true }));
+    await screen.findByRole('button', { name: 'Add task', exact: true });
+    fireEvent.click(screen.getByRole('tab', { name: t('workspace.tab.diagnostics'), exact: true }));
+    expect(screen.queryByText(t('diag.stale'))).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Web server', exact: true }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Public directory', exact: true }), {
+      target: { value: '{base_dir}\\new-public' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'All projects' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('tab', { name: t('workspace.tab.diagnostics'), exact: true }));
+    expect(await screen.findByText(t('diag.stale'))).toBeInTheDocument();
+  });
   it('edits tasks visually, keeps incomplete drafts across tabs and domains and saves only tasks.ini', async () => {
     const original =
       '; Automation\r\n[shop.test]\r\nBuild = */5 * * * * * 0 echo {host}\r\n\r\n[api.shop.test]\r\nCheck = 0 9 * * 1-5 0 * echo api\r\n';

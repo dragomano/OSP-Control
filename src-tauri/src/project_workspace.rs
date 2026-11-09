@@ -43,7 +43,7 @@ fn conflict() -> CommandError {
 }
 
 // Validate each existing component, including Windows junctions, before following it.
-fn child(parent: &Path, name: &str) -> Result<PathBuf, CommandError> {
+pub(crate) fn child(parent: &Path, name: &str) -> Result<PathBuf, CommandError> {
     let path = parent.join(name);
     if let Ok(meta) = fs::symlink_metadata(&path) {
         #[cfg(windows)]
@@ -65,7 +65,7 @@ fn child(parent: &Path, name: &str) -> Result<PathBuf, CommandError> {
     Ok(path)
 }
 
-fn read(path: &Path) -> Result<Option<String>, CommandError> {
+pub(crate) fn read(path: &Path) -> Result<Option<String>, CommandError> {
     match fs::metadata(path) {
         Ok(meta) if !meta.is_file() || meta.len() > MAX_FILE => Err(invalid()),
         Ok(_) => Ok(Some(fs::read_to_string(path)?)),
@@ -97,7 +97,7 @@ fn value_text(value: &str) -> &str {
     value.trim()
 }
 
-fn parse(content: &str) -> Result<Sections, CommandError> {
+pub(crate) fn parse(content: &str) -> Result<Sections, CommandError> {
     let mut sections = Sections::new();
     let mut current = None;
     for line in content.trim_start_matches('\u{feff}').lines() {
