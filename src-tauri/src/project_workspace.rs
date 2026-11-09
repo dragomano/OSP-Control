@@ -26,6 +26,8 @@ pub(crate) struct ProjectWorkspace {
     base_dir: String,
     content: Option<String>,
     files: Vec<String>,
+    laravel: Option<String>,
+    wordpress: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -134,7 +136,7 @@ pub(crate) fn parse(content: &str) -> Result<Sections, CommandError> {
     Ok(sections)
 }
 
-fn base(root: &Path, domain: &str, base_dir: &str) -> Result<PathBuf, CommandError> {
+pub(crate) fn base(root: &Path, domain: &str, base_dir: &str) -> Result<PathBuf, CommandError> {
     let domain = name(domain)?;
     let home = child(root, "home")?;
     let expected = fs::canonicalize(base_dir)?;
@@ -205,7 +207,14 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
             files.push(format!("{engine}/{domain}.conf"));
         }
     }
-    Ok(ProjectWorkspace { base_dir: external_path(&dir).to_string_lossy().into_owned(), content, files })
+    let laravel = crate::laravel_installer::state(&dir);
+    Ok(ProjectWorkspace {
+        base_dir: external_path(&dir).to_string_lossy().into_owned(),
+        content,
+        files,
+        laravel,
+        wordpress: crate::wordpress_installer::state(&dir),
+    })
 }
 
 fn aliases(domain: &str, values: &BTreeMap<String, String>) -> Vec<String> {

@@ -1,6 +1,12 @@
 import { displayProjectDomain, normalizeProjectDomain } from './projectDomain';
 
-export type ProjectWorkspace = { baseDir: string; content: string | null; files: string[] };
+export type ProjectWorkspace = {
+  baseDir: string;
+  content: string | null;
+  files: string[];
+  laravel?: 'pending' | 'installed' | null;
+  wordpress?: 'pending' | 'installed' | null;
+};
 export type ProjectFileSave = { content: string; backupPath: string | null };
 export type ProjectDomainSettings = { domain: string; values: Record<string, string> };
 

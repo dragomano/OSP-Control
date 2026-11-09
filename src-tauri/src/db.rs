@@ -30,7 +30,7 @@ fn db_engine(module: &str) -> Option<DbEngine> {
 // Module state from /getmodules: (process running, active profile).
 // handle — the process descriptor inside the panel; -1 means not running. With the
 // panel stopped or the module missing, the module is considered not running.
-fn db_module_state(root: &Path, module: &str) -> Option<(bool, String)> {
+pub(crate) fn db_module_state(root: &Path, module: &str) -> Option<(bool, String)> {
     let json = api_json(root, "/getmodules")?;
     let node = dat_node_map(&json)?.get(module).copied()?;
     let fields = dat_node_map(node)?;
@@ -45,7 +45,7 @@ fn db_module_state(root: &Path, module: &str) -> Option<(bool, String)> {
 
 // A key's value in an ini-like file: the first "key = value" line;
 // comments (";"/"#" and a trailing "#") are dropped, quotes are stripped.
-fn ini_first_value(text: &str, key: &str) -> Option<String> {
+pub(crate) fn ini_first_value(text: &str, key: &str) -> Option<String> {
     for line in text.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with(';') || line.starts_with('#') {
@@ -68,7 +68,7 @@ fn ini_first_value(text: &str, key: &str) -> Option<String> {
 
 // Normalizing a bind/listen address to a connect address: for PostgreSQL it is
 // a list ("localhost, 127.0.1.49") or "*"; empty/0.0.0.0 → 127.0.0.1.
-fn normalize_bind_host(value: &str, is_list: bool) -> String {
+pub(crate) fn normalize_bind_host(value: &str, is_list: bool) -> String {
     if !is_list {
         return if value == "0.0.0.0" { "127.0.0.1".into() } else { value.to_string() };
     }
@@ -81,12 +81,12 @@ fn normalize_bind_host(value: &str, is_list: bool) -> String {
 // Address of the running DBMS: bind/listen and port come from the module's own
 // config (modules/<module>/my.ini or data/<module>/<profile>/postgresql.conf) —
 // OSPanel assigns modules local addresses of the 127.0.1.x form.
-struct DbEndpoint {
-    host: String,
-    port: u16,
+pub(crate) struct DbEndpoint {
+    pub(crate) host: String,
+    pub(crate) port: u16,
 }
 
-fn db_endpoint(root: &Path, module: &str) -> DbEndpoint {
+pub(crate) fn db_endpoint(root: &Path, module: &str) -> DbEndpoint {
     let is_postgres = matches!(db_engine(module), Some(DbEngine::Postgres));
     let default_port = if is_postgres { 5432 } else { 3306 };
 

@@ -743,6 +743,7 @@ function ProjectsContent({
         <CreateProjectDialog
           notify={notify}
           onCreated={onProjectCreated}
+          onConfigure={(created) => openSettings({ ...created, type: created.http })}
           onRestartPanel={onRestartPanel}
           onClose={() => setCreateDialogOpen(false)}
         />

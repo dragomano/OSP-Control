@@ -36,6 +36,8 @@ pub(crate) struct ProjectModuleOptions {
     http_engines: Vec<String>,
     php_engines: Vec<String>,
     node_engines: Vec<String>,
+    nvm_available: bool,
+    database_engines: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,6 +110,45 @@ fn scan_modules(root: &Path, prefix: &str) -> Vec<String> {
     list
 }
 
+fn node_options(root: &Path) -> (bool, Vec<String>) {
+    let scan = || -> Result<(bool, Vec<String>), CommandError> {
+        let root = fs::canonicalize(root)?;
+        let addons = crate::project_workspace::child(&root, "addons")?;
+        let nvm = crate::project_workspace::child(&addons, "NVM")?;
+        let available = crate::project_workspace::child(&nvm, "nvm.exe")?.is_file();
+        let mut versions = Vec::new();
+        if !available {
+            return Ok((false, versions));
+        }
+        for entry in fs::read_dir(&nvm)? {
+            let entry = entry?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let Some(version) = name.strip_prefix('v') else { continue };
+            let parts: Vec<_> = version.split('.').collect();
+            if parts.len() != 3
+                || parts.iter().any(|part| {
+                    part.is_empty()
+                        || !part.bytes().all(|b| b.is_ascii_digit())
+                        || part.parse::<u32>().is_err()
+                })
+            {
+                continue;
+            }
+            let Ok(dir) = crate::project_workspace::child(&nvm, &name) else { continue };
+            if dir.is_dir()
+                && crate::project_workspace::child(&dir, "node.exe").is_ok_and(|path| path.is_file())
+            {
+                versions.push(format!("Node-{version}"));
+            }
+        }
+        versions.sort_by_key(|version| {
+            version[5..].split('.').filter_map(|part| part.parse::<u32>().ok()).collect::<Vec<_>>()
+        });
+        Ok((available, versions))
+    };
+    scan().unwrap_or_default()
+}
+
 fn scan_module_options(root: &Path) -> ProjectModuleOptions {
     let modules = root.join("modules");
     let http_engines = ["Apache", "Nginx", "Caddy"]
@@ -115,10 +156,13 @@ fn scan_module_options(root: &Path) -> ProjectModuleOptions {
         .filter(|name| modules.join(name).is_dir())
         .map(str::to_string)
         .collect();
+    let (nvm_available, node_engines) = node_options(root);
     ProjectModuleOptions {
         http_engines,
         php_engines: scan_modules(root, "PHP-"),
-        node_engines: scan_modules(root, "Node-"),
+        node_engines,
+        nvm_available,
+        database_engines: crate::project_database::engines(root),
     }
 }
 
@@ -747,16 +791,19 @@ pub fn autostart_from_projects(custom_path: Option<String>) -> Result<AutostartR
 }
 
 // --- Creating a new project ---
-// Creates the home/<domain> directory, the .osp subdirectory and a project.ini with a
-// settings skeleton (the format matches the native panel: BOM, alignment, CRLF).
+// Publishes a complete bundled scaffold under home/<domain>. The default template
+// keeps the original settings-only skeleton (BOM, alignment, CRLF).
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CreateProjectParams {
     domain: String,
     http_engine: Option<String>,
     php_engine: Option<String>,
     node_engine: Option<String>,
+    template: Option<String>,
+    backend_port: Option<u16>,
+    database: Option<crate::project_database::Database>,
 }
 
 // The path is returned so the frontend can show the created project right away:
@@ -777,35 +824,81 @@ pub fn create_project(
     params: CreateProjectParams,
     custom_path: Option<String>,
 ) -> Result<CreatedProject, CommandError> {
-    let root = resolve_installation(custom_path.as_deref())?;
-
+    let root = fs::canonicalize(resolve_installation(custom_path.as_deref())?)?;
     let domain = normalize_project_domain(&params.domain)?;
-
-    // Engines are validated before directories are created: on error no garbage is left behind.
+    let template = crate::project_templates::template(params.template.as_deref().unwrap_or("empty"))?;
     let options = scan_module_options(&root);
-    let http = params.http_engine.unwrap_or_else(|| ENGINE_AUTO.into());
-    let php = params.php_engine.unwrap_or_else(|| ENGINE_AUTO.into());
-    let node = params.node_engine.unwrap_or_else(|| ENGINE_AUTO.into());
-    validate_engine_value(&options, "http_engine", &http)?;
-    validate_engine_value(&options, "php_engine", &php)?;
-    validate_engine_value(&options, "node_engine", &node)?;
-
-    let project_dir = root.join("home").join(&domain);
-    // A project with this domain already exists — an error.
-    if project_dir.exists() {
-        return Err(CommandError::new("err.projectExists").with("domain", domain));
+    let globals = global_project_engines(Some(root.to_string_lossy().into_owned())).ok();
+    let choose = |input: Option<String>,
+                  available: &[String],
+                  global: &str,
+                  required: bool,
+                  key: &str|
+     -> Result<String, CommandError> {
+        let value = if template.id == "empty" {
+            input.unwrap_or_else(|| ENGINE_AUTO.into())
+        } else {
+            match input.as_deref() {
+                Some(value) if value != "auto" => value.into(),
+                _ if required => crate::project_templates::preferred(available, global).unwrap_or_default(),
+                Some("auto") => ENGINE_AUTO.into(),
+                _ => String::new(),
+            }
+        };
+        if required && value.is_empty() {
+            let module = match key {
+                "php_engine" => "PHP",
+                "node_engine" => "Node.js",
+                _ => "HTTP",
+            };
+            return Err(CommandError::new("err.projectTemplateModule").with("module", module));
+        }
+        if !value.is_empty() {
+            validate_engine_value(&options, key, &value)?;
+        }
+        Ok(value)
+    };
+    let http = choose(
+        params.http_engine,
+        &options.http_engines,
+        globals.as_ref().map(|g| g.http_engine.as_str()).unwrap_or(""),
+        template.id != "empty",
+        "http_engine",
+    )?;
+    let php = choose(
+        params.php_engine,
+        &options.php_engines,
+        globals.as_ref().map(|g| g.php_engine.as_str()).unwrap_or(""),
+        template.php,
+        "php_engine",
+    )?;
+    let node = choose(
+        params.node_engine,
+        &options.node_engines,
+        globals.as_ref().map(|g| g.node_engine.as_str()).unwrap_or(""),
+        template.node,
+        "node_engine",
+    )?;
+    let port = params.backend_port.unwrap_or(3000);
+    if template.node && port == 0 {
+        return Err(CommandError::new("err.invalidSettingValue").with("value", "0"));
     }
-
-    let osp_dir = project_dir.join(".osp");
-    fs::create_dir_all(&osp_dir)?;
-
-    // The file format is like the native panel's: BOM, CRLF, key alignment.
-    let ini = osp_dir.join("project.ini");
-    let content = format!(
-        "\u{feff}[{}]\r\n\r\nhttp_engine       = {}\r\nphp_engine        = {}\r\nnode_engine       = {}\r\n",
-        domain, http, php, node
-    );
-    fs::write(&ini, content)?;
+    let mut files = template.files(&domain, &http, &php, &node, port)?;
+    if let Some(db) = &params.database {
+        crate::project_database::validate(db, &template.id, &options.database_engines)?;
+        files.extend(crate::project_database::files(db)?);
+        if !matches!(db.engine.as_str(), "none" | "sqlite") {
+            if let Some((_, ini)) = files.iter_mut().find(|(path, _)| path == ".osp/project.ini") {
+                ini.push_str(&format!("environment       = {}\r\n", db.engine));
+            }
+        }
+    }
+    let home = crate::project_workspace::child(&root, "home")?;
+    if !home.exists() {
+        fs::create_dir(&home)?;
+    }
+    let home = crate::project_workspace::child(&root, "home")?;
+    let project_dir = template.create(&home, &domain, &files)?;
 
     // Engines for the project table: in the panel's table an implicitly set engine is "-".
     let engine_display = |value: &str, strip_php: bool| -> String {
@@ -933,6 +1026,79 @@ mod tests {
     }
 
     #[test]
+    fn node_versions_come_from_complete_nvm_installations_and_sort_numerically() {
+        let fixture = RenameFixture::empty();
+        fs::create_dir_all(fixture.0.join("modules/Node-99.0.0")).unwrap();
+        fs::create_dir_all(fixture.0.join("addons/NVM")).unwrap();
+        fs::write(fixture.0.join("addons/NVM/nvm.exe"), "").unwrap();
+        for version in ["v24.9.0", "v24.10.0", "v22.0.0", "v1.2", "vlatest", "v1.2.3-extra"] {
+            fs::create_dir(fixture.0.join("addons/NVM").join(version)).unwrap();
+            fs::write(fixture.0.join("addons/NVM").join(version).join("node.exe"), "").unwrap();
+        }
+        fs::create_dir(fixture.0.join("addons/NVM/v25.0.0")).unwrap();
+        let options = scan_module_options(&fixture.0);
+        assert!(options.nvm_available);
+        assert_eq!(options.node_engines, ["Node-22.0.0", "Node-24.9.0", "Node-24.10.0"]);
+        fs::remove_file(fixture.0.join("addons/NVM/nvm.exe")).unwrap();
+        let options = scan_module_options(&fixture.0);
+        assert!(!options.nvm_available);
+        assert!(options.node_engines.is_empty());
+    }
+
+    #[test]
+    fn creates_template_settings_and_validates_requirements_before_writing() {
+        let fixture = RenameFixture::empty();
+        let custom = Some(fixture.0.to_string_lossy().into_owned());
+        let create = |id: &str, port: Option<u16>| {
+            create_project(
+                CreateProjectParams {
+                    domain: format!("{id}.test"),
+                    template: Some(id.into()),
+                    backend_port: port,
+                    ..Default::default()
+                },
+                custom.clone(),
+            )
+        };
+        for (id, module) in [("static", "HTTP"), ("php", "HTTP"), ("node", "HTTP")] {
+            let error = create(id, None).unwrap_err();
+            assert_eq!(error.code, "err.projectTemplateModule");
+            assert_eq!(error.params["module"], module);
+        }
+        fs::create_dir_all(fixture.0.join("modules/Apache")).unwrap();
+        for (id, module) in [("php", "PHP"), ("laravel", "PHP"), ("wordpress", "PHP"), ("node", "Node.js")] {
+            let error = create(id, None).unwrap_err();
+            assert_eq!(error.code, "err.projectTemplateModule");
+            assert_eq!(error.params["module"], module);
+        }
+        assert_eq!(create("unknown", None).unwrap_err().code, "err.projectTemplateInvalid");
+        assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 0);
+        for module in ["PHP-8.9", "PHP-8.10"] {
+            fs::create_dir_all(fixture.0.join("modules").join(module)).unwrap();
+        }
+        fs::create_dir_all(fixture.0.join("addons/NVM/v24.0.0")).unwrap();
+        fs::write(fixture.0.join("addons/NVM/nvm.exe"), "").unwrap();
+        fs::write(fixture.0.join("addons/NVM/v24.0.0/node.exe"), "").unwrap();
+        assert_eq!(create("node", Some(0)).unwrap_err().code, "err.invalidSettingValue");
+        for id in ["static", "php", "laravel", "wordpress", "node"] {
+            let created = create(id, Some(4321)).unwrap();
+            assert_eq!(created.http, "Apache");
+            let text = fs::read_to_string(Path::new(&created.path).join(".osp/project.ini")).unwrap();
+            let sections = crate::project_workspace::parse(&text).unwrap();
+            let values = &sections[&format!("{id}.test")];
+            assert_eq!(values["http_engine"], "Apache");
+            assert_eq!(
+                values["php_engine"],
+                if matches!(id, "php" | "laravel" | "wordpress") { "PHP-8.10" } else { "" }
+            );
+            assert_eq!(values["node_engine"], if id == "node" { "Node-24.0.0" } else { "" });
+            assert_eq!(values["backend_enabled"], if id == "node" { "on" } else { "off" });
+            assert!(!values["web_root"].is_empty());
+        }
+        assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 5);
+    }
+
+    #[test]
     fn idn_projects_use_punycode_on_disk_and_reject_equivalent_duplicates() {
         for (input, duplicate, domain) in [
             (" CAFÉ.test ", "cafe\u{0301}.test", "xn--caf-dma.test"),
@@ -952,6 +1118,7 @@ mod tests {
                         http_engine: None,
                         php_engine: None,
                         node_engine: None,
+                        ..Default::default()
                     },
                     custom.clone(),
                 )
@@ -981,6 +1148,7 @@ mod tests {
                     http_engine: None,
                     php_engine: None,
                     node_engine: None,
+                    ..Default::default()
                 },
                 Some(fixture.0.to_string_lossy().into_owned()),
             )
@@ -1026,6 +1194,7 @@ mod tests {
                     http_engine: Some("Apache".into()),
                     php_engine: None,
                     node_engine: None,
+                    ..Default::default()
                 },
                 custom.clone(),
             )
@@ -1526,6 +1695,7 @@ mod tests {
                 http_engine: Some("Apache".into()),
                 php_engine: None,
                 node_engine: None,
+                ..Default::default()
             },
             custom.clone(),
         )
@@ -1549,6 +1719,7 @@ mod tests {
                 http_engine: None,
                 php_engine: None,
                 node_engine: None,
+                ..Default::default()
             },
             custom.clone(),
         )
@@ -1563,6 +1734,7 @@ mod tests {
                 http_engine: None,
                 php_engine: Some("PHP-9.9".into()),
                 node_engine: None,
+                ..Default::default()
             },
             custom.clone(),
         )

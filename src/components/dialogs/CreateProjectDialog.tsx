@@ -1,49 +1,114 @@
-import { X } from 'lucide-react';
+import { Copy, FileCode2, RefreshCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { errorText, useI18n } from '../../i18n';
 import {
   type CreatedProject,
   createProject,
+  type GlobalProjectEngines,
+  getGlobalProjectEngines,
   getProjectModuleOptions,
   type ProjectModuleOptions,
 } from '../../ospanel';
+import { projectDatabaseEngines, suggestedDatabaseName, validDatabaseName } from '../../projectDatabase';
 import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
-import { type Notify, useDismiss } from '../shared';
+import {
+  PROJECT_TEMPLATES,
+  type ProjectTemplateId,
+  preferredTemplateEngine,
+  projectTemplate,
+} from '../../projectTemplates';
+import { copyText, type Notify, useDismiss } from '../shared';
 import { PathText } from '../widgets/PathText';
 import { ModuleSelect } from './ModuleSelect';
+import './createProject.css';
 
 export function CreateProjectDialog({
   notify,
   onCreated,
+  onConfigure,
   onRestartPanel,
   onClose,
 }: {
   notify: Notify;
   onCreated: (created: CreatedProject) => void;
+  onConfigure?: (created: CreatedProject) => void;
   onRestartPanel: () => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
   const [options, setOptions] = useState<ProjectModuleOptions | null>(null);
   const [domain, setDomain] = useState('');
+  const [templateId, setTemplateId] = useState<ProjectTemplateId>('empty');
+  const [globalEngines, setGlobalEngines] = useState<GlobalProjectEngines | null>(null);
+  const [backendPort, setBackendPort] = useState('3000');
+  const [databaseEngine, setDatabaseEngine] = useState('none');
+  const [databaseName, setDatabaseName] = useState<string | null>(null);
+  const [databaseUser, setDatabaseUser] = useState('root');
+  const [databasePassword, setDatabasePassword] = useState('');
+  const template = projectTemplate(templateId);
   const [httpEngine, setHttpEngine] = useState('auto');
   const [phpEngine, setPhpEngine] = useState('auto');
   const [nodeEngine, setNodeEngine] = useState('auto');
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const windowRef = useRef<HTMLDivElement>(null);
   const domainRef = useRef<HTMLInputElement>(null);
   const normalizedDomain = normalizeProjectDomain(domain);
+  const hasDatabase = templateId === 'laravel' || templateId === 'wordpress';
+  const dbName = databaseName ?? suggestedDatabaseName(normalizedDomain ?? '');
+  const dbEngines = projectDatabaseEngines(templateId, options?.databaseEngines ?? []);
+  const databaseValid =
+    !hasDatabase ||
+    databaseEngine === 'none' ||
+    (validDatabaseName(dbName) &&
+      (databaseEngine === 'sqlite' || (dbEngines.includes(databaseEngine) && !!databaseUser.trim())));
+  const unavailable = (engine: string, available: string[]) =>
+    !engine || (engine === 'auto' ? available.length === 0 : !available.includes(engine));
+  const missingModule =
+    templateId !== 'empty' && options
+      ? unavailable(httpEngine, options.httpEngines) ||
+        (template.php && unavailable(phpEngine, options.phpEngines)) ||
+        (template.node && unavailable(nodeEngine, options.nodeEngines))
+      : false;
+  const validPort =
+    !template.node || (/^\d+$/.test(backendPort) && +backendPort >= 1 && +backendPort <= 65535);
 
   // Focus after mounting — otherwise the browser returns it to the previous element.
+  const loaded = options !== null;
   useEffect(() => {
-    window.setTimeout(() => domainRef.current?.focus(), 0);
-  }, []);
+    if (loaded) domainRef.current?.focus();
+  }, [loaded]);
+
+  const refreshVersions = async () => {
+    if (refreshing || busy) return;
+    setRefreshing(true);
+    try {
+      const available = await getProjectModuleOptions();
+      setOptions(available);
+      setNodeEngine((current) =>
+        available.nodeEngines.includes(current) || current === 'auto'
+          ? current
+          : template.node
+            ? preferredTemplateEngine(available.nodeEngines, globalEngines?.nodeEngine)
+            : '',
+      );
+    } catch (error) {
+      notify(errorText(t, error, 'projects.toastModulesFailed'));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: engine options are read once when the dialog opens — onClose/notify/t are unstable and would cause a refetch loop
   useEffect(() => {
     void (async () => {
       try {
-        setOptions(await getProjectModuleOptions());
+        const [available, globals] = await Promise.all([
+          getProjectModuleOptions(),
+          Promise.resolve(getGlobalProjectEngines()).catch(() => null),
+        ]);
+        setOptions(available);
+        setGlobalEngines(globals ?? null);
       } catch (error) {
         notify(errorText(t, error, 'projects.toastModulesFailed'));
         onClose();
@@ -51,9 +116,41 @@ export function CreateProjectDialog({
     })();
   }, []);
 
-  useDismiss(windowRef, onClose);
+  useDismiss(windowRef, onClose, !busy);
+  const selectTemplate = (id: ProjectTemplateId) => {
+    setTemplateId(id);
+    const engines = projectDatabaseEngines(id, options?.databaseEngines ?? []);
+    const engine =
+      id === 'laravel'
+        ? 'sqlite'
+        : id === 'wordpress'
+          ? preferredTemplateEngine(engines, '') || 'none'
+          : 'none';
+    setDatabaseEngine(engine);
+    setDatabaseUser(engine.startsWith('PostgreSQL-') ? 'postgres' : 'root');
+    if (!options) return;
+    const next = projectTemplate(id);
+    setHttpEngine(
+      id === 'empty' ? 'auto' : preferredTemplateEngine(options.httpEngines, globalEngines?.httpEngine),
+    );
+    setPhpEngine(
+      id === 'empty'
+        ? 'auto'
+        : next.php
+          ? preferredTemplateEngine(options.phpEngines, globalEngines?.phpEngine)
+          : '',
+    );
+    setNodeEngine(
+      id === 'empty'
+        ? 'auto'
+        : next.node
+          ? preferredTemplateEngine(options.nodeEngines, globalEngines?.nodeEngine)
+          : '',
+    );
+  };
 
   const create = async () => {
+    if (busy || refreshing || missingModule || !validPort || !databaseValid) return;
     if (!normalizedDomain) {
       notify(t('err.invalidDomain'));
       return;
@@ -66,14 +163,40 @@ export function CreateProjectDialog({
         domain: normalizedDomain,
         httpEngine: httpEngine === 'auto' ? undefined : httpEngine,
         phpEngine: phpEngine === 'auto' ? undefined : phpEngine,
+        ...(hasDatabase
+          ? {
+              database: {
+                engine: databaseEngine,
+                name: databaseEngine === 'none' ? '' : dbName,
+                username: databaseEngine === 'sqlite' || databaseEngine === 'none' ? '' : databaseUser.trim(),
+                password: databaseEngine === 'sqlite' || databaseEngine === 'none' ? '' : databasePassword,
+              },
+            }
+          : {}),
         nodeEngine: nodeEngine === 'auto' ? undefined : nodeEngine,
+        ...(templateId === 'empty'
+          ? {}
+          : { template: templateId, ...(template.node ? { backendPort: +backendPort } : {}) }),
       });
 
       onCreated(created);
-      notify(t('projects.toastCreated', { domain: displayProjectDomain(created.domain) }), {
-        label: t('projects.restartPanel'),
-        run: onRestartPanel,
-      });
+      if (hasDatabase) onConfigure?.(created);
+      notify(
+        t(
+          templateId === 'empty'
+            ? 'projects.toastCreated'
+            : hasDatabase
+              ? `templates.${templateId}.created`
+              : 'templates.created',
+          {
+            domain: displayProjectDomain(created.domain),
+          },
+        ),
+        {
+          label: t('projects.restartPanel'),
+          run: onRestartPanel,
+        },
+      );
       onClose();
     } catch (error) {
       notify(errorText(t, error, 'projects.toastCreateFailed'));
@@ -85,7 +208,7 @@ export function CreateProjectDialog({
   return (
     <div className="modal-overlay">
       <div
-        className="modal-window"
+        className="modal-window create-project-window"
         role="dialog"
         aria-modal="true"
         aria-label={t('projects.createTitle')}
@@ -96,7 +219,13 @@ export function CreateProjectDialog({
             <span className="eyebrow">{t('nav.projects')}</span>
             <h3 className="modal-title">{t('projects.createTitle')}</h3>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
+          <button
+            type="button"
+            className="icon-button"
+            disabled={busy}
+            onClick={onClose}
+            aria-label={t('common.close')}
+          >
             <X size={16} />
           </button>
         </div>
@@ -104,47 +233,259 @@ export function CreateProjectDialog({
           <PathText text={t('projects.createHint')} />
         </p>
         {options ? (
-          <div className="modal-body">
-            <label className="module-select">
-              <span>{t('projects.createDomain')}</span>
-              <input
-                ref={domainRef}
-                type="text"
-                value={domain}
-                aria-invalid={!!domain.trim() && !normalizedDomain}
-                onChange={(event) => setDomain(event.target.value)}
-                placeholder={t('projects.createDomainPlaceholder')}
-              />
-            </label>
-            {domain.trim() && !normalizedDomain && (
-              <p className="modal-hint" role="alert">
-                {t('err.invalidDomain')}
-              </p>
-            )}
-            <ModuleSelect
-              label={t('projects.createHttpEngine')}
-              value={httpEngine}
-              options={options.httpEngines}
-              autoLabel={t('projects.modulesAuto')}
-              globalHint={null}
-              onChange={setHttpEngine}
-            />
-            <ModuleSelect
-              label={t('projects.createPhpEngine')}
-              value={phpEngine}
-              options={options.phpEngines}
-              autoLabel={t('projects.modulesAuto')}
-              globalHint={null}
-              onChange={setPhpEngine}
-            />
-            <ModuleSelect
-              label={t('projects.createNodeEngine')}
-              value={nodeEngine}
-              options={options.nodeEngines}
-              autoLabel={t('projects.modulesAuto')}
-              globalHint={null}
-              onChange={setNodeEngine}
-            />
+          <div className="modal-body create-project-body">
+            <fieldset className="create-project-fields" disabled={busy}>
+              <label className="module-select">
+                <span>{t('projects.createDomain')}</span>
+                <input
+                  ref={domainRef}
+                  type="text"
+                  value={domain}
+                  aria-invalid={!!domain.trim() && !normalizedDomain}
+                  onChange={(event) => setDomain(event.target.value)}
+                  placeholder={t('projects.createDomainPlaceholder')}
+                />
+              </label>
+              {domain.trim() && !normalizedDomain && (
+                <p className="modal-hint" role="alert">
+                  {t('err.invalidDomain')}
+                </p>
+              )}
+              <label className="module-select">
+                <span>{t('templates.label')}</span>
+                <select
+                  value={templateId}
+                  disabled={refreshing}
+                  onChange={(event) => selectTemplate(event.target.value as ProjectTemplateId)}
+                >
+                  {PROJECT_TEMPLATES.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {t(`templates.${template.id}.name`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <section className="project-template-preview" aria-label={t('templates.preview')}>
+                <p>{t(`templates.${templateId}.description`)}</p>
+                {templateId !== 'empty' && (
+                  <>
+                    <dl>
+                      <div>
+                        <dt>{t('templates.projectRoot')}</dt>
+                        <dd>{template.projectRoot}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('templates.webRoot')}</dt>
+                        <dd>{template.webRoot}</dd>
+                      </div>
+                    </dl>
+                    <p className="template-next-step">{t(`templates.${templateId}.next`)}</p>
+                  </>
+                )}
+                <details>
+                  <summary>
+                    <FileCode2 size={14} />
+                    {t('templates.files', { n: template.files.length + (hasDatabase ? 2 : 0) })}
+                  </summary>
+                  <ul>
+                    {template.directories.map((path) => (
+                      <li key={`${path}/`}>{path}/</li>
+                    ))}
+                    {hasDatabase &&
+                      ['.osp/database.json', '.osp/.gitignore'].map((path) => <li key={path}>{path}</li>)}
+                    {template.files.map((file) => (
+                      <li key={file.path}>
+                        {file.path.replace(/\{domain\}/g, normalizedDomain ?? '<domain>')}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </section>
+              <div
+                className={`create-project-engines ${template.node && !options.nodeEngines.length ? 'without-node' : ''}`}
+              >
+                <ModuleSelect
+                  label={t('projects.createHttpEngine')}
+                  value={httpEngine}
+                  options={options.httpEngines}
+                  autoLabel={t('projects.modulesAuto')}
+                  includeAuto={templateId === 'empty'}
+                  globalHint={null}
+                  onChange={setHttpEngine}
+                />
+                <ModuleSelect
+                  label={t('projects.createPhpEngine')}
+                  value={phpEngine}
+                  options={options.phpEngines}
+                  autoLabel={t('projects.modulesAuto')}
+                  includeAuto={templateId === 'empty'}
+                  globalHint={null}
+                  noneLabel={templateId === 'empty' || template.php ? undefined : t('templates.unused')}
+                  onChange={setPhpEngine}
+                />
+                {(!template.node || options.nodeEngines.length > 0) && (
+                  <div className="create-project-node-choice">
+                    <ModuleSelect
+                      label={t('projects.createNodeEngine')}
+                      value={nodeEngine}
+                      options={options.nodeEngines}
+                      autoLabel={t('projects.modulesAuto')}
+                      includeAuto={templateId === 'empty'}
+                      globalHint={null}
+                      noneLabel={templateId === 'empty' || template.node ? undefined : t('templates.unused')}
+                      onChange={setNodeEngine}
+                    />
+                    {template.node && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={busy || refreshing}
+                        onClick={() => void refreshVersions()}
+                      >
+                        <RefreshCw size={13} />
+                        {t('templates.node.refresh')}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              {template.node && !options.nodeEngines.length && (
+                <section
+                  className="project-template-preview create-project-node-missing"
+                  aria-label={t('projects.createNodeEngine')}
+                >
+                  <p role="alert">
+                    {t(
+                      options.nvmAvailable === false ? 'templates.node.nvmMissing' : 'templates.node.missing',
+                    )}
+                  </p>
+                  {options.nvmAvailable !== false && <code>osp node install lts</code>}
+                  <div className="row-actions">
+                    {options.nvmAvailable !== false && (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          void copyText(t, 'osp node install lts', 'templates.node.command', notify)
+                        }
+                      >
+                        <Copy size={13} />
+                        {t('templates.node.copy')}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={refreshing}
+                      onClick={() => void refreshVersions()}
+                    >
+                      <RefreshCw size={13} />
+                      {t(refreshing ? 'common.loading' : 'templates.node.refresh')}
+                    </button>
+                  </div>
+                </section>
+              )}
+              {hasDatabase && (
+                <section className="create-project-database" aria-label={t('projectDb.title')}>
+                  <h4>{t('projectDb.title')}</h4>
+                  <label className="module-select">
+                    <span>{t('projectDb.engine')}</span>
+                    <select
+                      value={databaseEngine}
+                      onChange={(event) => {
+                        const engine = event.target.value;
+                        setDatabaseEngine(engine);
+                        setDatabaseUser(engine.startsWith('PostgreSQL-') ? 'postgres' : 'root');
+                      }}
+                    >
+                      {templateId === 'laravel' && <option value="sqlite">{t('projectDb.sqlite')}</option>}
+                      {dbEngines.map((engine) => (
+                        <option key={engine} value={engine}>
+                          {engine}
+                        </option>
+                      ))}
+                      <option value="none">{t('projectDb.later')}</option>
+                    </select>
+                  </label>
+                  {databaseEngine !== 'none' && (
+                    <>
+                      <label className="module-select">
+                        <span>{t('projectDb.name')}</span>
+                        <input
+                          value={dbName}
+                          maxLength={63}
+                          autoComplete="off"
+                          aria-invalid={!validDatabaseName(dbName)}
+                          onChange={(event) => setDatabaseName(event.target.value)}
+                        />
+                      </label>
+                      {!validDatabaseName(dbName) && (
+                        <p className="modal-hint" role="alert">
+                          {t('projectDb.invalidName')}
+                        </p>
+                      )}
+                      {databaseEngine === 'sqlite' ? (
+                        <p className="modal-hint">
+                          {t('projectDb.sqliteHint', { path: `database/${dbName}.sqlite` })}
+                        </p>
+                      ) : (
+                        <>
+                          <div className="create-project-db-credentials">
+                            <label className="module-select">
+                              <span>{t('projectDb.user')}</span>
+                              <input
+                                value={databaseUser}
+                                maxLength={128}
+                                autoComplete="off"
+                                onChange={(event) => setDatabaseUser(event.target.value)}
+                              />
+                            </label>
+                            <label className="module-select">
+                              <span>{t('projectDb.password')}</span>
+                              <input
+                                type="password"
+                                value={databasePassword}
+                                maxLength={1024}
+                                autoComplete="new-password"
+                                onChange={(event) => setDatabasePassword(event.target.value)}
+                              />
+                            </label>
+                          </div>
+                          <p className="modal-hint">{t('projectDb.hint')}</p>
+                        </>
+                      )}
+                    </>
+                  )}
+                  {templateId === 'wordpress' && dbEngines.length === 0 && (
+                    <p className="modal-hint">{t('projectDb.missing')}</p>
+                  )}
+                </section>
+              )}
+              {template.node && (
+                <label className="module-select">
+                  <span>{t('templates.backendPort')}</span>
+                  <input
+                    aria-label={t('templates.backendPort')}
+                    type="number"
+                    min={1}
+                    max={65535}
+                    value={backendPort}
+                    aria-invalid={!validPort}
+                    onChange={(event) => setBackendPort(event.target.value)}
+                  />
+                </label>
+              )}
+              {missingModule && (!template.node || options.nodeEngines.length > 0 || !httpEngine) && (
+                <p className="modal-hint" role="alert">
+                  {t('templates.missingModules')}
+                </p>
+              )}
+              {!validPort && (
+                <p className="modal-hint" role="alert">
+                  {t('templates.invalidPort')}
+                </p>
+              )}
+            </fieldset>
           </div>
         ) : (
           <div className="empty-note">{t('common.loading')}</div>
@@ -154,13 +495,21 @@ export function CreateProjectDialog({
             {normalizedDomain ? `home/${normalizedDomain}/.osp/project.ini` : '\u00A0'}
           </span>
           <div className="row-actions">
-            <button type="button" className="secondary-button" onClick={onClose}>
+            <button type="button" className="secondary-button" disabled={busy} onClick={onClose}>
               {t('common.close')}
             </button>
             <button
               type="button"
               className="primary-button"
-              disabled={!normalizedDomain || busy || !options}
+              disabled={
+                !normalizedDomain ||
+                busy ||
+                refreshing ||
+                !options ||
+                missingModule ||
+                !validPort ||
+                !databaseValid
+              }
               onClick={() => void create()}
             >
               {t('projects.create')}

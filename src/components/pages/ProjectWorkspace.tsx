@@ -48,6 +48,7 @@ import { ConfigEditor } from '../widgets/ConfigEditor';
 import { PageHeader } from '../widgets/PageHeader';
 import '../widgets/formControls.css';
 import './projectWorkspace.css';
+import { ApplicationSetup } from './ApplicationSetup';
 import type { MenuEditorHandle } from './MenuEditor';
 
 const ProjectMenuEditor = lazy(() =>
@@ -103,6 +104,7 @@ export function ProjectWorkspace({
   const [fileBusy, setFileBusy] = useState(false);
   const [fileRetry, setFileRetry] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [installingApplication, setInstallingApplication] = useState(false);
   const [error, setError] = useState('');
   const [backup, setBackup] = useState('');
   const [restartNeeded, setRestartNeeded] = useState(false);
@@ -130,7 +132,7 @@ export function ProjectWorkspace({
     menuState.dirty ||
     tasksDirty ||
     Object.values(files).some((file) => file.draft !== (file.original ?? ''));
-  const locked = busy || blocked || menuState.busy;
+  const locked = busy || installingApplication || blocked || menuState.busy;
   const file = advanced
     ? 'project.ini'
     : tab === 'tasks'
@@ -181,17 +183,17 @@ export function ProjectWorkspace({
   }, [project.domain, project.path]);
 
   useEffect(() => {
-    onStateChange?.({ dirty, busy: busy || fileBusy || menuState.busy });
-  }, [dirty, busy, fileBusy, menuState.busy, onStateChange]);
+    onStateChange?.({ dirty, busy: busy || installingApplication || fileBusy || menuState.busy });
+  }, [dirty, busy, installingApplication, fileBusy, menuState.busy, onStateChange]);
   useEffect(() => () => onStateChange?.({ dirty: false, busy: false }), [onStateChange]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !installingApplication) return;
     const prevent = (event: BeforeUnloadEvent) => {
       event.preventDefault();
     };
     window.addEventListener('beforeunload', prevent);
     return () => window.removeEventListener('beforeunload', prevent);
-  }, [dirty]);
+  }, [dirty, installingApplication]);
 
   // Drafts are cached per file, so switching tabs or domains never throws edits away.
   // biome-ignore lint/correctness/useExhaustiveDependencies: fetch only when the selected file or workspace changes
@@ -436,11 +438,13 @@ export function ProjectWorkspace({
             aria-selected={tab === key && !advanced}
             tabIndex={tab === key ? 0 : -1}
             className={tab === key && !advanced ? 'selected' : ''}
+            disabled={installingApplication}
             onClick={() => {
               setTab(key);
               setAdvanced(false);
             }}
             onKeyDown={(event) => {
+              if (installingApplication) return;
               const offset = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
               const target =
                 event.key === 'Home'
@@ -569,6 +573,26 @@ export function ProjectWorkspace({
                   </div>
                   {tab === 'overview' && (
                     <>
+                      {(['laravel', 'wordpress'] as const).map((kind) => (
+                        <ApplicationSetup
+                          key={kind}
+                          kind={kind}
+                          project={project}
+                          state={doc?.[kind]}
+                          disabled={locked || dirty || fileBusy}
+                          dirty={dirty}
+                          onBusyChange={setInstallingApplication}
+                          onInstalled={async (result) => {
+                            setBackup(result.backupPath);
+                            await load();
+                            setRestartNeeded(true);
+                            notify(t(`${kind}.done`), {
+                              label: t('projects.restartPanel'),
+                              run: onRestartPanel,
+                            });
+                          }}
+                        />
+                      ))}
                       <div className="workspace-overview-grid">
                         <div className="workspace-card">
                           <h3>
@@ -589,7 +613,12 @@ export function ProjectWorkspace({
                               <dd>{inherited('node_engine', globals?.nodeEngine)}</dd>
                             </div>
                           </dl>
-                          <button className="text-button" type="button" onClick={() => setTab('environment')}>
+                          <button
+                            className="text-button"
+                            type="button"
+                            disabled={installingApplication}
+                            onClick={() => setTab('environment')}
+                          >
                             {t('workspace.configure')}
                           </button>
                         </div>
@@ -616,7 +645,12 @@ export function ProjectWorkspace({
                       </div>
                       <div className="workspace-section-head workspace-spaced">
                         <h2>{t('workspace.tab.domains')}</h2>
-                        <button className="text-button" type="button" onClick={() => setTab('domains')}>
+                        <button
+                          className="text-button"
+                          type="button"
+                          disabled={installingApplication}
+                          onClick={() => setTab('domains')}
+                        >
                           {t('workspace.configure')}
                         </button>
                       </div>
@@ -625,6 +659,7 @@ export function ProjectWorkspace({
                           <button
                             type="button"
                             className="workspace-domain-row"
+                            disabled={installingApplication}
                             key={item.domain}
                             onClick={() => {
                               setDomain(item.domain);
@@ -822,7 +857,7 @@ export function ProjectWorkspace({
                       domains={domains.map((item) => item.domain)}
                       installationPath={null}
                       active={tab === 'menu' && !advanced}
-                      blocked={busy || blocked}
+                      blocked={busy || installingApplication || blocked}
                       notify={notify}
                       onRestart={onRestartPanel}
                       onStateChange={setMenuState}

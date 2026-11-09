@@ -261,6 +261,229 @@ describe('CreateProjectDialog', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
+  it('previews a Laravel scaffold and retains the domain when switching templates', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    mocks.getGlobalProjectEngines.mockResolvedValue({
+      httpEngine: 'Apache_2.4',
+      phpEngine: 'PHP_8.2',
+      nodeEngine: '',
+    });
+    renderDialog();
+    const domain = await screen.findByLabelText('Domain name');
+    fireEvent.change(domain, { target: { value: 'CAFÉ.test' } });
+    const template = screen.getByRole('combobox', { name: 'Project template' });
+    expect(template.querySelectorAll('option')).toHaveLength(6);
+    fireEvent.change(template, { target: { value: 'laravel' } });
+    expect(domain).toHaveValue('CAFÉ.test');
+    expect(screen.getByText('{base_dir}\\public')).toBeInTheDocument();
+    expect(screen.getByText(/click Install Laravel in the project overview/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Files to create: 10'));
+    expect(screen.getByText('.osp/nginx/xn--caf-dma.test.conf')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'HTTP engine' })).toHaveValue('Apache_2.4');
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveValue('PHP_8.2');
+    expect(screen.getByRole('combobox', { name: 'Node.js version' })).toHaveValue('');
+    fireEvent.change(template, { target: { value: 'empty' } });
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveValue('auto');
+    expect(domain).toHaveValue('CAFÉ.test');
+  });
+
+  it('defaults Laravel to a named SQLite database and submits the choice', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    mocks.createProject.mockResolvedValue(createdProject);
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'site.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'laravel' },
+    });
+    expect(screen.getByLabelText('Database engine')).toHaveValue('sqlite');
+    expect(screen.getByLabelText('New database name')).toHaveValue('site_test');
+    expect(screen.queryByLabelText('Database password')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('New database name'), { target: { value: '../invalid' } });
+    expect(screen.getByRole('button', { name: 'Create project' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('New database name'), { target: { value: 'site_app' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await vi.waitFor(() =>
+      expect(mocks.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          template: 'laravel',
+          database: { engine: 'sqlite', name: 'site_app', username: '', password: '' },
+        }),
+      ),
+    );
+  });
+  it('limits WordPress to MySQL/MariaDB and submits database credentials', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue({
+      ...moduleOptions,
+      databaseEngines: ['MySQL-8.4', 'PostgreSQL-17', 'MariaDB-11.8'],
+    });
+    mocks.createProject.mockResolvedValue(createdProject);
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'site.test' } });
+    const template = screen.getByRole('combobox', { name: 'Project template' });
+    fireEvent.change(template, { target: { value: 'wordpress' } });
+    const db = screen.getByLabelText('Database engine');
+    expect([...db.querySelectorAll('option')].map((option) => option.value)).toEqual([
+      'MySQL-8.4',
+      'MariaDB-11.8',
+      'none',
+    ]);
+    fireEvent.change(db, { target: { value: 'MySQL-8.4' } });
+    fireEvent.change(screen.getByLabelText('New database name'), { target: { value: 'cms_data' } });
+    fireEvent.change(screen.getByLabelText('Database user'), { target: { value: 'local_admin' } });
+    fireEvent.change(screen.getByLabelText('Database password'), { target: { value: 'synthetic-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await vi.waitFor(() =>
+      expect(mocks.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          template: 'wordpress',
+          database: {
+            engine: 'MySQL-8.4',
+            name: 'cms_data',
+            username: 'local_admin',
+            password: 'synthetic-password',
+          },
+        }),
+      ),
+    );
+  });
+  it('allows WordPress preparation without installed database modules', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'site.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'wordpress' },
+    });
+    expect(screen.getByLabelText('Database engine')).toHaveValue('none');
+    expect(screen.getByText(/Install a MySQL or MariaDB module/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create project' })).toBeEnabled();
+  });
+
+  it('creates a static scaffold with unused runtimes and offers README instructions', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    mocks.createProject.mockResolvedValue(createdProject);
+    const { notify, onClose } = renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'shop.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'static' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mocks.createProject).toHaveBeenCalledWith({
+      domain: 'shop.test',
+      template: 'static',
+      httpEngine: 'Apache_2.4',
+      phpEngine: '',
+      nodeEngine: '',
+    });
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining('README.md'),
+      expect.objectContaining({ label: 'Restart panel' }),
+    );
+  });
+
+  it('blocks a Node scaffold with a missing runtime and requires an explicit installed version', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'shop.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'node' },
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('No Node.js versions are installed');
+    expect(screen.getByRole('button', { name: 'Create project' })).toBeDisabled();
+    expect(screen.queryByRole('combobox', { name: 'Node.js version' })).not.toBeInTheDocument();
+    expect(mocks.createProject).not.toHaveBeenCalled();
+  });
+
+  it('validates the Node port and locks the creation form while publishing', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue({
+      ...moduleOptions,
+      nodeEngines: ['Node-22', 'Node-24'],
+    });
+    let resolveCreate!: (created: CreatedProject) => void;
+    mocks.createProject.mockReturnValue(
+      new Promise<CreatedProject>((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+    const { onClose } = renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'shop.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'node' },
+    });
+    const port = screen.getByRole('spinbutton', { name: 'Application port' });
+    for (const value of ['0', '65536', '3.5', '']) {
+      fireEvent.change(port, { target: { value } });
+      expect(screen.getByRole('button', { name: 'Create project' })).toBeDisabled();
+    }
+    fireEvent.change(port, { target: { value: '4321' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(mocks.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ template: 'node', backendPort: 4321, nodeEngine: 'Node-24', phpEngine: '' }),
+    );
+    expect(screen.getByRole('combobox', { name: 'Project template' })).toBeDisabled();
+    expect(screen.getByLabelText('Domain name')).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.mouseDown(document.body);
+    expect(onClose).not.toHaveBeenCalled();
+    resolveCreate(createdProject);
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
+
+  it('copies the NVM command and refreshes installed versions without resetting the form', async () => {
+    mocks.getProjectModuleOptions
+      .mockResolvedValueOnce({ ...moduleOptions, nvmAvailable: true })
+      .mockResolvedValueOnce({
+        ...moduleOptions,
+        nodeEngines: ['Node-22.0.0', 'Node-24.10.0'],
+        nvmAvailable: true,
+      });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    renderDialog();
+    const domain = await screen.findByLabelText('Domain name');
+    fireEvent.change(domain, { target: { value: 'shop.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'node' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'HTTP engine' }), {
+      target: { value: 'Nginx_1.25' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'PHP version' }), { target: { value: 'PHP_8.2' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Application port' }), {
+      target: { value: '4321' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy command' }));
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('osp node install lts'));
+    screen.getByRole('button', { name: 'Refresh versions' }).focus();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh versions' }));
+    const node = await screen.findByRole('combobox', { name: 'Node.js version' });
+    expect(node).toHaveValue('Node-24.10.0');
+    expect(domain).toHaveValue('shop.test');
+    expect(screen.getByRole('combobox', { name: 'Project template' })).toHaveValue('node');
+    expect(screen.getByRole('combobox', { name: 'HTTP engine' })).toHaveValue('Nginx_1.25');
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveValue('PHP_8.2');
+    expect(screen.getByRole('spinbutton', { name: 'Application port' })).toHaveValue(4321);
+    expect(screen.getByRole('button', { name: 'Create project' })).toBeEnabled();
+    expect(domain).not.toHaveFocus();
+  });
+
+  it('explains a missing NVM add-on and keeps the form after a refresh failure', async () => {
+    mocks.getProjectModuleOptions
+      .mockResolvedValueOnce({ ...moduleOptions, nvmAvailable: false })
+      .mockRejectedValueOnce(new Error('failure'));
+    const { notify } = renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'shop.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'node' },
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('The NVM add-on is not available');
+    expect(screen.queryByRole('button', { name: 'Copy command' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh versions' }));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith(MODULES_FAILED));
+    expect(screen.getByLabelText('Domain name')).toHaveValue('shop.test');
+    expect(screen.getByRole('button', { name: 'Create project' })).toBeDisabled();
+  });
+
   it('closes on Escape and on an outside mousedown', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
     const { onClose } = renderDialog();

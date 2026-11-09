@@ -1,0 +1,211 @@
+[
+  {
+    "id": "empty",
+    "php": false,
+    "node": false,
+    "projectRoot": "{base_dir}",
+    "webRoot": null,
+    "directories": [],
+    "settings": {},
+    "files": [
+      {
+        "path": ".osp/project.ini",
+        "source": "ini"
+      }
+    ]
+  },
+  {
+    "id": "static",
+    "php": false,
+    "node": false,
+    "projectRoot": "{base_dir}",
+    "webRoot": "{base_dir}\\public",
+    "directories": [
+      "public"
+    ],
+    "settings": {
+      "backend_enabled": "off"
+    },
+    "files": [
+      {
+        "path": ".osp/project.ini",
+        "source": "ini"
+      },
+      {
+        "path": "public/index.html",
+        "source": "html"
+      },
+      {
+        "path": "public/styles.css",
+        "source": "css"
+      },
+      {
+        "path": "README.md",
+        "source": "static-readme"
+      }
+    ]
+  },
+  {
+    "id": "php",
+    "php": true,
+    "node": false,
+    "projectRoot": "{base_dir}",
+    "webRoot": "{base_dir}\\public",
+    "directories": [
+      "public"
+    ],
+    "settings": {
+      "backend_enabled": "off"
+    },
+    "files": [
+      {
+        "path": ".osp/project.ini",
+        "source": "ini"
+      },
+      {
+        "path": "public/index.php",
+        "source": "php"
+      },
+      {
+        "path": "public/styles.css",
+        "source": "css"
+      },
+      {
+        "path": "README.md",
+        "source": "php-readme"
+      }
+    ]
+  },
+  {
+    "id": "laravel",
+    "php": true,
+    "node": false,
+    "projectRoot": "{base_dir}",
+    "webRoot": "{base_dir}\\public",
+    "directories": [
+      "public"
+    ],
+    "settings": {
+      "backend_enabled": "off"
+    },
+    "files": [
+      {
+        "path": ".osp/project.ini",
+        "source": "ini"
+      },
+      {
+        "path": ".osp/tasks.ini",
+        "source": "laravel-tasks"
+      },
+      {
+        "path": ".osp/nginx/{domain}.conf",
+        "source": "front-controller"
+      },
+      {
+        "path": ".osp/apache/{domain}.conf",
+        "source": "apache-overrides"
+      },
+      {
+        "path": ".osp/caddy/{domain}.conf",
+        "source": "caddy-front-controller"
+      },
+      {
+        "path": ".osp/laravel-readme.md",
+        "source": "laravel-readme"
+      },
+      {
+        "path": ".osp/laravel.json",
+        "source": "laravel-state"
+      },
+      {
+        "path": "public/index.php",
+        "source": "laravel-placeholder"
+      }
+    ]
+  },
+  {
+    "id": "wordpress",
+    "php": true,
+    "node": false,
+    "projectRoot": "{base_dir}",
+    "webRoot": "{base_dir}\\public",
+    "directories": [
+      "public"
+    ],
+    "settings": {
+      "backend_enabled": "off"
+    },
+    "files": [
+      {
+        "path": ".osp/project.ini",
+        "source": "ini"
+      },
+      {
+        "path": ".osp/nginx/{domain}.conf",
+        "source": "front-controller"
+      },
+      {
+        "path": ".osp/apache/{domain}.conf",
+        "source": "apache-overrides"
+      },
+      {
+        "path": "public/.htaccess",
+        "source": "wordpress-rewrite"
+      },
+      {
+        "path": ".osp/wordpress-readme.md",
+        "source": "wordpress-readme"
+      },
+      {
+        "path": ".osp/caddy/{domain}.conf",
+        "source": "caddy-front-controller"
+      },
+      {
+        "path": ".osp/wordpress.json",
+        "source": "wordpress-state"
+      },
+      {
+        "path": "public/index.php",
+        "source": "wordpress-placeholder"
+      }
+    ]
+  },
+  {
+    "id": "node",
+    "php": false,
+    "node": true,
+    "projectRoot": "{base_dir}",
+    "webRoot": "{base_dir}\\public",
+    "directories": [
+      "public"
+    ],
+    "settings": {
+      "backend_enabled": "on",
+      "backend_ip": "127.0.0.1",
+      "backend_port": "{port}",
+      "app_start_command": "node server.mjs"
+    },
+    "files": [
+      {
+        "path": ".osp/project.ini",
+        "source": "ini"
+      },
+      {
+        "path": ".osp/tasks.ini",
+        "source": "node-tasks"
+      },
+      {
+        "path": "server.mjs",
+        "source": "node-server"
+      },
+      {
+        "path": "package.json",
+        "source": "node-package"
+      },
+      {
+        "path": "README.md",
+        "source": "node-readme"
+      }
+    ]
+  }
+]

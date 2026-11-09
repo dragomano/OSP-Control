@@ -870,6 +870,8 @@ export type ProjectModuleOptions = {
   httpEngines: string[];
   phpEngines: string[];
   nodeEngines: string[];
+  nvmAvailable?: boolean;
+  databaseEngines?: string[];
 };
 
 // Per-project module version override; 'auto' — as in the global OSPanel settings.
@@ -890,6 +892,8 @@ const mockModuleOptions: ProjectModuleOptions = {
   httpEngines: ['Apache', 'Nginx', 'Caddy'],
   phpEngines: ['PHP-7.4', 'PHP-8.0', 'PHP-8.1', 'PHP-8.2', 'PHP-8.3', 'PHP-8.4'],
   nodeEngines: [],
+  nvmAvailable: true,
+  databaseEngines: ['MySQL-8.4', 'MariaDB-11.8', 'PostgreSQL-17'],
 };
 
 export async function getProjectModuleOptions(): Promise<ProjectModuleOptions> {
@@ -1073,6 +1077,8 @@ export async function readProjectWorkspace(project: OsPanelProject): Promise<Pro
   return {
     baseDir: project.path,
     content: demoProjectFiles.get(key) ?? null,
+    laravel: demoProjectFiles.has(`${project.path}/laravel.json`) ? 'pending' : null,
+    wordpress: demoProjectFiles.has(`${project.path}/wordpress.json`) ? 'pending' : null,
     files: [
       'project.ini',
       'env.ini',
@@ -1143,6 +1149,9 @@ export type CreateProjectParams = {
   httpEngine?: string;
   phpEngine?: string;
   nodeEngine?: string;
+  template?: import('./projectTemplates').ProjectTemplateId;
+  backendPort?: number;
+  database?: { engine: string; name: string; username: string; password: string };
 };
 
 // Data of the created project: the path and engines are needed to show the project
@@ -1161,6 +1170,37 @@ export async function createProject(params: CreateProjectParams): Promise<Create
   if (isTauri())
     return invoke<CreatedProject>('create_project', { params: { ...params, domain }, ...customPathArgs() });
 
+  if (params.template && params.template !== 'empty') {
+    const { projectTemplate } = await import('./projectTemplates');
+    const template = projectTemplate(params.template);
+    if (template.id === 'laravel' || template.id === 'wordpress')
+      demoProjectFiles.set(
+        `C:\\OSPanel\\home\\${domain}/${template.id}.json`,
+        '{"version":1,"status":"pending"}',
+      );
+    const port = params.backendPort ?? 3000;
+    if (template.node && (!Number.isInteger(port) || port < 1 || port > 65535))
+      throw new Error('err.invalidSettingValue');
+    const settings = {
+      http_engine: params.httpEngine ?? 'auto',
+      php_engine: params.phpEngine ?? '',
+      node_engine: params.nodeEngine ?? '',
+      project_root: template.projectRoot,
+      web_root: template.webRoot ?? '',
+      ...template.settings,
+    };
+    demoProjectFiles.set(
+      `C:\\OSPanel\\home\\${domain}/project.ini`,
+      `[${domain}]\n${Object.entries(settings)
+        .map(([key, value]) => `${key} = ${value.replace(/\{port\}/g, String(port))}`)
+        .join('\n')}\n`,
+    );
+    if (template.id === 'node' || template.id === 'laravel')
+      demoProjectFiles.set(
+        `C:\\OSPanel\\home\\${domain}/tasks.ini`,
+        `[${domain}]\n${template.id === 'node' ? 'Start application = * * * * * 1 0 cmd.exe /c "osp project {host} start"' : 'Laravel scheduler = * * * * * * 0 cmd.exe /c "osp project {host} & php artisan schedule:run"'}\n`,
+      );
+  }
   return {
     domain,
     path: `C:\\OSPanel\\home\\${domain}`,
@@ -1171,6 +1211,42 @@ export async function createProject(params: CreateProjectParams): Promise<Create
 }
 
 export type RenamedProject = Pick<OsPanelProject, 'domain' | 'path'>;
+
+export type LaravelInstallProgress = {
+  phase:
+    | 'preparing'
+    | 'installing'
+    | 'downloading'
+    | 'extracting'
+    | 'database'
+    | 'configuring'
+    | 'publishing';
+  output: string;
+  downloaded?: number | null;
+  total?: number | null;
+};
+export type LaravelInstalled = { backupPath: string };
+export async function installProjectLaravel(
+  project: OsPanelProject,
+  onProgress: (progress: LaravelInstallProgress) => void,
+): Promise<LaravelInstalled> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  const { Channel } = await import('@tauri-apps/api/core');
+  const channel = new Channel<LaravelInstallProgress>();
+  channel.onmessage = onProgress;
+  return invoke('install_project_laravel', { ...projectFileArgs(project), onProgress: channel });
+}
+
+export async function installProjectWordPress(
+  project: OsPanelProject,
+  onProgress: (progress: LaravelInstallProgress) => void,
+): Promise<LaravelInstalled> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  const { Channel } = await import('@tauri-apps/api/core');
+  const channel = new Channel<LaravelInstallProgress>();
+  channel.onmessage = onProgress;
+  return invoke('install_project_wordpress', { ...projectFileArgs(project), onProgress: channel });
+}
 
 export async function renameProject(project: OsPanelProject, newDomain: string): Promise<RenamedProject> {
   const domain = normalizeProjectDomain(newDomain);

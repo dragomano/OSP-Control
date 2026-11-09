@@ -1,0 +1,123 @@
+.modal-window.create-project-window {
+  width: min(600px, 100%);
+  max-height: calc(100dvh - 40px);
+  display: flex;
+  flex-direction: column;
+}
+.create-project-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.create-project-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.create-project-window :is(.modal-head, .modal-foot) {
+  flex-shrink: 0;
+}
+.create-project-engines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.create-project-engines.without-node {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.create-project-node-choice {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.create-project-node-missing {
+  display: grid;
+  gap: 12px;
+}
+.create-project-node-missing code {
+  font-family: Consolas, monospace;
+  color: var(--text);
+}
+.project-template-preview {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 13px;
+  background: var(--bg);
+  font-size: 11px;
+  line-height: 1.65;
+}
+.project-template-preview p {
+  margin: 0;
+  color: var(--muted);
+}
+.project-template-preview dl {
+  margin: 12px 0;
+}
+.project-template-preview dl > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.project-template-preview dt {
+  color: var(--muted);
+}
+.project-template-preview dd {
+  margin: 0;
+  font-family: Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+.project-template-preview .template-next-step {
+  color: var(--text);
+}
+.project-template-preview details {
+  margin-top: 10px;
+}
+.project-template-preview summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.project-template-preview summary svg {
+  vertical-align: middle;
+  margin: 0 5px;
+}
+.project-template-preview ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-family: Consolas, monospace;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 520px) {
+  .create-project-engines,
+  .create-project-engines.without-node {
+    grid-template-columns: 1fr;
+  }
+}
+
+.create-project-database {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+.create-project-database h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.create-project-database .modal-hint {
+  margin: 0;
+}
+.create-project-db-credentials {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 520px) {
+  .create-project-db-credentials {
+    grid-template-columns: 1fr;
+  }
+}

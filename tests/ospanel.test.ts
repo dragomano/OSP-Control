@@ -16,6 +16,8 @@ import {
   filterProjects,
   getProjectSettings,
   getUserInfo,
+  installProjectLaravel,
+  installProjectWordPress,
   isEngineUnset,
   listLogSources,
   openBackupsFolder,
@@ -26,6 +28,8 @@ import {
   openProjectFolder,
   panelOnline,
   persistOsPanelPath,
+  readProjectFile,
+  readProjectWorkspace,
   refreshService,
   renameProject,
   restartOsPanel,
@@ -38,7 +42,12 @@ import {
   waitForPanelReady,
 } from '../src/ospanel';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+  Channel: class<T> {
+    onmessage?: (message: T) => void;
+  },
+}));
 
 const invokeMock = vi.mocked(invoke);
 const tauriFlag = () => window as { __TAURI_INTERNALS__?: unknown };
@@ -137,6 +146,43 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
       tlsEnabled: 'off',
       fileExists: true,
     });
+  });
+
+  it('marks a new Laravel workspace as pending and requires the desktop app to install it', async () => {
+    const created = await createProject({
+      domain: 'laravel-starter.test',
+      template: 'laravel',
+      httpEngine: 'Nginx',
+      phpEngine: 'PHP-8.3',
+      nodeEngine: '',
+    });
+    const project = { ...created, type: 'Nginx' };
+    const doc = await readProjectWorkspace(project);
+    expect(doc.laravel).toBe('pending');
+    expect(doc.content).toContain('project_root = {base_dir}');
+    expect(doc.content).toContain('web_root = {base_dir}\\public');
+    await expect(installProjectLaravel(project, vi.fn())).rejects.toThrow('err.desktopOnly');
+  });
+
+  it('keeps template settings and disabled tasks in the browser workspace', async () => {
+    const created = await createProject({
+      domain: 'starter.test',
+      template: 'node',
+      backendPort: 4321,
+      httpEngine: 'Nginx',
+      nodeEngine: 'Node-24',
+      phpEngine: '',
+    });
+    const project = { ...created, type: '' };
+    const workspace = await readProjectWorkspace(project);
+    expect(workspace.content).toContain('web_root = {base_dir}\\public');
+    expect(workspace.content).toContain('backend_port = 4321');
+    const { parseProjectTasks, taskErrors } = await import('../src/projectTasks');
+    const tasks = parseProjectTasks((await readProjectFile(project, 'tasks.ini')) ?? '');
+    expect(tasks.errors).toEqual([]);
+    expect(tasks.tasks).toHaveLength(1);
+    expect(tasks.tasks[0]).toMatchObject({ limit: '1', enabled: '0' });
+    expect(taskErrors(tasks.tasks[0], tasks.tasks)).toEqual([]);
   });
 
   it('uses punycode for the created project and folder in browser mode', async () => {
@@ -352,6 +398,62 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
         newDomain: 'xn--caf-dma.test',
       }),
     );
+  });
+
+  it('passes the template and backend port to native project creation', async () => {
+    invokeMock.mockResolvedValue({});
+    await createProject({ domain: 'CAFÉ.test', template: 'node', nodeEngine: 'Node-24', backendPort: 4321 });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      'create_project',
+      expect.objectContaining({
+        params: { domain: 'xn--caf-dma.test', template: 'node', nodeEngine: 'Node-24', backendPort: 4321 },
+      }),
+    );
+  });
+
+  it('passes database settings and a progress channel to WordPress commands', async () => {
+    const database = { engine: 'MySQL-8.4', name: 'cms_test', username: 'root', password: '' };
+    await createProject({ domain: 'site.test', template: 'wordpress', database });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      'create_project',
+      expect.objectContaining({ params: { domain: 'site.test', template: 'wordpress', database } }),
+    );
+    const progress = vi.fn();
+    await installProjectWordPress(
+      { domain: 'site.test', path: 'C:/OSPanel/home/site.test', php: '8.3', type: 'Nginx', ssl: false },
+      progress,
+    );
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      'install_project_wordpress',
+      expect.objectContaining({
+        domain: 'site.test',
+        baseDir: 'C:/OSPanel/home/site.test',
+        onProgress: expect.any(Object),
+      }),
+    );
+    const args = invokeMock.mock.lastCall?.[1] as { onProgress: { onmessage: (message: unknown) => void } };
+    args.onProgress.onmessage({ phase: 'downloading', output: '', downloaded: 20, total: 100 });
+    expect(progress).toHaveBeenCalledWith({ phase: 'downloading', output: '', downloaded: 20, total: 100 });
+  });
+
+  it('passes project identity and a progress channel to the native Laravel installer', async () => {
+    const progress = vi.fn();
+    invokeMock.mockResolvedValue({ backupPath: 'C:/OSPanel/backups/project-starters/laravel-site.test' });
+    const project = {
+      domain: 'site.test',
+      path: 'C:/OSPanel/home/site.test',
+      php: '8.3',
+      type: 'Nginx',
+      ssl: false,
+    };
+    await installProjectLaravel(project, progress);
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      'install_project_laravel',
+      expect.objectContaining({ domain: 'site.test', baseDir: project.path, onProgress: expect.any(Object) }),
+    );
+    const args = invokeMock.mock.lastCall?.[1] as { onProgress: { onmessage: (message: unknown) => void } };
+    args.onProgress.onmessage({ phase: 'installing', output: 'Composer output' });
+    expect(progress).toHaveBeenCalledWith({ phase: 'installing', output: 'Composer output' });
   });
 });
 

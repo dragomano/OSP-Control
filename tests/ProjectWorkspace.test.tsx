@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   readMenu: vi.fn(),
   writeMenu: vi.fn(),
   diagnoseProject: vi.fn(),
+  installProjectLaravel: vi.fn(),
 }));
 vi.mock('../src/ospanel', async (original) => ({
   ...(await original<typeof import('../src/ospanel')>()),
@@ -86,6 +87,33 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('project workspace drafts', () => {
+  it('keeps Laravel installation visible, blocks navigation while running and reloads its successful state', async () => {
+    mocks.readProjectWorkspace
+      .mockResolvedValueOnce({ baseDir: project.path, content, files: [], laravel: 'pending' })
+      .mockResolvedValue({ baseDir: project.path, content, files: [], laravel: 'installed' });
+    let finish!: (result: { backupPath: string }) => void;
+    mocks.installProjectLaravel.mockImplementation((_project, progress) => {
+      progress({ phase: 'installing', output: 'Installing dependencies\n' });
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    });
+    const { onClose } = setup();
+    const install = await screen.findByRole('button', { name: 'Install Laravel', exact: true });
+    fireEvent.click(install);
+    expect(await screen.findByText('Installing Laravel with Composer…')).toHaveAttribute('role', 'status');
+    expect(screen.getByText('Installing dependencies')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Tasks', exact: true })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
+    expect(onClose).not.toHaveBeenCalled();
+    finish({ backupPath: 'C:/OSPanel/backups/project-starters/laravel-site.test' });
+    await screen.findByText('Laravel installed in the project root. Restart OSPanel to apply the changes.');
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Install Laravel' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('tab', { name: 'Tasks', exact: true })).toBeEnabled();
+    expect(mocks.readProjectWorkspace).toHaveBeenCalledTimes(2);
+  });
   it('allows diagnostics even when project settings cannot be loaded', async () => {
     mocks.readProjectWorkspace.mockRejectedValue(new Error('err.projectWorkspaceInvalid'));
     setup();

@@ -1,0 +1,46 @@
+.application-setup {
+  margin-bottom: 18px;
+  padding: 18px;
+}
+.application-setup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.application-setup p {
+  margin: 8px 0 0;
+  line-height: 1.65;
+}
+.application-setup-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+.application-setup details {
+  margin-top: 14px;
+  font-size: 12px;
+}
+.application-setup summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.application-setup pre {
+  max-height: 220px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font:
+    11px / 1.65 Consolas,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.application-download {
+  width: 100%;
+  margin-top: 12px;
+  accent-color: var(--accent);
+}
