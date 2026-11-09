@@ -18,6 +18,7 @@ mod panel_api;
 mod paths;
 mod php_releases;
 mod project_activity;
+mod project_workspace;
 mod projects;
 mod services;
 mod settings;
@@ -269,6 +270,9 @@ fn main() {
             module_profiles::activate_module_profile,
             projects::project_module_options,
             projects::read_project_settings,
+            project_workspace::read_project_workspace,
+            project_workspace::read_project_file,
+            project_workspace::save_project_file,
             projects::write_project_settings,
             projects::global_project_engines,
             projects::create_project,

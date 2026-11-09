@@ -55,6 +55,7 @@ import { MenuIconPicker } from '../dialogs/MenuIconPicker';
 import { type Notify, useDismiss } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
+import '../widgets/formControls.css';
 import './menuEditor.css';
 
 type Selection = { kind: 'item'; id: string } | { kind: 'category'; path: string };

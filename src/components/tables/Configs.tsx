@@ -75,7 +75,7 @@ export function Configs({ notify }: { notify: Notify }) {
     [configs, service, query],
   );
   const highlighted = useMemo(
-    () => (selected ? highlightConfig(selected.name, content) : ''),
+    () => (selected ? highlightConfig(selected.name, content, selected.service) : ''),
     [selected, content],
   );
 

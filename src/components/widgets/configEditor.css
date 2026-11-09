@@ -1,0 +1,58 @@
+.project-code-editor {
+  position: relative;
+  min-height: 300px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.project-code-editor pre,
+.project-code-editor textarea {
+  margin: 0;
+  padding: 16px;
+  font:
+    12px / 1.8 Consolas,
+    "Cascadia Code",
+    monospace;
+  white-space: pre;
+  tab-size: 4;
+  letter-spacing: normal;
+}
+.project-code-editor pre {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--text);
+}
+.project-code-editor pre code {
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  white-space: inherit;
+}
+.project-code-editor textarea {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 300px;
+  height: 380px;
+  resize: vertical;
+  border: 0;
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
+}
+.project-code-editor textarea::selection {
+  background: var(--k-eda75f1f);
+}
+.project-code-editor textarea:focus {
+  outline: none;
+}
+.project-code-editor:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.project-code-editor textarea:disabled {
+  opacity: 0.6;
+}

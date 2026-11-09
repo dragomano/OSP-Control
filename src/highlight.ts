@@ -14,6 +14,19 @@ hljs.registerLanguage('yaml', yaml);
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('xml', xml);
 hljs.registerLanguage('properties', properties);
+hljs.registerLanguage('caddy', (language) => ({
+  name: 'Caddyfile',
+  contains: [
+    language.HASH_COMMENT_MODE,
+    language.QUOTE_STRING_MODE,
+    { scope: 'string', begin: /`/, end: /`/ },
+    { scope: 'variable', begin: /\{[\w.$:-]+\}/ },
+    { scope: 'symbol', begin: /@[\w-]+/ },
+    { scope: 'section', begin: /\([\w-]+\)/ },
+    { scope: 'keyword', begin: /^[ \t]*[a-z_][\w-]*/ },
+    language.NUMBER_MODE,
+  ],
+}));
 
 const LANG_BY_EXT: Record<string, string> = {
   ini: 'ini',
@@ -41,9 +54,19 @@ function highlightText(content: string, language?: string): string {
   }
 }
 
-export function highlightConfig(fileName: string, content: string): string {
+export function highlightConfig(fileName: string, content: string, service = ''): string {
+  const path = `${service}/${fileName}`.replace(/\\/g, '/').toLowerCase();
   const ext = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();
-  return highlightText(content, LANG_BY_EXT[ext]);
+  const engine =
+    /(?:^|\/)nginx(?:\/|$)/.test(path) || /nginx\.conf$/.test(path)
+      ? 'nginx'
+      : /(?:^|\/)caddy(?:\/|$)/.test(path) || /caddyfile(?:\.|$)/.test(path)
+        ? 'caddy'
+        : undefined;
+  return highlightText(
+    content,
+    ext === 'conf' || /caddyfile(?:\.|$)/.test(path) ? (engine ?? LANG_BY_EXT[ext]) : LANG_BY_EXT[ext],
+  );
 }
 
 export function highlightHosts(content: string): string {

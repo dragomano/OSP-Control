@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   saveProjectSettings: vi.fn(),
   openFileExternally: vi.fn(),
   renameProject: vi.fn(),
+  readProjectWorkspace: vi.fn(),
+  saveProjectFile: vi.fn(),
 }));
 
 vi.mock('../src/ospanel', async (importOriginal) => {
@@ -106,6 +108,15 @@ beforeEach(() => {
     fileExists: true,
   });
   mocks.getGlobalProjectEngines.mockRejectedValue(new Error('boom'));
+  mocks.readProjectWorkspace.mockResolvedValue({
+    baseDir: shopProject.path,
+    content: '[my-shop.test]\nhttp_engine = Apache_2.4\nphp_engine = PHP_8.2\n',
+    files: ['project.ini'],
+  });
+  mocks.saveProjectFile.mockImplementation(async (_project, _file, _original, content) => ({
+    content,
+    backupPath: null,
+  }));
 });
 
 afterEach(() => cleanup());
@@ -130,7 +141,7 @@ describe('Projects browser opening', () => {
     mocks.renameProject.mockResolvedValue(renamed);
     renderProjects(notify, [idn], onRenamed);
 
-    expect(screen.getByText(readable, { selector: 'b' })).toHaveAttribute('title', canonical);
+    expect(screen.getByRole('button', { name: readable }).closest('b')).toHaveAttribute('title', canonical);
     expect(screen.getByText(idn.path)).toBeInTheDocument();
     expect(
       await screen.findByRole('button', { name: `Show the last modified file in ${readable}` }),
@@ -283,18 +294,18 @@ describe('Projects row menu', () => {
     expect(labels.indexOf('Rename domain')).toBe(labels.indexOf('Copy domain') - 1);
   });
 
-  it('opens the module versions dialog and closes it on Escape', async () => {
+  it('opens the project settings page from the existing row menu and returns to the full list', async () => {
     renderProjects(vi.fn());
 
     fireEvent.click(within(openRowMenu()).getAllByRole('menuitem')[0]);
-    const dialog = await screen.findByRole('dialog', { name: 'Module versions' });
-    expect(dialog).toHaveTextContent('my-shop.test');
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByRole('region', { name: 'Project settings' })).toHaveTextContent('my-shop.test');
+    expect(await screen.findByRole('tab', { name: 'Domains' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
+    await waitFor(() => expect(screen.getByPlaceholderText('Search projects...')).toBeInTheDocument());
+    expect(screen.getByText('landing.test')).toBeInTheDocument();
   });
 
-  it('offers the shared panel restart after saving module versions and dismissing the dialog', async () => {
+  it('saves module versions from the environment tab and offers the shared panel restart', async () => {
     const notify = vi.fn<Notify>();
     const onRestartPanel = vi.fn();
     mocks.saveProjectSettings.mockImplementation(async (domain, settings) => ({
@@ -304,18 +315,26 @@ describe('Projects row menu', () => {
     }));
     renderProjects(notify, [shopProject], vi.fn(), onRestartPanel);
 
-    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Module versions' }));
+    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Project settings' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Environment' }));
     fireEvent.change(await screen.findByRole('combobox', { name: 'PHP version' }), {
       target: { value: 'PHP_8.3' },
     });
     expect(notify).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(notify).toHaveBeenCalledExactlyOnceWith(
-      'Module versions for my-shop.test saved — restart the panel to apply',
-      { label: 'Restart panel', run: onRestartPanel },
+    await waitFor(() =>
+      expect(mocks.saveProjectFile).toHaveBeenCalledWith(
+        shopProject,
+        'project.ini',
+        expect.any(String),
+        expect.stringContaining('PHP_8.3'),
+      ),
     );
+    expect(notify).toHaveBeenCalledExactlyOnceWith('Project settings saved — restart OSPanel to apply', {
+      label: 'Restart panel',
+      run: onRestartPanel,
+    });
     expect(onRestartPanel).not.toHaveBeenCalled();
     notify.mock.calls[0][1]?.run();
     expect(onRestartPanel).toHaveBeenCalledOnce();

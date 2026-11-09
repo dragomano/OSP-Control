@@ -41,6 +41,12 @@ A UI companion for OSPanel 6. Local environment management: services, projects, 
 - Per-project module settings (HTTP/PHP/Node, auto or global values) with the settings file at hand.
 - Module autostart based on projects and panel restart from the UI.
 
+### Project settings
+
+Open a project's name or choose **Project settings** from its row menu to access the tabbed workspace. The existing project list keeps its search, filters and tags when returning. The workspace supports domains sharing one project folder, aliases, module versions, directories, ports, TLS and backend proxy settings. Environment variables, project menu and tasks are edited in their `.osp` INI files.
+
+Domain configuration files have separate Nginx, Apache and Caddyfile highlighting. Direct `project.ini` editing is also available. Existing files receive exact backups under `backups/project-settings` before replacement; external edits are detected before saving. Restart OSPanel to apply changes.
+
 ### Configurations
 
 - Viewing module configs with syntax highlighting (highlight.js).

@@ -77,7 +77,7 @@ export function ModuleProfilesDialog({
   const selectedBase = list?.profiles.find((item) => item.name === base);
   const exists = list ? profileNameExists(list.profiles, name.trim()) : false;
   const nameValid = validProfileName(name.trim()) && !exists;
-  const highlighted = useMemo(() => highlightConfig(file, draft), [file, draft]);
+  const highlighted = useMemo(() => highlightConfig(file, draft, service.name), [file, draft, service.name]);
 
   const discard = async () => !dirty || askConfirm(t('profiles.discard'), t('common.confirmTitle'));
   const dismiss = async () => {

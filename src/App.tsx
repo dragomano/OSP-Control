@@ -64,7 +64,6 @@ import {
   discoverOsPanel,
   fetchLogTail,
   fetchOverviewMetrics,
-  getProjectSettings,
   getUserInfo,
   isDesktopApp,
   type LogSource,
@@ -75,13 +74,15 @@ import {
   openInBrowser,
   openPanelFolder,
   panelOnline,
+  readProjectWorkspace,
   refreshService,
   restartOsPanel,
-  saveProjectSettings,
+  saveProjectFile,
   startOsPanel,
   waitForPanelReady,
 } from './ospanel';
 import { displayProjectDomain } from './projectDomain';
+import { patchProjectIni } from './projectWorkspace';
 import { settingsStorage } from './settingsStorage';
 import { applyAccentTheme, applyFont, applyUiScale, type ThemeMode, useSystemPrefersLight } from './theme';
 
@@ -118,6 +119,11 @@ function App() {
   const [menuVisited, setMenuVisited] = useState(false);
   const [backupFilter, setBackupFilter] = useState<BackupFilter>('all');
   const [menuState, setMenuState] = useState({ dirty: false, busy: false });
+  const [projectState, setProjectState] = useState({ dirty: false, busy: false });
+  const [projectsVisited, setProjectsVisited] = useState(false);
+  useEffect(() => {
+    if (page === 'projects') setProjectsVisited(true);
+  }, [page]);
   const [menuReloadVersion, setMenuReloadVersion] = useState(0);
   const [menuRestoring, setMenuRestoring] = useState(false);
   useEffect(() => {
@@ -411,13 +417,15 @@ function App() {
   const toggleProjectSsl = async (domain: string, next: boolean) => {
     const key = domain.toLowerCase();
     try {
-      const current = await getProjectSettings(domain);
-      await saveProjectSettings(domain, {
-        httpEngine: current.httpEngine,
-        phpEngine: current.phpEngine,
-        nodeEngine: current.nodeEngine,
-        tlsEnabled: next ? 'on' : 'off',
-      });
+      const project = projects.find((item) => item.domain === domain);
+      if (!project) return;
+      const current = await readProjectWorkspace(project);
+      await saveProjectFile(
+        project,
+        'project.ini',
+        current.content,
+        patchProjectIni(current.content, domain, { tls_enabled: next ? 'on' : 'off' }),
+      );
       localSslRef.current.set(key, next);
       const local = localAddedRef.current.get(key);
       if (local) localAddedRef.current.set(key, { ...local, ssl: next });
@@ -1157,19 +1165,23 @@ function App() {
                     pendingServices={pendingServices}
                   />
                 )}
-                {page === 'projects' && (
-                  <Projects
-                    projects={projects}
-                    allProjects={projects}
-                    query={query}
-                    setQuery={setQuery}
-                    notify={notify}
-                    onProjectCreated={addProject}
-                    onProjectDeleted={(domain) => void removeProject(domain)}
-                    onProjectRenamed={projectRenamed}
-                    onToggleSsl={(domain, next) => void toggleProjectSsl(domain, next)}
-                    onRestartPanel={() => void restartPanel()}
-                  />
+                {(page === 'projects' || projectsVisited) && (
+                  <div hidden={page !== 'projects'}>
+                    <Projects
+                      projects={projects}
+                      allProjects={projects}
+                      query={query}
+                      setQuery={setQuery}
+                      notify={notify}
+                      onProjectCreated={addProject}
+                      onProjectDeleted={(domain) => void removeProject(domain)}
+                      onProjectRenamed={projectRenamed}
+                      onToggleSsl={(domain, next) => void toggleProjectSsl(domain, next)}
+                      onRestartPanel={() => void restartPanel()}
+                      blocked={panelRestarting || moduleUpdating || appUpdating || autostartBusy}
+                      onWorkspaceStateChange={setProjectState}
+                    />
+                  </div>
                 )}
                 {page === 'configs' && (
                   <Suspense
@@ -1273,6 +1285,8 @@ function App() {
                       appUpdating ||
                       autostartBusy ||
                       menuState.busy ||
+                      projectState.busy ||
+                      projectState.dirty ||
                       menuRestoring
                     }
                     onMenuRestored={() => setMenuReloadVersion((version) => version + 1)}

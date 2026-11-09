@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { errorText, localeTag, useI18n } from '../../i18n';
 import {
   type CreatedProject,
@@ -52,7 +52,6 @@ import {
 } from '../../projectTags';
 import { CreateProjectDialog } from '../dialogs/CreateProjectDialog';
 import { HostsEditor } from '../dialogs/HostsEditor';
-import { ProjectModulesDialog } from '../dialogs/ProjectModulesDialog';
 import { RenameProjectDialog } from '../dialogs/RenameProjectDialog';
 import { copyText, type Notify } from '../shared';
 import { FilterFacet, facetValues } from '../widgets/FilterFacet';
@@ -60,6 +59,10 @@ import { PageHeader } from '../widgets/PageHeader';
 import { ProjectSelection, ProjectTagEditor, ProjectTagFilter } from '../widgets/ProjectTags';
 import { RowMenu } from '../widgets/RowMenu';
 import { activityDate, groupProjectActivity, useProjectActivity } from './projectActivity';
+
+const ProjectWorkspace = lazy(() =>
+  import('./ProjectWorkspace').then((module) => ({ default: module.ProjectWorkspace })),
+);
 
 type ProjectsProps = {
   projects: OsPanelProject[];
@@ -72,6 +75,8 @@ type ProjectsProps = {
   onProjectRenamed: (domain: string, renamed: OsPanelProject) => void;
   onToggleSsl: (domain: string, next: boolean) => void;
   onRestartPanel: () => void;
+  blocked?: boolean;
+  onWorkspaceStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
 };
 
 export function Projects(props: ProjectsProps) {
@@ -89,10 +94,19 @@ function ProjectsContent({
   onProjectRenamed,
   onToggleSsl,
   onRestartPanel,
+  blocked,
+  onWorkspaceStateChange,
   tagStorageKey,
 }: ProjectsProps & { tagStorageKey: string }) {
   const { t, lang } = useI18n();
   const [modulesFor, setModulesFor] = useState<OsPanelProject | null>(null);
+  const listScroll = useRef(0);
+  const openSettings = (project: OsPanelProject) => {
+    const main = document.querySelector('.main-content');
+    listScroll.current = main?.scrollTop ?? 0;
+    if (main) main.scrollTop = 0;
+    setModulesFor(project);
+  };
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [hostsOpen, setHostsOpen] = useState(false);
   const [renameFor, setRenameFor] = useState<OsPanelProject | null>(null);
@@ -280,6 +294,26 @@ function ProjectsContent({
     }
   };
 
+  if (modulesFor)
+    return (
+      <Suspense fallback={<div className="empty-note">{t('common.loading')}</div>}>
+        <ProjectWorkspace
+          project={modulesFor}
+          notify={notify}
+          onRestartPanel={onRestartPanel}
+          blocked={blocked}
+          onStateChange={onWorkspaceStateChange}
+          onClose={() => {
+            setModulesFor(null);
+            requestAnimationFrame(() => {
+              const main = document.querySelector('.main-content');
+              if (main) main.scrollTop = listScroll.current;
+            });
+          }}
+        />
+      </Suspense>
+    );
+
   return (
     <>
       <PageHeader
@@ -466,7 +500,16 @@ function ProjectsContent({
                     />
                     <div className="project-activity-identity">
                       <div className="project-activity-title">
-                        <b title={project.domain}>{displayDomain}</b>
+                        <b title={project.domain}>
+                          <button
+                            type="button"
+                            className="project-settings-link"
+                            title={t('workspace.settingsFor', { domain: displayDomain })}
+                            onClick={() => openSettings(project)}
+                          >
+                            {displayDomain}
+                          </button>
+                        </b>
                         {modified && entry.lastFile ? (
                           <button
                             type="button"
@@ -560,9 +603,9 @@ function ProjectsContent({
                       <RowMenu
                         entries={[
                           {
-                            label: t('projects.menuModules'),
+                            label: t('workspace.settings'),
                             icon: SlidersHorizontal,
-                            onSelect: () => setModulesFor(project),
+                            onSelect: () => openSettings(project),
                           },
                           {
                             label: t('projects.tagsEdit'),
@@ -670,14 +713,6 @@ function ProjectsContent({
             )}
           </span>
         </div>
-      )}
-      {modulesFor && (
-        <ProjectModulesDialog
-          project={modulesFor}
-          notify={notify}
-          onRestartPanel={onRestartPanel}
-          onClose={() => setModulesFor(null)}
-        />
       )}
       {renameFor && (
         <RenameProjectDialog

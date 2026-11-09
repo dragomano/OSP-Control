@@ -1234,6 +1234,19 @@ button {
 .project-activity-title {
   display: contents;
 }
+.project-settings-link {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+.project-settings-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .project-activity-title > b {
   grid-column: 1;
   grid-row: 1;

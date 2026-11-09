@@ -3,6 +3,7 @@ import type { OsPanelMenuDocument, OsPanelMenuItem, OsPanelMenuSaveResult } from
 import type { ModuleProfiles, ProfileDocument, ProfileSave } from './moduleProfiles';
 import { normalizeProjectDomain } from './projectDomain';
 import { matchesProjectSearch, type ProjectTags, tagsForProject } from './projectTags';
+import type { ProjectFileSave, ProjectWorkspace } from './projectWorkspace';
 import { settingsStorage } from './settingsStorage';
 
 export type ServiceStatus = 'running' | 'stopped' | 'warning' | 'unknown';
@@ -939,6 +940,63 @@ export async function saveProjectSettings(
   }
 
   return { domain, ...override, fileExists: true };
+}
+
+const demoProjectFiles = new Map<string, string>();
+const projectFileArgs = (project: OsPanelProject) => ({
+  domain: project.domain,
+  baseDir: project.path,
+  ...customPathArgs(),
+});
+
+export async function readProjectWorkspace(project: OsPanelProject): Promise<ProjectWorkspace> {
+  if (isTauri()) return invoke<ProjectWorkspace>('read_project_workspace', projectFileArgs(project));
+  const key = `${project.path}/project.ini`;
+  if (!demoProjectFiles.has(key)) {
+    const settings = await getProjectSettings(project.domain);
+    demoProjectFiles.set(
+      key,
+      `[${project.domain}]\nhttp_engine = ${settings.httpEngine}\nphp_engine = ${settings.phpEngine}\nnode_engine = ${settings.nodeEngine}\ntls_enabled = ${settings.tlsEnabled}\nweb_root = {base_dir}\\public\n`,
+    );
+  }
+  return {
+    baseDir: project.path,
+    content: demoProjectFiles.get(key) ?? null,
+    files: [
+      'project.ini',
+      'env.ini',
+      'menu.ini',
+      'tasks.ini',
+      ...['nginx', 'apache', 'caddy'].map((engine) => `${engine}/${project.domain}.conf`),
+    ],
+  };
+}
+
+export async function readProjectFile(project: OsPanelProject, file: string): Promise<string | null> {
+  if (isTauri()) return invoke<string | null>('read_project_file', { ...projectFileArgs(project), file });
+  return demoProjectFiles.get(`${project.path}/${file}`) ?? null;
+}
+
+export async function saveProjectFile(
+  project: OsPanelProject,
+  file: string,
+  original: string | null,
+  content: string,
+): Promise<ProjectFileSave> {
+  if (isTauri())
+    return invoke<ProjectFileSave>('save_project_file', {
+      ...projectFileArgs(project),
+      file,
+      original,
+      content,
+    });
+  const key = `${project.path}/${file}`;
+  if ((demoProjectFiles.get(key) ?? null) !== original) throw new Error('err.projectWorkspaceConflict');
+  demoProjectFiles.set(key, content);
+  return {
+    content,
+    backupPath: original === null ? null : `C:/OSPanel/backups/project-settings/example/original.bak`,
+  };
 }
 
 export type CreateProjectParams = {

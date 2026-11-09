@@ -1,0 +1,712 @@
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Check,
+  Clock3,
+  FileCode2,
+  FolderOpen,
+  Globe2,
+  Info,
+  LayoutGrid,
+  ListTree,
+  Network,
+  Plus,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  SlidersHorizontal,
+} from 'lucide-react';
+import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { errorText, useI18n } from '../../i18n';
+import {
+  askConfirm,
+  type GlobalProjectEngines,
+  getGlobalProjectEngines,
+  getProjectModuleOptions,
+  type OsPanelProject,
+  openFileExternally,
+  openInBrowser,
+  openProjectFolder,
+  type ProjectModuleOptions,
+  readProjectFile,
+  readProjectWorkspace,
+  saveProjectFile,
+} from '../../ospanel';
+import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
+import {
+  appendProjectDomain,
+  patchProjectIni,
+  projectDomains,
+  projectFileLanguage,
+  projectOpeningUrl,
+  type ProjectWorkspace as WorkspaceDocument,
+} from '../../projectWorkspace';
+import type { Notify } from '../shared';
+import { ConfigEditor } from '../widgets/ConfigEditor';
+import { PageHeader } from '../widgets/PageHeader';
+import '../widgets/formControls.css';
+import './projectWorkspace.css';
+
+const TABS = [
+  ['overview', LayoutGrid],
+  ['domains', Globe2],
+  ['environment', SlidersHorizontal],
+  ['web', Network],
+  ['configs', FileCode2],
+  ['menu', ListTree],
+  ['tasks', Clock3],
+] as const;
+type Tab = (typeof TABS)[number][0];
+type FileDraft = { original: string | null; draft: string };
+const emptyIni = (domain: string) => `\uFEFF[${domain}]\r\n`;
+
+export function ProjectWorkspace({
+  project,
+  notify,
+  blocked = false,
+  onClose,
+  onRestartPanel,
+  onStateChange,
+}: {
+  project: OsPanelProject;
+  notify: Notify;
+  blocked?: boolean;
+  onClose: () => void;
+  onRestartPanel: () => void;
+  onStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const [tab, setTab] = useState<Tab>('overview');
+  const [doc, setDoc] = useState<WorkspaceDocument | null>(null);
+  const [ini, setIni] = useState('');
+  const [domain, setDomain] = useState(project.domain);
+  const [options, setOptions] = useState<ProjectModuleOptions | null>(null);
+  const [globals, setGlobals] = useState<GlobalProjectEngines | null>(null);
+  const [files, setFiles] = useState<Record<string, FileDraft>>({});
+  const [engine, setEngine] = useState('nginx');
+  const [fileBusy, setFileBusy] = useState(false);
+  const [fileRetry, setFileRetry] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [backup, setBackup] = useState('');
+  const [restartNeeded, setRestartNeeded] = useState(false);
+  const [newDomain, setNewDomain] = useState('');
+  const [advanced, setAdvanced] = useState(false);
+  const pending = useRef(false);
+  const request = useRef(0);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const domains = useMemo(() => projectDomains(ini, project.domain), [ini, project.domain]);
+  const values = domains.find((item) => item.domain === domain)?.values ?? {};
+  const iniDirty = doc !== null && ini !== (doc.content ?? emptyIni(project.domain));
+  const dirty = iniDirty || Object.values(files).some((file) => file.draft !== (file.original ?? ''));
+  const locked = busy || blocked;
+  const file = advanced
+    ? 'project.ini'
+    : tab === 'menu'
+      ? 'menu.ini'
+      : tab === 'tasks'
+        ? 'tasks.ini'
+        : tab === 'environment'
+          ? 'env.ini'
+          : `${engine}/${domain}.conf`;
+  const fileState = file === 'project.ini' ? { original: doc?.content ?? null, draft: ini } : files[file];
+  const editingFile = advanced || ['configs', 'menu', 'tasks', 'environment'].includes(tab);
+  const selectedDomain = displayProjectDomain(domain);
+  const inherited = (key: string, global?: string) =>
+    values[key] && values[key] !== 'auto' ? values[key] : global || t('projects.engineUnset');
+
+  const load = async () => {
+    const current = ++request.current;
+    setBusy(true);
+    setError('');
+    try {
+      const [next, available, global] = await Promise.all([
+        readProjectWorkspace(project),
+        getProjectModuleOptions(),
+        getGlobalProjectEngines().catch(() => null),
+      ]);
+      if (current !== request.current) return;
+      setDoc(next);
+      setIni(next.content ?? emptyIni(project.domain));
+      setOptions(available);
+      setGlobals(global);
+      setFiles({});
+    } catch (error) {
+      if (current === request.current) setError(errorText(t, error, 'workspace.failed'));
+    } finally {
+      if (current === request.current) setBusy(false);
+    }
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: callback/translator changes must not discard a draft
+  useEffect(() => {
+    void load();
+    return () => {
+      request.current++;
+    };
+  }, [project.domain, project.path]);
+
+  useEffect(() => {
+    onStateChange?.({ dirty, busy: busy || fileBusy });
+  }, [dirty, busy, fileBusy, onStateChange]);
+  useEffect(() => () => onStateChange?.({ dirty: false, busy: false }), [onStateChange]);
+  useEffect(() => {
+    if (!dirty) return;
+    const prevent = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', prevent);
+    return () => window.removeEventListener('beforeunload', prevent);
+  }, [dirty]);
+
+  // Drafts are cached per file, so switching tabs or domains never throws edits away.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetch only when the selected file or workspace changes
+  useEffect(() => {
+    if (!doc || !editingFile || file === 'project.ini' || files[file]) return;
+    let cancelled = false;
+    setFileBusy(true);
+    setError('');
+    void readProjectFile(project, file)
+      .then((content) => {
+        if (!cancelled)
+          setFiles((current) => ({ ...current, [file]: { original: content, draft: content ?? '' } }));
+      })
+      .catch((error) => {
+        if (!cancelled) setError(errorText(t, error, 'workspace.failed'));
+      })
+      .finally(() => {
+        if (!cancelled) setFileBusy(false);
+      });
+    return () => {
+      cancelled = true;
+      setFileBusy(false);
+    };
+  }, [doc, file, editingFile, fileRetry]);
+
+  const confirmDiscard = () => !dirty || askConfirm(t('workspace.discard'), t('common.confirmTitle'));
+  const close = async () => {
+    if (!pending.current && !locked && (await confirmDiscard())) onClose();
+  };
+  const change = (key: string, value: string | null) => {
+    setIni((current) => {
+      let next = patchProjectIni(current, domain, { [key]: value });
+      if (key === 'primary_domain' && value === 'on')
+        for (const item of domains)
+          if (item.domain !== domain) next = patchProjectIni(next, item.domain, { primary_domain: 'off' });
+      return next;
+    });
+  };
+  const save = async () => {
+    if (!doc || !dirty || pending.current || locked) return;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      if (iniDirty) {
+        const result = await saveProjectFile(project, 'project.ini', doc.content, ini);
+        setDoc((current) => current && { ...current, content: result.content });
+        setIni(result.content);
+        if (result.backupPath) setBackup(result.backupPath);
+        setRestartNeeded(true);
+      }
+      for (const [name, draft] of Object.entries(files)) {
+        if (draft.draft === (draft.original ?? '')) continue;
+        const result = await saveProjectFile(project, name, draft.original, draft.draft);
+        setFiles((current) => ({ ...current, [name]: { original: result.content, draft: result.content } }));
+        if (result.backupPath) setBackup(result.backupPath);
+        setRestartNeeded(true);
+      }
+      notify(t('workspace.saved'), { label: t('projects.restartPanel'), run: onRestartPanel });
+    } catch (error) {
+      setError(errorText(t, error, 'workspace.failed'));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
+  const run = async (action: () => Promise<unknown>) => {
+    try {
+      await action();
+    } catch (error) {
+      notify(errorText(t, error, 'workspace.failed'));
+    }
+  };
+  const field = (key: string, control: ReactNode) => (
+    <div className="workspace-setting" key={key}>
+      <div>
+        <b>{t(`workspace.${key}`)}</b>
+      </div>
+      {control}
+    </div>
+  );
+  const text = (key: string, placeholder = '', type = 'text') =>
+    field(
+      key,
+      <input
+        type={type}
+        min={type === 'number' ? 1 : undefined}
+        max={type === 'number' ? 65535 : undefined}
+        aria-label={t(`workspace.${key}`)}
+        value={values[key] ?? ''}
+        disabled={locked}
+        placeholder={placeholder}
+        onChange={(event) => change(key, event.target.value)}
+      />,
+    );
+  const choice = (key: string, items: string[], global?: string) => {
+    const current = values[key] ?? '';
+    return field(
+      key,
+      <select
+        aria-label={t(`workspace.${key}`)}
+        value={current}
+        disabled={locked || !options}
+        onChange={(event) => change(key, event.target.value || null)}
+      >
+        <option value="">{t('workspace.inherit', { value: global || t('projects.engineUnset') })}</option>
+        {current === 'auto' && (
+          <option value="auto">
+            {t('workspace.inherit', { value: global || t('projects.engineUnset') })}
+          </option>
+        )}
+        {current && current !== 'auto' && !items.includes(current) && (
+          <option value={current}>{current}</option>
+        )}
+        {items.map((item) => (
+          <option key={item} value={item}>
+            {item === 'on' ? t('workspace.on') : item === 'off' ? t('workspace.off') : item}
+          </option>
+        ))}
+      </select>,
+    );
+  };
+  const codeEditor = (
+    <section className="workspace-file-section">
+      <div className="workspace-file-head">
+        <div>
+          <FileCode2 size={15} />
+          <b>.osp/{file}</b>
+        </div>
+        <span>{projectFileLanguage(file)}</span>
+      </div>
+      {fileBusy ? (
+        <div className="empty-note" role="status">
+          {t('common.loading')}
+        </div>
+      ) : fileState ? (
+        <ConfigEditor
+          file={file}
+          value={fileState.draft}
+          disabled={locked}
+          label={t('workspace.fileContent', { file })}
+          onChange={(draft) => {
+            if (file === 'project.ini') setIni(draft);
+            else setFiles((current) => ({ ...current, [file]: { ...current[file], draft } }));
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={locked}
+          onClick={() => setFileRetry((value) => value + 1)}
+        >
+          {t('workspace.reload')}
+        </button>
+      )}
+      {fileState?.original === null && <p className="workspace-hint">{t('workspace.createFile')}</p>}
+    </section>
+  );
+
+  return (
+    <section className="project-workspace" aria-label={t('workspace.settings')}>
+      <button
+        type="button"
+        className="text-button workspace-back"
+        disabled={locked}
+        onClick={() => void close()}
+      >
+        <ArrowLeft size={15} />
+        {t('workspace.allProjects')}
+      </button>
+      <PageHeader
+        eyebrow={t('workspace.settings')}
+        heading={displayProjectDomain(project.domain)}
+        description={doc?.baseDir ?? project.path}
+        action={
+          <div className="workspace-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void run(() => openInBrowser(projectOpeningUrl(domain, values, project.ssl)))}
+            >
+              <ArrowUpRight size={15} />
+              {t('projects.open')}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void run(() => openProjectFolder(project.path))}
+            >
+              <FolderOpen size={15} />
+              {t('projects.menuOpenFolder')}
+            </button>
+          </div>
+        }
+      />
+      <div className="workspace-tabs" role="tablist" aria-label={t('workspace.sections')} ref={tabsRef}>
+        {TABS.map(([key, Icon], index) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            id={`${id}-${key}`}
+            aria-controls={`${id}-panel`}
+            aria-selected={tab === key && !advanced}
+            tabIndex={tab === key ? 0 : -1}
+            className={tab === key && !advanced ? 'selected' : ''}
+            onClick={() => {
+              setTab(key);
+              setAdvanced(false);
+            }}
+            onKeyDown={(event) => {
+              const offset = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+              const target =
+                event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? TABS.length - 1
+                    : offset
+                      ? (index + offset + TABS.length) % TABS.length
+                      : -1;
+              if (target >= 0) {
+                event.preventDefault();
+                setTab(TABS[target][0]);
+                setAdvanced(false);
+                tabsRef.current?.querySelectorAll<HTMLButtonElement>('button')[target]?.focus();
+              }
+            }}
+          >
+            <Icon size={15} />
+            {t(`workspace.tab.${key}`)}
+          </button>
+        ))}
+      </div>
+      {error && (
+        <div className="workspace-error" role="alert">
+          {error}
+        </div>
+      )}
+      {!doc ? (
+        <div className="empty-note" role="status">
+          {busy ? t('common.loading') : t('workspace.failed')}
+          {!busy && (
+            <button type="button" className="secondary-button" onClick={() => void load()}>
+              {t('workspace.reload')}
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <div
+            id={`${id}-panel`}
+            role="tabpanel"
+            aria-labelledby={`${id}-${tab}`}
+            className="workspace-tab-panel"
+          >
+            {advanced ? (
+              codeEditor
+            ) : (
+              <>
+                <div className="workspace-section-head">
+                  <div>
+                    <h2>{t(`workspace.tab.${tab}`)}</h2>
+                    <p>{t(`workspace.hint.${tab}`)}</p>
+                  </div>
+                  {!['overview', 'domains', 'menu'].includes(tab) && (
+                    <label className="workspace-domain-select">
+                      {t('workspace.domain')}
+                      <select
+                        aria-label={t('workspace.domain')}
+                        value={domain}
+                        disabled={locked}
+                        onChange={(event) => setDomain(event.target.value)}
+                      >
+                        {domains.map((item) => (
+                          <option key={item.domain} value={item.domain}>
+                            {displayProjectDomain(item.domain)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </div>
+                {tab === 'overview' && (
+                  <>
+                    <div className="workspace-overview-grid">
+                      <div className="workspace-card">
+                        <h3>
+                          <SlidersHorizontal size={15} />
+                          {t('workspace.tab.environment')}
+                        </h3>
+                        <dl>
+                          <div>
+                            <dt>{t('workspace.http_engine')}</dt>
+                            <dd>{inherited('http_engine', globals?.httpEngine)}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('workspace.php_engine')}</dt>
+                            <dd>{inherited('php_engine', globals?.phpEngine)}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('workspace.node_engine')}</dt>
+                            <dd>{inherited('node_engine', globals?.nodeEngine)}</dd>
+                          </div>
+                        </dl>
+                        <button className="text-button" type="button" onClick={() => setTab('environment')}>
+                          {t('workspace.configure')}
+                        </button>
+                      </div>
+                      <div className="workspace-card">
+                        <h3>
+                          <FolderOpen size={15} />
+                          {t('workspace.paths')}
+                        </h3>
+                        <dl>
+                          <div>
+                            <dt>{t('workspace.project_root')}</dt>
+                            <dd>{values.project_root || '{base_dir}'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('workspace.web_root')}</dt>
+                            <dd>{values.web_root || '{base_dir}'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('workspace.settings')}</dt>
+                            <dd>.osp/project.ini</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                    <div className="workspace-section-head workspace-spaced">
+                      <h2>{t('workspace.tab.domains')}</h2>
+                      <button className="text-button" type="button" onClick={() => setTab('domains')}>
+                        {t('workspace.configure')}
+                      </button>
+                    </div>
+                    <div className="workspace-card workspace-domain-list">
+                      {domains.map((item) => (
+                        <button
+                          type="button"
+                          className="workspace-domain-row"
+                          key={item.domain}
+                          onClick={() => {
+                            setDomain(item.domain);
+                            setTab('web');
+                          }}
+                        >
+                          <div>
+                            <b>{displayProjectDomain(item.domain)}</b>
+                            <span>{item.values.web_root || '{base_dir}'}</span>
+                          </div>
+                          {item.values.primary_domain === 'on' && (
+                            <span className="workspace-badge">{t('workspace.primary')}</span>
+                          )}
+                          <span>{item.values.php_engine || inherited('php_engine', globals?.phpEngine)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {tab === 'domains' && (
+                  <>
+                    <div className="workspace-card workspace-domain-list">
+                      {domains.map((item) => (
+                        <button
+                          type="button"
+                          className={`workspace-domain-row ${domain === item.domain ? 'selected' : ''}`}
+                          key={item.domain}
+                          onClick={() => setDomain(item.domain)}
+                        >
+                          <div>
+                            <b>{displayProjectDomain(item.domain)}</b>
+                            <span>{item.values.web_root || '{base_dir}'}</span>
+                          </div>
+                          {item.values.primary_domain === 'on' && (
+                            <span className="workspace-badge">{t('workspace.primary')}</span>
+                          )}
+                          {domain === item.domain && <Check size={15} />}
+                        </button>
+                      ))}
+                    </div>
+                    <form
+                      className="workspace-add-domain"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        try {
+                          setIni(appendProjectDomain(ini, project.domain, newDomain));
+                          setDomain(normalizeProjectDomain(newDomain) ?? domain);
+                          setNewDomain('');
+                        } catch (error) {
+                          setError(errorText(t, error, 'workspace.failed'));
+                        }
+                      }}
+                    >
+                      <input
+                        aria-label={t('workspace.newDomain')}
+                        placeholder="admin.project.test"
+                        value={newDomain}
+                        disabled={locked}
+                        onChange={(event) => setNewDomain(event.target.value)}
+                      />
+                      <button
+                        type="submit"
+                        className="secondary-button"
+                        disabled={locked || !normalizeProjectDomain(newDomain)}
+                      >
+                        <Plus size={15} />
+                        {t('workspace.addDomain')}
+                      </button>
+                    </form>
+                    <h3 className="workspace-selected-domain">{selectedDomain}</h3>
+                    <div className="workspace-card workspace-settings">
+                      {text('server_aliases', 'www.{host}')}
+                      {choice('primary_domain', ['on', 'off'])}
+                      {choice('project_enabled', ['on', 'off'])}
+                      {text('project_category')}
+                    </div>
+                  </>
+                )}
+                {tab === 'environment' && (
+                  <>
+                    <div className="workspace-card workspace-settings">
+                      {choice('http_engine', options?.httpEngines ?? [], globals?.httpEngine)}
+                      {choice('php_engine', options?.phpEngines ?? [], globals?.phpEngine)}
+                      {choice('node_engine', options?.nodeEngines ?? [], globals?.nodeEngine)}
+                      {text('environment', 'System')}
+                      {text('app_start_command')}
+                      {text('terminal_codepage', '65001')}
+                    </div>
+                    <h3 className="workspace-selected-domain">{t('workspace.variables')}</h3>
+                    {codeEditor}
+                  </>
+                )}
+                {tab === 'web' && (
+                  <div className="workspace-card workspace-settings">
+                    {text('project_root', '{base_dir}')}
+                    {text('web_root', '{base_dir}\\public')}
+                    {text('base_url', '{host_scheme}://{host_decoded}{scheme_port}')}
+                    {text('bind_ip')}
+                    {text('http_port', '80', 'number')}
+                    {text('https_port', '443', 'number')}
+                    {choice('tls_enabled', ['on', 'off'])}
+                    {text('tls_cert_file', 'auto')}
+                    {text('tls_key_file', 'auto')}
+                    {choice('backend_enabled', ['on', 'off'])}
+                    {text('backend_ip', '127.0.0.1')}
+                    {text('backend_port', '3000', 'number')}
+                  </div>
+                )}
+                {tab === 'configs' && (
+                  <>
+                    <div className="workspace-file-tabs">
+                      {['nginx', 'apache', 'caddy'].map((name) => (
+                        <button
+                          type="button"
+                          className={engine === name ? 'selected' : ''}
+                          key={name}
+                          onClick={() => setEngine(name)}
+                        >
+                          {name === 'nginx' ? 'Nginx' : name === 'apache' ? 'Apache' : 'Caddy'}
+                        </button>
+                      ))}
+                    </div>
+                    {codeEditor}
+                    <p className="workspace-hint">
+                      <Info size={14} />
+                      {t('workspace.localConfigs')}
+                    </p>
+                  </>
+                )}
+                {(tab === 'menu' || tab === 'tasks') && codeEditor}
+              </>
+            )}
+          </div>
+          <footer className="workspace-footer">
+            <div>
+              <span className={dirty ? 'unsaved' : ''} role="status">
+                {dirty
+                  ? t('workspace.unsaved')
+                  : restartNeeded
+                    ? t('workspace.restartNeeded')
+                    : t('workspace.unchanged')}
+              </span>
+              <div className="workspace-footer-links">
+                <button type="button" className="text-button" onClick={() => setAdvanced(!advanced)}>
+                  {t(advanced ? 'workspace.form' : 'workspace.advanced')}
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => void run(() => openFileExternally(`${project.path}\\.osp\\project.ini`))}
+                >
+                  {t('configs.open')}
+                </button>
+              </div>
+            </div>
+            <div className="workspace-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={locked}
+                onClick={() =>
+                  void (async () => {
+                    if (await confirmDiscard()) {
+                      setAdvanced(false);
+                      await load();
+                    }
+                  })()
+                }
+              >
+                <RefreshCw size={14} />
+                {t('workspace.reload')}
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                disabled={locked || !dirty || fileBusy}
+                onClick={() => void save()}
+              >
+                <Save size={15} />
+                {t('common.save')}
+              </button>
+            </div>
+          </footer>
+          <div className="workspace-safety">
+            <ShieldCheck size={14} />
+            {t('workspace.backupHint')}
+            {backup && (
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => void run(() => openProjectFolder(backup))}
+              >
+                {t('workspace.openBackup')}
+              </button>
+            )}
+            {restartNeeded && (
+              <button
+                className="text-button"
+                type="button"
+                disabled={locked || dirty}
+                onClick={onRestartPanel}
+              >
+                {t('projects.restartPanel')}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
