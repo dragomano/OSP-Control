@@ -1,7 +1,6 @@
 //! Application-level integration: tray icon, Windows autostart, user info, UI zoom.
 
 use std::path::Path;
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
@@ -12,7 +11,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 
 use crate::error::{CommandError, spawn_failed};
 use crate::locales::locale_key_string;
-use crate::paths::is_valid_lang;
+use crate::paths::{hidden_command, is_valid_lang};
 use crate::settings::SettingsStore;
 
 #[derive(Debug, Clone, Serialize)]
@@ -25,18 +24,32 @@ pub(crate) struct UserInfo {
 const AUTOSTART_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 const AUTOSTART_VALUE: &str = "OSPControl";
 
+// Registry processes may be slow (for example under antivirus scanning). Never wait
+// for them on Tauri's event loop, which also handles input and the folder dialog.
+async fn autostart_task<T: Send + 'static>(
+    task: impl FnOnce() -> Result<T, CommandError> + Send + 'static,
+) -> Result<T, CommandError> {
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|_| CommandError::new("err.autostartWriteFailed"))?
+}
+
 #[tauri::command]
-pub fn set_autostart(enabled: bool) -> Result<(), CommandError> {
+pub async fn set_autostart(enabled: bool) -> Result<(), CommandError> {
+    autostart_task(move || write_autostart(enabled)).await
+}
+
+fn write_autostart(enabled: bool) -> Result<(), CommandError> {
     let exe = std::env::current_exe()?;
     let value = format!("\"{}\"", exe.display());
     // A missing entry being deleted is normal; an error only matters when we failed
     // to write the enabled autostart.
     let status = if enabled {
-        Command::new("reg")
+        hidden_command("reg")
             .args(["add", AUTOSTART_KEY, "/v", AUTOSTART_VALUE, "/t", "REG_SZ", "/d", &value, "/f"])
             .status()
     } else {
-        Command::new("reg").args(["delete", AUTOSTART_KEY, "/v", AUTOSTART_VALUE, "/f"]).status()
+        hidden_command("reg").args(["delete", AUTOSTART_KEY, "/v", AUTOSTART_VALUE, "/f"]).status()
     }
     .map_err(spawn_failed)?;
 
@@ -47,12 +60,15 @@ pub fn set_autostart(enabled: bool) -> Result<(), CommandError> {
 }
 
 #[tauri::command]
-pub fn autostart_enabled() -> Result<bool, CommandError> {
-    let out = Command::new("reg")
-        .args(["query", AUTOSTART_KEY, "/v", AUTOSTART_VALUE])
-        .output()
-        .map_err(spawn_failed)?;
-    Ok(out.status.success())
+pub async fn autostart_enabled() -> Result<bool, CommandError> {
+    autostart_task(|| {
+        let out = hidden_command("reg")
+            .args(["query", AUTOSTART_KEY, "/v", AUTOSTART_VALUE])
+            .output()
+            .map_err(spawn_failed)?;
+        Ok(out.status.success())
+    })
+    .await
 }
 
 // Windows user name for the sidebar card; taken from the process environment,
@@ -170,4 +186,28 @@ pub fn set_close_to_tray(
 #[tauri::command]
 pub fn close_to_tray_enabled(app: tauri::AppHandle) -> bool {
     app.try_state::<TrayState>().map(|state| state.close_to_tray.load(Ordering::SeqCst)).unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn autostart_work_does_not_run_on_the_calling_thread() {
+        let caller = std::thread::current().id();
+        let worker =
+            tauri::async_runtime::block_on(autostart_task(|| Ok(std::thread::current().id()))).unwrap();
+        assert_ne!(caller, worker);
+    }
+
+    #[test]
+    fn autostart_work_preserves_results_and_errors() {
+        assert!(tauri::async_runtime::block_on(autostart_task(|| Ok(true))).unwrap());
+        assert!(!tauri::async_runtime::block_on(autostart_task(|| Ok(false))).unwrap());
+        let error = tauri::async_runtime::block_on(autostart_task(|| {
+            Err::<bool, _>(CommandError::new("err.spawnFailed"))
+        }))
+        .unwrap_err();
+        assert_eq!(error.code, "err.spawnFailed");
+    }
 }

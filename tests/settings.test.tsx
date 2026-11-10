@@ -144,6 +144,25 @@ describe('Settings installation path', () => {
     expect(props.onPathSaved).toHaveBeenCalledWith('D:\\Chosen');
   });
 
+  it('allows typing and choosing a path while startup checks are pending', async () => {
+    mocks.autostartEnabled.mockReturnValue(new Promise(() => {}));
+    mocks.closeToTrayEnabled.mockReturnValue(new Promise(() => {}));
+    mocks.pickOsPanelDirectory.mockResolvedValue('D:\\Chosen');
+    const { props } = renderSettings();
+    const input = screen.getByRole('textbox', { name: 'OSPanel path' });
+    const picker = screen.getByRole('button', { name: 'Choose folder' });
+
+    expect(input).toBeEnabled();
+    expect(picker).toBeEnabled();
+    fireEvent.change(input, { target: { value: 'D:\\Typed' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(props.onPathSaved).toHaveBeenCalledWith('D:\\Typed');
+
+    fireEvent.click(picker);
+    await waitFor(() => expect(props.onPathSaved).toHaveBeenCalledWith('D:\\Chosen'));
+    expect(input).toHaveValue('D:\\Chosen');
+  });
+
   it('reports a failed folder picker', async () => {
     mocks.pickOsPanelDirectory.mockRejectedValue(new Error('boom'));
     const { props } = renderSettings();
