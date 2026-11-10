@@ -22,11 +22,15 @@ vi.mock('../src/ospanel', async (importOriginal) => {
   return { ...actual, ...mocks };
 });
 
-const t = makeTranslator(embeddedDict('en'), embeddedDict('en'));
-const plural = makePlural(t, 'en', embeddedDict('en'));
-
-const renderI18n = (ui: ReactElement) =>
-  render(<I18nContext.Provider value={{ lang: 'en', t, plural }}>{ui}</I18nContext.Provider>);
+const renderI18n = (ui: ReactElement, lang = 'en') => {
+  const dictionary = embeddedDict(lang);
+  const translator = makeTranslator(dictionary, embeddedDict('en'));
+  return render(
+    <I18nContext.Provider value={{ lang, t: translator, plural: makePlural(translator, lang, dictionary) }}>
+      {ui}
+    </I18nContext.Provider>,
+  );
+};
 
 const moduleOptions = {
   httpEngines: ['Apache_2.4', 'Nginx_1.25'],
@@ -125,7 +129,7 @@ describe('ModuleSelect', () => {
 });
 
 describe('CreateProjectDialog', () => {
-  const renderDialog = () => {
+  const renderDialog = (lang = 'en') => {
     const notify = vi.fn<Notify>();
     const onCreated = vi.fn();
     const onRestartPanel = vi.fn();
@@ -137,9 +141,32 @@ describe('CreateProjectDialog', () => {
         onRestartPanel={onRestartPanel}
         onClose={onClose}
       />,
+      lang,
     );
     return { notify, onCreated, onRestartPanel, onClose };
   };
+
+  it.each(['en', 'ru', 'uk', 'be', 'es'])(
+    'passes the current application language %s to scaffold creation',
+    async (language) => {
+      mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+      mocks.createProject.mockResolvedValue(createdProject);
+      const translator = makeTranslator(embeddedDict(language), embeddedDict('en'));
+      renderDialog(language);
+      fireEvent.change(await screen.findByLabelText(translator('projects.createDomain')), {
+        target: { value: 'site.test' },
+      });
+      fireEvent.change(screen.getByRole('combobox', { name: translator('templates.label') }), {
+        target: { value: 'static' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: translator('projects.create') }));
+      await vi.waitFor(() =>
+        expect(mocks.createProject).toHaveBeenCalledWith(
+          expect.objectContaining({ domain: 'site.test', template: 'static', language }),
+        ),
+      );
+    },
+  );
 
   it('shows the loading note, then the form with the domain field focused', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
@@ -180,6 +207,7 @@ describe('CreateProjectDialog', () => {
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(mocks.createProject).toHaveBeenCalledWith({
+      language: 'en',
       domain: 'shop.test',
       httpEngine: undefined,
       phpEngine: undefined,
@@ -233,6 +261,7 @@ describe('CreateProjectDialog', () => {
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(mocks.createProject).toHaveBeenCalledWith({
+      language: 'en',
       domain: 'shop.test',
       httpEngine: 'Nginx_1.25',
       phpEngine: 'PHP_8.3',
@@ -369,6 +398,7 @@ describe('CreateProjectDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(mocks.createProject).toHaveBeenCalledWith({
+      language: 'en',
       domain: 'shop.test',
       template: 'static',
       httpEngine: 'Apache_2.4',

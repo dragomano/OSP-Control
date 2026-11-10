@@ -1198,5 +1198,19 @@
   "err.projectDatabaseModule": "Не знайдено модуль БД або його консольний клієнт. Встановіть вибраний модуль і повторіть спробу.",
   "err.projectDatabaseStopped": "Перед встановленням застосунку запустіть {module} в OSPanel.",
   "err.projectDatabaseExists": "База {name} вже існує й не змінена. Створіть нову заготовку з іншим ім’ям бази.",
-  "err.projectDatabaseConnect": "Не вдалося з’єднатися з БД або створити її. Перевірте користувача, пароль і право CREATE DATABASE. Якщо встановлювач уже створив базу, її збережено для повторної спроби."
+  "err.projectDatabaseConnect": "Не вдалося з’єднатися з БД або створити її. Перевірте користувача, пароль і право CREATE DATABASE. Якщо встановлювач уже створив базу, її збережено для повторної спроби.",
+  "starters.static.ready": "Локальний сайт готовий. Замініть цю сторінку файлами свого проєкту.",
+  "starters.php.ready": "PHP працює. Замініть цю сторінку своїм застосунком.",
+  "starters.node.ready": "Локальний Node.js-застосунок працює.",
+  "starters.node.listening": "Сервер доступний за адресою {url}",
+  "starters.laravel.title": "Заготовка проєкту Laravel",
+  "starters.laravel.heading": "Laravel ще не встановлено",
+  "starters.laravel.instructions": "Публічний каталог проєкту готовий. Відкрийте огляд цього проєкту в OSP Control і натисніть «{install}», щоб установити застосунок.",
+  "starters.laravel.details": "Під час встановлення .osp збережеться, а цю заглушку буде замінено. Інструкції розташовані в .osp/laravel-readme.md.",
+  "starters.wordpress.title": "Заготовка проєкту WordPress",
+  "starters.wordpress.heading": "WordPress ще не встановлено",
+  "starters.wordpress.instructions": "Публічний каталог проєкту готовий. Відкрийте огляд цього проєкту в OSP Control і натисніть «{install}», щоб установити застосунок.",
+  "starters.wordpress.details": "Під час встановлення .osp збережеться, а цю заглушку буде замінено. Інструкції розташовані в .osp/wordpress-readme.md.",
+  "starters.tasks.laravel": "Планувальник Laravel",
+  "starters.tasks.node": "Запуск застосунку"
 }

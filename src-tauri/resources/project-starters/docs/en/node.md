@@ -9,6 +9,6 @@ The sample server uses Node.js built-ins and needs no npm installation.
 Its start command is `node server.mjs`. You can also use `npm start` in the project environment.
 If port __PORT__ is already occupied, choose another backend port and update the port constant in server.mjs.
 
-An optional one-time startup task is included but disabled. Enable it in the project's Tasks tab
+An optional one-time startup task is included but disabled. Enable it in the project's **__TASKS__** tab
 only if this application should start automatically with OSPanel.
 No processes were started automatically by this scaffold.

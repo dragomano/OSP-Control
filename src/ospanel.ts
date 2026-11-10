@@ -1146,6 +1146,7 @@ export async function saveProjectFile(
 
 export type CreateProjectParams = {
   domain: string;
+  language?: string;
   httpEngine?: string;
   phpEngine?: string;
   nodeEngine?: string;
@@ -1176,7 +1177,7 @@ export async function createProject(params: CreateProjectParams): Promise<Create
     if (template.id === 'laravel' || template.id === 'wordpress')
       demoProjectFiles.set(
         `C:\\OSPanel\\home\\${domain}/${template.id}.json`,
-        '{"version":1,"status":"pending"}',
+        JSON.stringify({ version: 2, status: 'pending', language: params.language ?? 'en' }),
       );
     const port = params.backendPort ?? 3000;
     if (template.node && (!Number.isInteger(port) || port < 1 || port > 65535))

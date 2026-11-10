@@ -1188,5 +1188,19 @@
   "err.projectDatabaseModule": "The database module or its command-line client is missing. Install the selected module and retry.",
   "err.projectDatabaseStopped": "Start {module} in OSPanel before installing the application.",
   "err.projectDatabaseExists": "Database {name} already exists. It has not been changed. Create a new scaffold with a different database name.",
-  "err.projectDatabaseConnect": "Unable to connect to or create the database. Check the database user, password and CREATE DATABASE permission. If a database was already created by this installer, it is kept for retry."
+  "err.projectDatabaseConnect": "Unable to connect to or create the database. Check the database user, password and CREATE DATABASE permission. If a database was already created by this installer, it is kept for retry.",
+  "starters.static.ready": "Your local site is ready. Replace this page with your project files.",
+  "starters.php.ready": "PHP is running. Replace this page with your application.",
+  "starters.node.ready": "Local Node.js application is running.",
+  "starters.node.listening": "Listening on {url}",
+  "starters.laravel.title": "Laravel project preparation",
+  "starters.laravel.heading": "Laravel is not installed yet",
+  "starters.laravel.instructions": "The project's public directory is ready. Open this project's overview in OSP Control and use the {install} button to install the application.",
+  "starters.laravel.details": "Installation preserves .osp and replaces this placeholder. Instructions are in .osp/laravel-readme.md.",
+  "starters.wordpress.title": "WordPress project preparation",
+  "starters.wordpress.heading": "WordPress is not installed yet",
+  "starters.wordpress.instructions": "The project's public directory is ready. Open this project's overview in OSP Control and use the {install} button to install the application.",
+  "starters.wordpress.details": "Installation preserves .osp and replaces this placeholder. Instructions are in .osp/wordpress-readme.md.",
+  "starters.tasks.laravel": "Laravel scheduler",
+  "starters.tasks.node": "Start application"
 }

@@ -803,6 +803,7 @@ pub(crate) struct CreateProjectParams {
     node_engine: Option<String>,
     template: Option<String>,
     backend_port: Option<u16>,
+    language: Option<String>,
     database: Option<crate::project_database::Database>,
 }
 
@@ -883,7 +884,8 @@ pub fn create_project(
     if template.node && port == 0 {
         return Err(CommandError::new("err.invalidSettingValue").with("value", "0"));
     }
-    let mut files = template.files(&domain, &http, &php, &node, port)?;
+    let mut files =
+        template.files(&domain, &http, &php, &node, port, params.language.as_deref().unwrap_or("en"))?;
     if let Some(db) = &params.database {
         crate::project_database::validate(db, &template.id, &options.database_engines)?;
         files.extend(crate::project_database::files(db)?);

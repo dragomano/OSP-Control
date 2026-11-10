@@ -4,7 +4,7 @@ use crate::{
     paths::{external_path, hidden_command, is_valid_module_name, resolve_installation},
     project_workspace::{base, child, parse},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
     collections::BTreeMap,
     fs,
@@ -15,23 +15,12 @@ use std::{
 };
 use tauri::ipc::Channel;
 
-const PLACEHOLDER: &str = include_str!("../resources/project-starters/laravel-placeholder.php");
 pub(crate) type Snapshot = BTreeMap<PathBuf, Option<Vec<u8>>>;
 
-#[derive(Deserialize)]
-struct Marker {
-    version: u32,
-    status: String,
-}
 pub(crate) fn state(dir: &Path) -> Option<String> {
-    let marker = child(&child(dir, ".osp").ok()?, "laravel.json").ok()?;
-    if fs::metadata(&marker).ok()?.len() > 4096 {
-        return None;
-    }
-    let marker: Marker = serde_json::from_slice(&fs::read(marker).ok()?).ok()?;
-    (marker.version == 1 && matches!(marker.status.as_str(), "pending" | "installed"))
-        .then_some(marker.status)
+    crate::project_starter_locale::state(dir, "laravel")
 }
+
 fn error(code: &str) -> CommandError {
     CommandError::new(code)
 }
@@ -107,7 +96,7 @@ fn prepared(root: &Path, domain: &str, base_dir: &str) -> Result<(PathBuf, Strin
         .get(Path::new("public/index.php"))
         .and_then(Option::as_deref)
         .ok_or_else(|| error("err.laravelConflict"))?;
-    if String::from_utf8_lossy(placeholder).replace("\r\n", "\n") != PLACEHOLDER.replace("\r\n", "\n") {
+    if !crate::project_starter_locale::matches_placeholder(&dir, "laravel", placeholder) {
         return Err(error("err.laravelConflict"));
     }
     let ini = files
@@ -384,7 +373,12 @@ pub(crate) fn copy_configuration(
             ensure_dir(&dir, path.file_name().unwrap().to_str().unwrap())?;
         }
     }
-    fs::write(application.join(format!(".osp/{kind}.json")), "{\"version\":1,\"status\":\"installed\"}\n")?;
+    let marker_path = PathBuf::from(format!(".osp/{kind}.json"));
+    let bytes = files
+        .get(&marker_path)
+        .and_then(Option::as_deref)
+        .ok_or_else(|| error("err.projectTemplateInvalid"))?;
+    fs::write(application.join(marker_path), crate::project_starter_locale::installed_marker(bytes)?)?;
     Ok(())
 }
 #[derive(Debug, Serialize)]
@@ -516,12 +510,15 @@ mod tests {
     }
     impl Fixture {
         fn new() -> Self {
+            Self::localized("en")
+        }
+        fn localized(language: &str) -> Self {
             let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
             let root = std::env::temp_dir().join(format!("osp-laravel-test-{}-{nonce}", std::process::id()));
             fs::create_dir_all(root.join("home")).unwrap();
             let root = fs::canonicalize(root).unwrap();
             let template = crate::project_templates::template("laravel").unwrap();
-            let files = template.files("site.test", "Nginx", "PHP-8.3", "", 3000).unwrap();
+            let files = template.files("site.test", "Nginx", "PHP-8.3", "", 3000, language).unwrap();
             let project = template.create(&root.join("home"), "site.test", &files).unwrap();
             Self { root, project }
         }
@@ -556,7 +553,7 @@ mod tests {
         for directory in ["application/public", "application/vendor", "application/app/Http"] {
             fs::create_dir_all(stage.join(directory))?;
         }
-        for path in ["artisan", ".env", "vendor/autoload.php", "app/Http/Controller.php"] {
+        for path in ["artisan", ".env", "vendor/autoload.php", "app/Http/Controller.php", "README.md"] {
             fs::write(stage.join("application").join(path), "synthetic application")?;
         }
         fs::write(stage.join("application/public/index.php"), "<?php // installed application")?;
@@ -572,6 +569,7 @@ mod tests {
         let result = f.install(application).unwrap();
         assert!(f.project.join("app/Http/Controller.php").is_file());
         assert!(!f.project.join("app/app").exists());
+        assert_eq!(fs::read_to_string(f.project.join("README.md")).unwrap(), "synthetic application");
         assert_eq!(state(&f.project).as_deref(), Some("installed"));
         assert_eq!(snapshot(&fs::canonicalize(&result.backup_path).unwrap()).unwrap(), before);
         let mut expected = before
@@ -581,7 +579,13 @@ mod tests {
             .collect::<Snapshot>();
         expected.insert(
             PathBuf::from(".osp/laravel.json"),
-            Some(b"{\"version\":1,\"status\":\"installed\"}\n".to_vec()),
+            Some(
+                crate::project_starter_locale::installed_marker(
+                    before[Path::new(".osp/laravel.json")].as_deref().unwrap(),
+                )
+                .unwrap()
+                .into_bytes(),
+            ),
         );
         let after = snapshot(&fs::canonicalize(&f.project).unwrap()).unwrap();
         let after = after.into_iter().filter(|(path, _)| path.starts_with(".osp")).collect::<Snapshot>();
@@ -589,6 +593,30 @@ mod tests {
         assert_eq!(fs::read_dir(f.root.join("temp")).unwrap().count(), 0);
         assert!(f.install(application).is_err());
     }
+    #[test]
+    fn installs_every_localized_preparation_without_rewriting_its_instructions() {
+        for language in crate::project_starter_locale::LANGUAGES {
+            let f = Fixture::localized(language);
+            let document = f.project.join(".osp/laravel-readme.md");
+            fs::write(
+                &document,
+                format!(
+                    "{}\nUser-maintained project instructions.\n",
+                    fs::read_to_string(&document).unwrap()
+                ),
+            )
+            .unwrap();
+            let original = fs::read(&document).unwrap();
+            f.install(application).unwrap();
+            assert_eq!(fs::read(document).unwrap(), original);
+            let marker: serde_json::Value =
+                serde_json::from_slice(&fs::read(f.project.join(".osp/laravel.json")).unwrap()).unwrap();
+            assert_eq!(marker["language"], language);
+            assert_eq!(marker["status"], "installed");
+            assert_eq!(fs::read_to_string(f.project.join("README.md")).unwrap(), "synthetic application");
+        }
+    }
+
     #[test]
     fn failed_composer_or_incomplete_payload_leaves_original_files_and_cleans_staging() {
         for incomplete in [false, true] {

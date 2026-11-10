@@ -1198,5 +1198,19 @@
   "err.projectDatabaseModule": "Не знойдзены модуль БД або яго кансольны кліент. Усталюйце выбраны модуль і паўтарыце спробу.",
   "err.projectDatabaseStopped": "Перад усталяваннем праграмы запусціце {module} у OSPanel.",
   "err.projectDatabaseExists": "База {name} ужо існуе і не зменена. Стварыце новую загатоўку з іншым імем базы.",
-  "err.projectDatabaseConnect": "Не ўдалося злучыцца з БД або стварыць яе. Праверце карыстальніка, пароль і права CREATE DATABASE. Калі ўсталёўшчык ужо стварыў базу, яна захавана для паўторнай спробы."
+  "err.projectDatabaseConnect": "Не ўдалося злучыцца з БД або стварыць яе. Праверце карыстальніка, пароль і права CREATE DATABASE. Калі ўсталёўшчык ужо стварыў базу, яна захавана для паўторнай спробы.",
+  "starters.static.ready": "Лакальны сайт гатовы. Замяніце гэтую старонку файламі свайго праекта.",
+  "starters.php.ready": "PHP працуе. Замяніце гэтую старонку сваёй праграмай.",
+  "starters.node.ready": "Лакальная Node.js-праграма працуе.",
+  "starters.node.listening": "Сервер даступны па адрасе {url}",
+  "starters.laravel.title": "Загатоўка праекта Laravel",
+  "starters.laravel.heading": "Laravel яшчэ не ўсталяваны",
+  "starters.laravel.instructions": "Публічны каталог праекта гатовы. Адкрыйце агляд гэтага праекта ў OSP Control і націсніце «{install}», каб усталяваць праграму.",
+  "starters.laravel.details": "Пры ўсталяванні .osp захаваецца, а гэтая заглушка будзе заменена. Інструкцыі знаходзяцца ў .osp/laravel-readme.md.",
+  "starters.wordpress.title": "Загатоўка праекта WordPress",
+  "starters.wordpress.heading": "WordPress яшчэ не ўсталяваны",
+  "starters.wordpress.instructions": "Публічны каталог праекта гатовы. Адкрыйце агляд гэтага праекта ў OSP Control і націсніце «{install}», каб усталяваць праграму.",
+  "starters.wordpress.details": "Пры ўсталяванні .osp захаваецца, а гэтая заглушка будзе заменена. Інструкцыі знаходзяцца ў .osp/wordpress-readme.md.",
+  "starters.tasks.laravel": "Планавальнік Laravel",
+  "starters.tasks.node": "Запуск праграмы"
 }

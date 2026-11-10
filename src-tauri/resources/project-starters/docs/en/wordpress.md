@@ -2,7 +2,7 @@
 
 The project root is `{base_dir}`; only `public/` is served by OSPanel.
 
-1. Save project settings, then choose **Install WordPress** in the project overview.
+1. Save project settings, then choose **__INSTALL_WORDPRESS__** in the project’s **__OVERVIEW__** tab.
 2. The installer downloads the official stable ZIP, verifies its checksum and extracts
    the WordPress files directly into `public/`. It preserves `.osp` and `.htaccess`.
 3. If a database was selected when creating the project, start that MySQL/MariaDB

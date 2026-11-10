@@ -21,6 +21,7 @@ mod php_releases;
 mod project_activity;
 mod project_database;
 mod project_diagnostics;
+mod project_starter_locale;
 mod project_templates;
 mod project_workspace;
 mod projects;

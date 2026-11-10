@@ -15,19 +15,13 @@ use std::{
 };
 use tauri::ipc::Channel;
 
-const PLACEHOLDER: &str = include_str!("../resources/project-starters/wordpress-placeholder.php");
 fn error(code: &str) -> CommandError {
     CommandError::new(code)
 }
 pub(crate) fn state(dir: &Path) -> Option<String> {
-    let path = child(&child(dir, ".osp").ok()?, "wordpress.json").ok()?;
-    if fs::metadata(&path).ok()?.len() > 4096 {
-        return None;
-    }
-    let value: serde_json::Value = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
-    let status = value["status"].as_str()?;
-    (value["version"] == 1 && matches!(status, "pending" | "installed")).then(|| status.to_string())
+    crate::project_starter_locale::state(dir, "wordpress")
 }
+
 fn prepared(
     root: &Path,
     domain: &str,
@@ -42,7 +36,7 @@ fn prepared(
         .get(Path::new("public/index.php"))
         .and_then(Option::as_deref)
         .ok_or_else(|| error("err.wordpressConflict"))?;
-    if String::from_utf8_lossy(placeholder).replace("\r\n", "\n") != PLACEHOLDER.replace("\r\n", "\n")
+    if !crate::project_starter_locale::matches_placeholder(&dir, "wordpress", placeholder)
         || files.keys().any(|path| {
             !path.starts_with(".osp")
                 && ![Path::new("public"), Path::new("public/index.php"), Path::new("public/.htaccess")]
@@ -390,6 +384,9 @@ mod tests {
         assert!(release(br#"{"offers":[{"response":"upgrade","current":"7.1.4","packages":{"full":"https://example.test/archive.zip"}}]}"#).is_err());
     }
     fn fixture() -> (PathBuf, PathBuf) {
+        localized_fixture("en")
+    }
+    fn localized_fixture(language: &str) -> (PathBuf, PathBuf) {
         let root = std::env::temp_dir().join(format!(
             "osp-wordpress-test-{}-{}",
             std::process::id(),
@@ -398,7 +395,7 @@ mod tests {
         fs::create_dir_all(root.join("home")).unwrap();
         let root = fs::canonicalize(root).unwrap();
         let template = crate::project_templates::template("wordpress").unwrap();
-        let files = template.files("site.test", "Nginx", "PHP-8.3", "", 3000).unwrap();
+        let files = template.files("site.test", "Nginx", "PHP-8.3", "", 3000, language).unwrap();
         let project = template.create(&root.join("home"), "site.test", &files).unwrap();
         (root, fs::canonicalize(project).unwrap())
     }
@@ -411,16 +408,53 @@ mod tests {
                 let app = ensure_dir(stage, "application")?;
                 let public = ensure_dir(&app, "public")?;
                 fs::write(public.join("index.php"), "wordpress")?;
+                fs::write(public.join("readme.html"), "upstream documentation")?;
                 Ok(app)
             })
             .unwrap();
         assert_eq!(fs::read_to_string(project.join(".osp/menu.ini")).unwrap(), "custom menu");
         assert!(project.join("public/.htaccess").is_file());
+        assert_eq!(fs::read_to_string(project.join("public/readme.html")).unwrap(), "upstream documentation");
         assert!(!project.join(".osp/laravel.json").exists());
         assert_eq!(state(&project).as_deref(), Some("installed"));
         assert_eq!(state(Path::new(&result.backup_path)).as_deref(), Some("pending"));
         fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn installs_every_localized_preparation_and_preserves_custom_documentation() {
+        for language in crate::project_starter_locale::LANGUAGES {
+            let (root, project) = localized_fixture(language);
+            let document = project.join(".osp/wordpress-readme.md");
+            fs::write(
+                &document,
+                format!(
+                    "{}\nUser-maintained project instructions.\n",
+                    fs::read_to_string(&document).unwrap()
+                ),
+            )
+            .unwrap();
+            let original = fs::read(&document).unwrap();
+            install(&root, "site.test", project.to_str().unwrap(), &Channel::new(|_| Ok(())), |stage, _| {
+                let app = ensure_dir(stage, "application")?;
+                let public = ensure_dir(&app, "public")?;
+                fs::write(public.join("index.php"), "wordpress")?;
+                fs::write(public.join("readme.html"), "upstream documentation")?;
+                Ok(app)
+            })
+            .unwrap();
+            assert_eq!(fs::read(document).unwrap(), original);
+            let marker: serde_json::Value =
+                serde_json::from_slice(&fs::read(project.join(".osp/wordpress.json")).unwrap()).unwrap();
+            assert_eq!(marker["language"], language);
+            assert_eq!(marker["status"], "installed");
+            assert_eq!(
+                fs::read_to_string(project.join("public/readme.html")).unwrap(),
+                "upstream documentation"
+            );
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
     #[test]
     fn failure_and_user_changes_keep_original_project() {
         let (root, project) = fixture();

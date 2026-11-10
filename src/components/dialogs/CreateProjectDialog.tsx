@@ -35,7 +35,7 @@ export function CreateProjectDialog({
   onRestartPanel: () => void;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [options, setOptions] = useState<ProjectModuleOptions | null>(null);
   const [domain, setDomain] = useState('');
   const [templateId, setTemplateId] = useState<ProjectTemplateId>('empty');
@@ -160,6 +160,7 @@ export function CreateProjectDialog({
 
     try {
       const created = await createProject({
+        language: lang,
         domain: normalizedDomain,
         httpEngine: httpEngine === 'auto' ? undefined : httpEngine,
         phpEngine: phpEngine === 'auto' ? undefined : phpEngine,

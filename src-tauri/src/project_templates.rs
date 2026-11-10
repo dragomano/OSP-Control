@@ -1,4 +1,5 @@
 //! Built-in scaffolds. All paths and commands come from bundled assets; no installers are run.
+use crate::project_starter_locale::StarterLocale;
 use crate::{error::CommandError, paths::external_path, project_workspace::child};
 use serde::Deserialize;
 use std::{
@@ -58,6 +59,7 @@ impl Template {
         php: &str,
         port: u16,
         ini: &str,
+        locale: &StarterLocale,
     ) -> Result<String, CommandError> {
         let text = match source {
             "ini" => return Ok(ini.into()),
@@ -66,17 +68,20 @@ impl Template {
             "css" => include_str!("../resources/project-starters/styles.css"),
             "node-server" => include_str!("../resources/project-starters/server.mjs"),
             "node-package" => include_str!("../resources/project-starters/package.json"),
-            "static-readme" => include_str!("../resources/project-starters/static.md"),
-            "php-readme" => include_str!("../resources/project-starters/php.md"),
-            "laravel-readme" => include_str!("../resources/project-starters/laravel.md"),
+            "static-readme" => locale.document("static")?,
+            "php-readme" => locale.document("php")?,
+            "laravel-readme" => locale.document("laravel")?,
             "laravel-placeholder" => include_str!("../resources/project-starters/laravel-placeholder.php"),
-            "laravel-state" => "{\"version\":1,\"status\":\"pending\"}\n",
-            "wordpress-state" => "{\"version\":1,\"status\":\"pending\"}\n",
+            "laravel-state" | "wordpress-state" => {
+                let placeholder =
+                    self.content(&format!("{}-placeholder", self.id), domain, php, port, ini, locale)?;
+                return Ok(locale.marker(&placeholder)?.replace('\n', "\r\n"));
+            }
             "wordpress-placeholder" => {
                 include_str!("../resources/project-starters/wordpress-placeholder.php")
             }
-            "wordpress-readme" => include_str!("../resources/project-starters/wordpress.md"),
-            "node-readme" => include_str!("../resources/project-starters/node.md"),
+            "wordpress-readme" => locale.document("wordpress")?,
+            "node-readme" => locale.document("node")?,
             "front-controller" => {
                 "# Domain snippet inside the existing server block.\nlocation / {\n    try_files $uri $uri/ /index.php?$query_string;\n}\n"
             }
@@ -90,14 +95,15 @@ impl Template {
                 "# BEGIN WordPress\n<IfModule mod_rewrite.c>\nRewriteEngine On\nRewriteBase /\nRewriteRule ^index\\.php$ - [L]\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule . /index.php [L]\n</IfModule>\n# END WordPress\n"
             }
             "laravel-tasks" => {
-                "\u{feff}[__DOMAIN__]\n\nLaravel scheduler = * * * * * * 0 cmd.exe /c \"osp project {host} & php artisan schedule:run\"\n"
+                "\u{feff}[__DOMAIN__]\n\n__LARAVEL_TASK__ = * * * * * * 0 cmd.exe /c \"osp project {host} & php artisan schedule:run\"\n"
             }
             "node-tasks" => {
-                "\u{feff}[__DOMAIN__]\n\nStart application = * * * * * 1 0 cmd.exe /c \"osp project {host} start\"\n"
+                "\u{feff}[__DOMAIN__]\n\n__NODE_TASK__ = * * * * * 1 0 cmd.exe /c \"osp project {host} start\"\n"
             }
             _ => return Err(CommandError::new("err.projectTemplateInvalid")),
         };
-        Ok(text
+        Ok(locale
+            .render(text)?
             .replace("__DOMAIN__", domain)
             .replace("__PHP_ENGINE__", php)
             .replace("__PORT__", &port.to_string())
@@ -111,7 +117,9 @@ impl Template {
         php: &str,
         node: &str,
         port: u16,
+        language: &str,
     ) -> Result<Vec<(String, String)>, CommandError> {
+        let locale = StarterLocale::new(language)?;
         let mut ini = format!(
             "\u{feff}[{domain}]\r\n\r\nhttp_engine       = {http}\r\nphp_engine        = {php}\r\nnode_engine       = {node}\r\n"
         );
@@ -129,7 +137,7 @@ impl Template {
             .map(|file| {
                 Ok((
                     file.path.replace("{domain}", domain),
-                    self.content(&file.source, domain, php, port, &ini)?,
+                    self.content(&file.source, domain, php, port, &ini, &locale)?,
                 ))
             })
             .collect()
@@ -237,52 +245,89 @@ mod tests {
 
     #[test]
     fn renders_every_bundled_file_with_crlf_and_no_unresolved_markers() {
-        for id in ["empty", "static", "php", "laravel", "wordpress", "node"] {
-            let template = template(id).unwrap();
-            let files = template.files("example.test", "Nginx", "PHP-8.3", "Node-24", 4321).unwrap();
-            let home = Home::new();
-            let created = template.create(&home.0, "example.test", &files).unwrap();
-            for (path, text) in &files {
-                assert!(relative(path), "{id}: {path}");
-                assert!(
-                    !text.contains("__DOMAIN__")
-                        && !text.contains("__PORT__")
-                        && !text.contains("__PHP_ENGINE__")
-                );
-                assert!(!text.contains("\r\r\n"));
-                assert!(!text.replace("\r\n", "").contains('\n'));
-                assert_eq!(fs::read_to_string(created.join(path)).unwrap(), *text);
-            }
-            assert_eq!(fs::read_dir(&home.0).unwrap().count(), 1);
-            let ini = &files[0].1;
-            assert!(ini.starts_with("\u{feff}[example.test]\r\n\r\n"));
-            assert!(crate::project_workspace::parse(ini).unwrap().contains_key("example.test"));
-            if id == "laravel" {
-                assert!(!created.join("app").exists());
-                assert!(created.join("public/index.php").is_file());
-                assert!(ini.contains("project_root      = {base_dir}\r\n"));
-                assert!(ini.contains("web_root          = {base_dir}\\public\r\n"));
-                assert_eq!(crate::laravel_installer::state(&created).as_deref(), Some("pending"));
-                assert!(
-                    fs::read_to_string(created.join(".osp/laravel-readme.md")).unwrap().contains("PHP-8.3")
-                );
-            }
-            if matches!(id, "laravel" | "wordpress") {
-                for engine in ["nginx", "apache", "caddy"] {
-                    assert!(created.join(format!(".osp/{engine}/example.test.conf")).is_file());
+        for language in crate::project_starter_locale::LANGUAGES {
+            for id in ["empty", "static", "php", "laravel", "wordpress", "node"] {
+                let template = template(id).unwrap();
+                let files =
+                    template.files("example.test", "Nginx", "PHP-8.3", "Node-24", 4321, language).unwrap();
+                let home = Home::new();
+                let created = template.create(&home.0, "example.test", &files).unwrap();
+                for (path, text) in &files {
+                    assert!(relative(path), "{id}: {path}");
+                    assert!(!text.contains("__"), "unresolved marker in {language}/{id}/{path}");
+                    assert!(!text.contains("\r\r\n"));
+                    assert!(!text.replace("\r\n", "").contains('\n'));
+                    assert_eq!(fs::read_to_string(created.join(path)).unwrap(), *text);
+                }
+                assert_eq!(fs::read_dir(&home.0).unwrap().count(), 1);
+                let ini = &files[0].1;
+                assert!(ini.starts_with("\u{feff}[example.test]\r\n\r\n"));
+                assert!(crate::project_workspace::parse(ini).unwrap().contains_key("example.test"));
+                if id == "laravel" {
+                    assert!(!created.join("app").exists());
+                    assert!(created.join("public/index.php").is_file());
+                    assert!(ini.contains("project_root      = {base_dir}\r\n"));
+                    assert!(ini.contains("web_root          = {base_dir}\\public\r\n"));
+                    assert_eq!(crate::laravel_installer::state(&created).as_deref(), Some("pending"));
+                    assert!(
+                        fs::read_to_string(created.join(".osp/laravel-readme.md"))
+                            .unwrap()
+                            .contains("PHP-8.3")
+                    );
+                }
+                if matches!(id, "laravel" | "wordpress") {
+                    let placeholder = fs::read(created.join("public/index.php")).unwrap();
+                    assert!(crate::project_starter_locale::matches_placeholder(&created, id, &placeholder));
+                    assert!(!crate::project_starter_locale::matches_placeholder(
+                        &created,
+                        id,
+                        b"user-edited file"
+                    ));
+                    let marker: serde_json::Value =
+                        serde_json::from_slice(&fs::read(created.join(format!(".osp/{id}.json"))).unwrap())
+                            .unwrap();
+                    assert_eq!(marker["language"], language);
+                    assert_eq!(marker["version"], 2);
+                    assert!(
+                        String::from_utf8(placeholder).unwrap().contains(&format!("lang=\"{language}\""))
+                    );
+                    for engine in ["nginx", "apache", "caddy"] {
+                        assert!(created.join(format!(".osp/{engine}/example.test.conf")).is_file());
+                    }
+                }
+                if id == "node" {
+                    assert!(ini.contains("backend_port      = 4321\r\n"));
+                    assert!(
+                        fs::read_to_string(created.join("server.mjs")).unwrap().contains("Number('4321')")
+                    );
+                    let package = fs::read_to_string(created.join("package.json")).unwrap();
+                    let package: serde_json::Value = serde_json::from_str(&package).unwrap();
+                    assert_eq!(package["scripts"]["start"], "node server.mjs");
+                }
+                if matches!(id, "node" | "laravel") {
+                    let task = fs::read_to_string(created.join(".osp/tasks.ini")).unwrap();
+                    assert!(task.contains(" 0 cmd.exe"));
                 }
             }
-            if id == "node" {
-                assert!(ini.contains("backend_port      = 4321\r\n"));
-                assert!(fs::read_to_string(created.join("server.mjs")).unwrap().contains("Number('4321')"));
-                let package = fs::read_to_string(created.join("package.json")).unwrap();
-                let package: serde_json::Value = serde_json::from_str(&package).unwrap();
-                assert_eq!(package["scripts"]["start"], "node server.mjs");
-            }
-            if matches!(id, "node" | "laravel") {
-                let task = fs::read_to_string(created.join(".osp/tasks.ini")).unwrap();
-                assert!(task.contains(" 0 cmd.exe"));
-            }
+        }
+    }
+
+    #[test]
+    fn starter_documents_and_pages_use_the_requested_language() {
+        for (language, heading, ready) in [
+            ("en", "# Local static site", "Your local site is ready."),
+            ("ru", "# Локальный статический сайт", "Локальный сайт готов."),
+            ("uk", "# Локальний статичний сайт", "Локальний сайт готовий."),
+            ("be", "# Лакальны статычны сайт", "Лакальны сайт гатовы."),
+            ("es", "# Sitio estático local", "Tu sitio local está listo."),
+        ] {
+            let files =
+                template("static").unwrap().files("site.test", "Nginx", "", "", 3000, language).unwrap();
+            let file = |name: &str| &files.iter().find(|(path, _)| path == name).unwrap().1;
+            assert!(file("README.md").starts_with(heading));
+            assert!(file("README.md").contains("site.test"));
+            assert!(file("public/index.html").contains(ready));
+            assert!(file("public/index.html").contains(&format!("lang=\"{language}\"")));
         }
     }
 
@@ -301,8 +346,10 @@ mod tests {
         assert!(publish(&home.0, "../escape", &[], &[]).is_err());
         fs::create_dir(home.0.join("example.test")).unwrap();
         fs::write(home.0.join("example.test/keep.txt"), "original").unwrap();
+        fs::write(home.0.join("example.test/README.md"), "user documentation").unwrap();
         assert_eq!(publish(&home.0, "example.test", &[], &[]).unwrap_err().code, "err.projectExists");
         assert_eq!(fs::read_to_string(home.0.join("example.test/keep.txt")).unwrap(), "original");
+        assert_eq!(fs::read_to_string(home.0.join("example.test/README.md")).unwrap(), "user documentation");
         assert_eq!(fs::read_dir(&home.0).unwrap().count(), 1);
     }
 

@@ -400,13 +400,25 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
     );
   });
 
-  it('passes the template and backend port to native project creation', async () => {
+  it('passes the template, language and backend port to native project creation', async () => {
     invokeMock.mockResolvedValue({});
-    await createProject({ domain: 'CAFÉ.test', template: 'node', nodeEngine: 'Node-24', backendPort: 4321 });
+    await createProject({
+      domain: 'CAFÉ.test',
+      language: 'uk',
+      template: 'node',
+      nodeEngine: 'Node-24',
+      backendPort: 4321,
+    });
     expect(invokeMock).toHaveBeenLastCalledWith(
       'create_project',
       expect.objectContaining({
-        params: { domain: 'xn--caf-dma.test', template: 'node', nodeEngine: 'Node-24', backendPort: 4321 },
+        params: {
+          domain: 'xn--caf-dma.test',
+          language: 'uk',
+          template: 'node',
+          nodeEngine: 'Node-24',
+          backendPort: 4321,
+        },
       }),
     );
   });

@@ -1193,5 +1193,19 @@
   "err.projectDatabaseModule": "Falta el módulo de base de datos o su cliente de consola. Instala el módulo seleccionado e inténtalo de nuevo.",
   "err.projectDatabaseStopped": "Inicia {module} en OSPanel antes de instalar la aplicación.",
   "err.projectDatabaseExists": "La base de datos {name} ya existe y no se ha modificado. Crea otra plantilla con un nombre de base de datos diferente.",
-  "err.projectDatabaseConnect": "No se pudo conectar o crear la base de datos. Revisa el usuario, la contraseña y el permiso CREATE DATABASE. Si este instalador ya creó la base, se conserva para volver a intentarlo."
+  "err.projectDatabaseConnect": "No se pudo conectar o crear la base de datos. Revisa el usuario, la contraseña y el permiso CREATE DATABASE. Si este instalador ya creó la base, se conserva para volver a intentarlo.",
+  "starters.static.ready": "Tu sitio local está listo. Sustituye esta página por los archivos de tu proyecto.",
+  "starters.php.ready": "PHP está funcionando. Sustituye esta página por tu aplicación.",
+  "starters.node.ready": "La aplicación Node.js local está funcionando.",
+  "starters.node.listening": "Servidor disponible en {url}",
+  "starters.laravel.title": "Plantilla inicial del proyecto Laravel",
+  "starters.laravel.heading": "Laravel aún no está instalado",
+  "starters.laravel.instructions": "El directorio público del proyecto está listo. Abre el resumen de este proyecto en OSP Control y pulsa «{install}» para instalar la aplicación.",
+  "starters.laravel.details": "La instalación conserva .osp y reemplaza esta página provisional. Las instrucciones están en .osp/laravel-readme.md.",
+  "starters.wordpress.title": "Plantilla inicial del proyecto WordPress",
+  "starters.wordpress.heading": "WordPress aún no está instalado",
+  "starters.wordpress.instructions": "El directorio público del proyecto está listo. Abre el resumen de este proyecto en OSP Control y pulsa «{install}» para instalar la aplicación.",
+  "starters.wordpress.details": "La instalación conserva .osp y reemplaza esta página provisional. Las instrucciones están en .osp/wordpress-readme.md.",
+  "starters.tasks.laravel": "Planificador de Laravel",
+  "starters.tasks.node": "Iniciar aplicación"
 }

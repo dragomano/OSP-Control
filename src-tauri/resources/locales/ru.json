@@ -1198,5 +1198,19 @@
   "err.projectDatabaseModule": "Не найден модуль БД или его консольный клиент. Установите выбранный модуль и повторите попытку.",
   "err.projectDatabaseStopped": "Перед установкой приложения запустите {module} в OSPanel.",
   "err.projectDatabaseExists": "База {name} уже существует и не изменена. Создайте новую заготовку с другим именем базы.",
-  "err.projectDatabaseConnect": "Не удалось подключиться к БД или создать её. Проверьте пользователя, пароль и право CREATE DATABASE. Если установщик уже создал базу, она сохранена для повторной попытки."
+  "err.projectDatabaseConnect": "Не удалось подключиться к БД или создать её. Проверьте пользователя, пароль и право CREATE DATABASE. Если установщик уже создал базу, она сохранена для повторной попытки.",
+  "starters.static.ready": "Локальный сайт готов. Замените эту страницу файлами своего проекта.",
+  "starters.php.ready": "PHP работает. Замените эту страницу своим приложением.",
+  "starters.node.ready": "Локальное Node.js-приложение работает.",
+  "starters.node.listening": "Сервер доступен по адресу {url}",
+  "starters.laravel.title": "Заготовка проекта Laravel",
+  "starters.laravel.heading": "Laravel пока не установлен",
+  "starters.laravel.instructions": "Публичный каталог проекта готов. Откройте обзор этого проекта в OSP Control и нажмите «{install}», чтобы установить приложение.",
+  "starters.laravel.details": "При установке .osp сохранится, а эта заглушка будет заменена. Инструкции находятся в .osp/laravel-readme.md.",
+  "starters.wordpress.title": "Заготовка проекта WordPress",
+  "starters.wordpress.heading": "WordPress пока не установлен",
+  "starters.wordpress.instructions": "Публичный каталог проекта готов. Откройте обзор этого проекта в OSP Control и нажмите «{install}», чтобы установить приложение.",
+  "starters.wordpress.details": "При установке .osp сохранится, а эта заглушка будет заменена. Инструкции находятся в .osp/wordpress-readme.md.",
+  "starters.tasks.laravel": "Планировщик Laravel",
+  "starters.tasks.node": "Запуск приложения"
 }
