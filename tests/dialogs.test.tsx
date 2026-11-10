@@ -340,6 +340,7 @@ describe('CreateProjectDialog', () => {
       ),
     );
   });
+
   it('limits WordPress to MySQL/MariaDB and submits database credentials', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue({
       ...moduleOptions,
@@ -375,6 +376,7 @@ describe('CreateProjectDialog', () => {
       ),
     );
   });
+
   it('allows WordPress preparation without installed database modules', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
     renderDialog();

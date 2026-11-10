@@ -209,9 +209,8 @@ fn zip_add_dir(
     Ok(files)
 }
 
-// Unpacking an archive into a directory: enclosed_name() rejects absolute paths and
-// "..", and the first entry component must match the source directory (config/ or
-// <domain>/) — a foreign archive cannot write anything past the target.
+// Archive entries must have an enclosed relative path under config/ or <domain>/.
+// This is a lexical check; existing symlinks or junctions in the destination are not checked here.
 fn unzip_to(archive_path: &Path, dst: &Path, top: &str) -> Result<(), CommandError> {
     let file = fs::File::open(archive_path)?;
     let mut archive = zip::ZipArchive::new(file).map_err(zip_error)?;
@@ -320,8 +319,8 @@ pub fn list_backups(custom_path: Option<String>) -> Result<Vec<BackupEntry>, Com
         }
     }
 
-    // A same-named directory (leftover of the old format) is not shown when a file with
-    // the same id already exists — the file is newer and its restore takes priority.
+    // A same-named directory (leftover of the old format) is hidden when an archive
+    // with the same id exists: archive-based restore takes priority, regardless of timestamps.
     let mut list = file_entries;
     for dir in dir_entries {
         if !list.iter().any(|item| item.id == dir.id) {
@@ -495,8 +494,8 @@ pub fn restore_project_backup(id: String, custom_path: Option<String>) -> Result
         zip_dir(&project, &domain, &backups.join(format!("{}.zip", safety_id)), PROJECT_BACKUP_EXCLUDES)?;
     }
 
-    // Unpacking into home/: entries are <domain>/..., files merge on top of the
-    // existing ones — foreign and uncommitted changes are not silently overwritten.
+    // Extract <domain>/... into home/, replacing matching files regardless of Git state.
+    // The safety archive above preserves the previous files, except excluded dependencies.
     unzip_to(&archive, &home, &domain)?;
     Ok(())
 }

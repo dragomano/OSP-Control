@@ -166,13 +166,10 @@ function pluralCandidates(lang: string, count: number): string[] {
 
 export type Plural = (key: string, count: number, vars?: Record<string, string | number>) => string;
 
-// The form is looked up in the own dictionary first: substituting a Russian form into a
-// translation in another language is exactly the defect that silently ruins a locale file
-// (a stray wrong-number Russian form appearing in German). That is why, for an incomplete form family, only the
-// neutral form (many/other) is taken: "1 Datei" in place of "5 Dateien" at least stays in
-// its own language, and the base key beats a singular form with the wrong number. The
-// English base is connected only for a key missing from the own dictionary entirely —
-// that way legacy dictionaries without forms keep working.
+// Search the own dictionary using pluralCandidates, then its unsuffixed key, before
+// consulting the translator's fallback dictionary. Incomplete families may use another
+// non-singular category of the same language before neutral many/other forms.
+// An own unsuffixed value also keeps dictionaries without plural families usable.
 export function makePlural(t: Translator, lang: string, own?: Dict): Plural {
   return (key, count, vars) => {
     const allVars = { ...vars, count };
@@ -214,9 +211,8 @@ export function requiredPluralSuffixes(lang: string): string[] {
 // <family>.<suffix> for the six CLDR suffixes; the family itself may contain dots.
 const PLURAL_FORM_RE = /^(.+)\.(zero|one|two|few|many|other)$/;
 
-// Plural families with gaps: the locale file is loaded by the user, and a holey translation
-// would otherwise only show up as a stray Russian form in the middle of a German UI. What
-// counts as a hole is decided by the language itself (requiredPluralSuffixes). A family means
+// Report gaps in user-supplied plural families before fallback hides a missing form.
+// Required categories come from the dictionary's language (requiredPluralSuffixes). A family means
 // two or more suffixes sharing a base: a lone "services.group.other" is a regular section key,
 // not a word form, and demanding .one from it would be a false alarm.
 export function missingPluralForms(dict: Dict, lang: string): string[] {
@@ -261,7 +257,7 @@ export type LocaleIssues = {
   incompletePlurals: string[];
 };
 
-// {var} names of one value, sorted: a set comparison, order of occurrence is irrelevant.
+// Sorted placeholder names retain duplicates: compare both names and occurrence counts, not order.
 const placeholderNames = (value: string): string[] =>
   [...value.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
@@ -375,8 +371,8 @@ export function systemLangs(): string[] {
   return list.filter((code) => typeof code === 'string' && code.length > 0);
 }
 
-// System language → code from the dictionaries: ru_RU and ru-BE both give ru. The region
-// is dropped deliberately — dictionaries are bilingual, there are no variants like pt_BR in them.
+// Prefer an exact available language tag (normalizing the input separator), then
+// its primary language: ru-BE matches ru only when no exact regional dictionary exists.
 export function matchLang(tag: string, available: string[]): string | undefined {
   const normalized = tag.replace('_', '-');
   const exact = available.find((code) => code.toLowerCase() === normalized.toLowerCase());
@@ -388,9 +384,8 @@ export function matchLang(tag: string, available: string[]): string | undefined 
   return available.find((code) => code.toLowerCase() === primary);
 }
 
-// Initial language: the first match from OS preferences, otherwise the English base.
-// Returns null when there are no matches — the caller decides how to react
-// (a Russian system without a Russian dictionary must not silently get an English UI).
+// Return the first available match in system preference order, or null.
+// The caller, not this function, chooses the fallback when no dictionary matches.
 export function preferredLang(available: string[]): string | null {
   for (const tag of systemLangs()) {
     const hit = matchLang(tag, available);

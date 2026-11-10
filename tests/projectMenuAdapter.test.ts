@@ -40,6 +40,7 @@ describe('project menu persistence', () => {
     item.fields.caption = 'Changed reference';
     expect((await readProjectMenu(project)).items[0].fields.caption).toBe('Tools');
   });
+
   it('routes native requests to project commands with the owning folder and expected revision', async () => {
     flag().__TAURI_INTERNALS__ = {};
     vi.mocked(invoke).mockResolvedValue({ items: [], revision: 'version' });
@@ -59,6 +60,7 @@ describe('project menu persistence', () => {
       }),
     );
   });
+
   it('provides project domain categories and bounded project-specific item IDs', () => {
     expect(menuCategories(menuDraft([]), ['projects\\menu.test', 'projects\\api.menu.test'])).toEqual([
       '',

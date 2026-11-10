@@ -106,6 +106,7 @@ describe('module profiles window', () => {
     expect(panel.saveProfileFile).toHaveBeenCalledWith(moduleName, 'default', 'settings.ini', source, draft);
     expect(onBusyChange.mock.calls).toEqual([[true], [false]]);
   });
+
   it('guards closing and switching files with unsaved changes', async () => {
     const { onClose } = setup();
     const editor = await screen.findByRole('textbox', {
@@ -121,6 +122,7 @@ describe('module profiles window', () => {
     expect(panel.readProfileFile).toHaveBeenCalledTimes(1);
     expect(editor).toHaveValue(`${source}extra = yes\n`);
   });
+
   it('creates an inactive profile and prevents case-insensitive duplicate names', async () => {
     setup();
     await screen.findByRole('textbox', { name: t('profiles.fileContent', { file: 'settings.ini' }) });
@@ -144,6 +146,7 @@ describe('module profiles window', () => {
     );
     expect(await screen.findByRole('status')).toHaveTextContent(t('profiles.created'));
   });
+
   it('does not announce activation when restarting or verification fails', async () => {
     const { onActivate } = setup();
     await screen.findByRole('textbox', { name: t('profiles.fileContent', { file: 'settings.ini' }) });

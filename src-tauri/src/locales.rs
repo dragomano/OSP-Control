@@ -8,7 +8,8 @@ use serde::Serialize;
 use crate::error::CommandError;
 use crate::paths::is_valid_lang;
 
-// Embedded translations — the fallback when files in locales/ are missing or corrupted.
+// Embedded translations — used when files are absent, unreadable, or file loading is disabled.
+// Readable file contents are returned without JSON validation; callers handle malformed data.
 // The base language is English (also for unknown locale codes), as in src/i18n.ts.
 const LOCALE_EN: &str = include_str!("../resources/locales/en.json");
 const LOCALE_RU: &str = include_str!("../resources/locales/ru.json");
@@ -52,8 +53,8 @@ fn locale_display_name_in(dir: Option<&Path>, code: &str) -> String {
         return name;
     }
 
-    // Only the embedded dictionaries carry a name; an unknown code (a user file with
-    // its own locale) has nothing to take a name from and falls back to upper case.
+    // If the user file provided no usable name, try an embedded dictionary.
+    // Unknown codes without a usable file name fall back to upper case.
     let embedded = match code {
         "en" => Some(LOCALE_EN),
         "ru" => Some(LOCALE_RU),

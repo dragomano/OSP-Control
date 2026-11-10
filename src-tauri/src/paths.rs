@@ -47,7 +47,8 @@ pub(crate) fn within_installation(canonical: &Path, custom_path: Option<&str>) -
         .any(|root| canonical.starts_with(&root))
 }
 
-// Shared explorer spawn for an already-verified path (whitelisted up the call stack).
+// Construct a child command without opening a console window on Windows.
+// Callers remain responsible for validating the program and its arguments.
 pub(crate) fn hidden_command<S: AsRef<OsStr>>(program: S) -> Command {
     let mut command = Command::new(program);
     #[cfg(windows)]

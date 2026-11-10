@@ -133,7 +133,7 @@ describe('Backups list', () => {
     expect(screen.getByText('Database: MySQL-8.0')).toBeInTheDocument();
     expect(screen.getByText('Project: my-shop.test')).toBeInTheDocument();
     expect(screen.getByText('OSPanel menu', { selector: '.backup-kind' })).toBeInTheDocument();
-    // 1_700_000_000 is 2023-11-14 in any timezone.
+    // The fixture timestamp remains in 2023 across time zones; its exact calendar day may vary.
     expect(screen.getAllByText(/2023/)).toHaveLength(4);
     expect(screen.getByText('1 file · 1024 B')).toBeInTheDocument();
     expect(screen.getByText('3 files · 4.0 KB')).toBeInTheDocument();

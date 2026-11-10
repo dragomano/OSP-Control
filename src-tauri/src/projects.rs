@@ -730,7 +730,7 @@ fn collect_project_engines(root: &Path) -> Vec<String> {
     engines
 }
 
-// Matching a project.ini value against a module from the `osp.bat status` output:
+// Match a project.ini engine against the available modules supplied by the panel API:
 // first the full name, then the prefix ("Apache" → "Apache_2.4"),
 // finally the family "PHP-8.2" → "PHP_x".
 fn find_module_for_engine<'a>(engine: &str, services: &'a [Service]) -> Option<&'a Service> {

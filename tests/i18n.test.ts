@@ -143,7 +143,7 @@ describe('pluralSuffix', () => {
     expect(pluralSuffix('uk', 1)).toBe('one');
     for (const count of [2, 3, 4, 22]) expect(pluralSuffix('uk', count)).toBe('few');
     for (const count of [0, 5, 11]) expect(pluralSuffix('uk', count)).toBe('many');
-    // Polish differs from Russian and Ukrainian exactly at 21 (one vs many).
+    // At 21 Polish uses many, while Russian and Ukrainian use one.
     expect(pluralSuffix('pl', 21)).toBe('many');
     expect(pluralSuffix('pl', 2)).toBe('few');
   });
@@ -195,7 +195,7 @@ describe('makePlural', () => {
     expect(plural('missing.key', 2)).toBe('missing.key');
   });
 
-  // The ru base is a placeholder dictionary: without own it would put Russian forms into any translation.
+  // Own plural candidates must win before the translator consults the English fallback dictionary.
   it('never borrows a plural form from the fallback dictionary', () => {
     const de: Record<string, string> = {
       'item.many': '{count} Dateien',
@@ -203,7 +203,7 @@ describe('makePlural', () => {
     };
     const deT = makeTranslator(de, embeddedDict(BASE_LANG));
     const dePlural = makePlural(deT, 'de', de);
-    // German has no .few — a stray Russian plural form must not be returned.
+    // German uses one/other; the incomplete own family still supplies a German value.
     expect(dePlural('item', 2)).toBe('2 Dateien');
     expect(dePlural('item', 1)).toBe('1 Dateien');
     // The key is in neither dictionary — the base is returned as is.

@@ -7,6 +7,7 @@ afterEach(() => {
   delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   vi.clearAllMocks();
 });
+
 it('passes both owning and selected domains to native diagnostics and validates saved task data', async () => {
   (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
   vi.mocked(invoke).mockImplementation(async (command) =>

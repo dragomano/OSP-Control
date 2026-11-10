@@ -43,8 +43,8 @@ const projectRow = async (domain: string) => {
   return row;
 };
 
-// App renders without mocks: jsdom has no __TAURI_INTERNALS__, and the
-// ospanel.ts adapter takes the browser branch with demo data on its own.
+// With no __TAURI_INTERNALS__ in jsdom, most adapter calls use browser demo data.
+// Discovery and renaming are partially mocked above to exercise failure and update flows.
 describe('App (browser mode: adapter serves mocks)', () => {
   beforeEach(() => {
     localStorage.clear();

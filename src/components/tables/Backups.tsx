@@ -76,7 +76,7 @@ export function Backups({
   const disabled = busy || blocked;
   const visibleBackups = backups.filter((item) => filter === 'all' || item.kind === filter);
   // Subjects for new backups: running DBMS with a supported engine
-  // (MySQL/MariaDB/PostgreSQL — prefixes as in db_engine in main.rs) and projects.
+  // (MySQL/MariaDB/PostgreSQL — prefixes as in db_engine in src-tauri/src/db.rs) and projects.
   const dbModules = useMemo(
     () =>
       services

@@ -125,6 +125,7 @@ it('does not automatically check or install without the startup preference', () 
   expect(mocks.install).not.toHaveBeenCalled();
   expect(screen.queryByText('Up to date')).not.toBeInTheDocument();
 });
+
 it.each([null, 'err.phpUnsupported'])(
   'does not render an update strip without an available version (error: %s)',
   async (error) => {
@@ -138,6 +139,7 @@ it.each([null, 'err.phpUnsupported'])(
     expect(screen.queryByRole('button', { name: 'Update' })).not.toBeInTheDocument();
   },
 );
+
 it.each(['list', 'cards'] as const)(
   'shows the update strip below only the matching service in %s',
   async (layout) => {
@@ -172,6 +174,7 @@ it.each(['list', 'cards'] as const)(
     await waitFor(() => expect(onBusy).toHaveBeenLastCalledWith(false));
   },
 );
+
 it('replaces the update offer with the result without another catalog request', async () => {
   setup();
   fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
@@ -183,6 +186,7 @@ it('replaces the update offer with the result without another catalog request', 
   expect(mocks.check).toHaveBeenCalledOnce();
   expect(screen.queryByText('Up to date')).not.toBeInTheDocument();
 });
+
 it('prevents duplicate installation of the same module', async () => {
   let finish!: (version: string) => void;
   mocks.install.mockReturnValue(
@@ -203,6 +207,7 @@ it('prevents duplicate installation of the same module', async () => {
   expect(refresh).toHaveBeenCalledOnce();
   expect(await screen.findByText('PHP-8.4 updated and verified')).toBeInTheDocument();
 });
+
 it('discards an old check result after the installation path is reset', async () => {
   let finish!: (value: ModuleUpdate[]) => void;
   mocks.check.mockReturnValue(
@@ -216,6 +221,7 @@ it('discards an old check result after the installation path is reset', async ()
   await act(async () => finish([update]));
   expect(screen.queryByRole('button', { name: 'Update' })).not.toBeInTheDocument();
 });
+
 it('offers recovery even if catalog lookup failed', async () => {
   mocks.check.mockResolvedValue([{ ...update, available: null, error: 'err.phpCatalog', recovery: true }]);
   setup();
@@ -224,12 +230,14 @@ it('offers recovery even if catalog lookup failed', async () => {
   await waitFor(() => expect(mocks.recover).toHaveBeenCalledExactlyOnceWith('PHP-8.4', null));
   expect(mocks.install).not.toHaveBeenCalled();
 });
+
 it('blocks installation during another service operation', async () => {
   setup(true);
   fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Update' }));
   expect(mocks.install).not.toHaveBeenCalled();
 });
+
 it('reports check failures without claiming the module is current', async () => {
   mocks.check.mockRejectedValue(new Error('err.phpCatalog'));
   setup();
@@ -237,6 +245,7 @@ it('reports check failures without claiming the module is current', async () => 
   expect(await screen.findByText('The official PHP catalog is invalid')).toBeInTheDocument();
   expect(screen.queryByText('Up to date')).not.toBeInTheDocument();
 });
+
 it('reports lookup failures beside the affected module with the original error details', async () => {
   mocks.check.mockResolvedValue(
     ['PHP-8.4', 'PHP-8.3'].map((name) => ({

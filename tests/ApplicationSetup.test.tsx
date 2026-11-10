@@ -44,6 +44,7 @@ describe('Laravel setup', () => {
     ).toBeInTheDocument();
     expect(installProjectLaravel).not.toHaveBeenCalled();
   });
+
   it('shows installation failures and keeps the action available for retry', async () => {
     vi.mocked(installProjectLaravel).mockRejectedValue(new Error('err.laravelConflict'));
     const { onInstalled, onBusyChange } = setup();
@@ -78,6 +79,7 @@ describe('WordPress setup', () => {
     expect(screen.queryByRole('button', { name: 'Install WordPress' })).not.toBeInTheDocument();
     expect(onBusyChange.mock.calls).toEqual([[true], [false]]);
   });
+
   it('shows an actionable error and enables retry after a failed checksum', async () => {
     vi.mocked(installProjectWordPress).mockRejectedValue(new Error('err.wordpressChecksum'));
     const { onInstalled } = setup(false, 'wordpress');

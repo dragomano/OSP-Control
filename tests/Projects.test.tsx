@@ -175,6 +175,7 @@ describe('Projects browser opening', () => {
     expect(screen.getByText('my-shop.test')).toBeInTheDocument();
     expect(screen.getByText('New project')).toBeInTheDocument();
   });
+
   it('reports a blocked popup instead of showing the success notification', async () => {
     const notify = vi.fn<Notify>();
     mocks.openInBrowser.mockRejectedValue(new Error('err.popupBlocked'));

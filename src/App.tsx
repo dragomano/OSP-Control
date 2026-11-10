@@ -246,7 +246,7 @@ function App() {
     }, 2600);
   }, []);
 
-  // No timer survives the app unmount (matters in tests with fake timers).
+  // Clear the toast timer on unmount, including in tests with fake timers.
   useEffect(
     () => () => {
       if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
@@ -472,7 +472,7 @@ function App() {
         setSnapshot((current) => (current ? { ...current, panelRunning: online } : current));
         if (previous !== null && previous !== online) void loadSnapshot();
       } catch {
-        // A failed status poll is not announced with a toast — the next successful one refreshes the snapshot.
+        // Keep the last known status without a toast; a later status change reloads the snapshot.
       }
     };
 
@@ -487,7 +487,7 @@ function App() {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-    // Once at startup; loadSnapshot in the closure is current at call time.
+    // Install once on mount; this poll retains the initial loadSnapshot callback.
   }, []);
 
   // The log tail loading lives in App so the "Logs" badge and the page show the same data.
@@ -616,7 +616,7 @@ function App() {
         settingsStorage.setItem('ospanel.lang', fallback);
       }
     } catch {
-      /* keeping the embedded ru/en */
+      /* Keep the current locale list, initially populated from all embedded dictionaries. */
     }
   }, []);
 

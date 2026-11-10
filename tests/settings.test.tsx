@@ -320,6 +320,7 @@ describe('module update source editor', () => {
     expect(saved.php).toEqual(['https://mirror.example/php/', 'https://github.com/team/php/releases']);
     expect(saved.apache).toEqual([]);
   });
+
   it('validates every list and preserves persisted values when cancelled', () => {
     renderSettings({ tab: 'updates' });
     fireEvent.click(screen.getByRole('button', { name: 'Configure PHP sources' }));

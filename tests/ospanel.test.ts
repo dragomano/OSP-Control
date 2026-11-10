@@ -104,6 +104,7 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
     expect((await refreshService('Apache', 'start')).status).toBe('running');
     await expect(refreshService('Nope', 'restart')).rejects.toThrow('err.serviceNotFound');
   });
+
   it('returns the active profile after activation and preserves it through service actions', async () => {
     const name = 'Apache',
       profile = 'profile-label-test';

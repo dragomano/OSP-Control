@@ -9,6 +9,7 @@ describe('module source validation', () => {
     ]);
     expect(sourceError('')).toBeNull();
   });
+
   it('rejects equivalent duplicates, credentials, invalid schemes and unsupported ports', () => {
     expect(sourceError('https://example.org\nhttps://example.org/')).toEqual({
       key: 'settings.sourcesDuplicate',

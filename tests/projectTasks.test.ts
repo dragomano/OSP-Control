@@ -38,6 +38,7 @@ describe('project task definitions', () => {
     });
     expect(renderProjectTasks(source, doc.tasks)).toBe(source);
   });
+
   it('changes one row, preserves the other domain and retains surrounding formatting on rename', () => {
     const tasks = parseProjectTasks(source).tasks;
     tasks[0] = { ...tasks[0], name: 'Compile assets' };
@@ -49,6 +50,7 @@ describe('project task definitions', () => {
       source.slice(source.indexOf('[api.shop.test]')),
     );
   });
+
   it('adds to existing and new domain sections and deletes rows without dropping comments', () => {
     const tasks = parseProjectTasks(source).tasks;
     const additions = [
@@ -72,6 +74,7 @@ describe('project task definitions', () => {
     expect(renderProjectTasks('', [newTask()])).toBe('[shop.test]\nNew action = 0 0 * * * * 0 echo {host}\n');
     expect(parseProjectTasks(renderProjectTasks('[shop.test]', [newTask()])).tasks).toHaveLength(1);
   });
+
   it('rejects ambiguous files and invalid changes instead of losing unrecognized content', () => {
     for (const input of [
       'task = * * * * * * 1 echo\n',
@@ -94,6 +97,7 @@ describe('project task definitions', () => {
     expect(() => renderProjectTasks('', [newTask(), newTask({ id: 'other' })])).toThrow();
     expect(taskErrors(newTask({ command: '' }), [])).toContain('command');
   });
+
   it('validates OSPanel numeric cron syntax and Monday to Sunday numbering', () => {
     for (const value of ['*', '0', '59', '1,3,5', '0-59/2', '*/5', '1-10/3,20-30/2'])
       expect(validTaskCronField(value, 0)).toBe(true);
@@ -107,6 +111,7 @@ describe('project task definitions', () => {
     expect(uniqueTaskName([newTask()], 'shop.test', 'New action')).toBe('New action (2)');
     expect(uniqueTaskName([newTask()], 'api.shop.test', 'New action')).toBe('New action');
   });
+
   it.skipIf(!process.env.OSP_CONTROL_PROJECT_TASK_SAMPLE)(
     'reads the installed sample without writing to it',
     () => {

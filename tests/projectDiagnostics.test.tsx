@@ -98,6 +98,7 @@ describe('project diagnostics', () => {
     expect(defaults.onRestart).not.toHaveBeenCalled();
     expect(mocks.openFileExternally).not.toHaveBeenCalled();
   });
+
   it('ignores a late response after the domain changes and marks previous results stale after a save', async () => {
     let finish: (report: ProjectDiagnosticReport) => void = () => {};
     mocks.diagnoseProject.mockImplementationOnce(
@@ -117,6 +118,7 @@ describe('project diagnostics', () => {
     expect(screen.getByText(t('diag.stale'))).toBeInTheDocument();
     expect(mocks.diagnoseProject).toHaveBeenCalledTimes(2);
   });
+
   it('shows failed requests and keeps unknown checks distinct from successful checks', async () => {
     mocks.diagnoseProject.mockRejectedValueOnce(new Error('err.accessDenied'));
     render(view());
@@ -130,6 +132,7 @@ describe('project diagnostics', () => {
     fireEvent.click(screen.getByRole('button', { name: t('diag.run') }));
     await screen.findByText(t('diag.summary.skipped'));
   });
+
   it('explains saved-state checks and prevents probing a domain not yet saved', () => {
     const ui = render(view({ dirty: true }));
     expect(screen.getByText(t('diag.draft'))).toBeInTheDocument();
@@ -137,6 +140,7 @@ describe('project diagnostics', () => {
     expect(screen.getByRole('button', { name: t('diag.run') })).toBeDisabled();
     expect(screen.getByText(t('diag.saveDomain'))).toBeInTheDocument();
   });
+
   it('validates only the selected domain’s task fields and preserves skipped counts', () => {
     const source =
       '[shop.test]\nValid = * * * * * * 0 echo {host}\n[api.shop.test]\nInvalid = 99 * * * * -1 1 echo api\n';

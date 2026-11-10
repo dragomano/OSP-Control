@@ -20,6 +20,7 @@ describe('hosts document editing', () => {
     expect(parsed.entries[0]).toMatchObject({ managed: true, hosts: 'app.test www.app.test' });
     expect(parsed.entries[2]).toMatchObject({ active: false, comment: 'Disabled' });
   });
+
   it('patches only the chosen line and preserves prose, spacing and managed bytes elsewhere', () => {
     const entry = parseHosts(source).entries[1];
     const next = changeHostsEntry(source, entry.line, { ...entry, comment: 'Updated' });
@@ -29,12 +30,14 @@ describe('hosts document editing', () => {
     );
     expect(next).toContain('api.test\t# Updated');
   });
+
   it('toggles a commented mapping without losing its comment or neighboring lines', () => {
     const entry = parseHosts(source).entries[1];
     const disabled = toggleHostsEntry(source, entry);
     expect(disabled).toContain('  # 127.0.0.1   api.test   # Keep spacing');
     expect(toggleHostsEntry(disabled, parseHosts(disabled).entries[1])).toBe(source);
   });
+
   it('appends a whole block outside OSPanel and keeps comments and disabled mappings', () => {
     const block = '# Group\r\n127.0.0.1 shop.test www.shop.test\r\n# 127.0.0.1 archive.test';
     const next = appendHostsBlock(source.trimEnd(), block);
@@ -44,6 +47,7 @@ describe('hosts document editing', () => {
     expect(hostsBlockHasMarkers(block)).toBe(false);
     expect(hostsBlockHasMarkers(source)).toBe(true);
   });
+
   it('detects address and hostname errors, repeated aliases and unbalanced markers', () => {
     for (const [text, code] of [
       ['999.0.0.1 broken.test', 'err.hostsIp'],
@@ -54,6 +58,7 @@ describe('hosts document editing', () => {
     ])
       expect(parseHosts(text).errors.some((issue) => issue.code === code)).toBe(true);
   });
+
   it('distinguishes conflicting addresses from duplicate mappings and dual-stack entries', () => {
     expect(parseHosts('127.0.0.1 api.test\n127.0.0.2 API.TEST.').errors[0].code).toBe(
       'err.hostsNameConflict',
@@ -64,6 +69,7 @@ describe('hosts document editing', () => {
     expect(parseHosts('127.0.0.1 api.test\n::1 api.test\n# 127.0.0.2 api.test').errors).toEqual([]);
     expect(parseHosts('::1 api.test\n0:0:0:0:0:0:0:1 api.test').errors).toEqual([]);
   });
+
   it('rejects URL syntax and IPv6 zones rather than accepting an address substring', () => {
     for (const invalid of ['127.0.0.01', '[::1]', '::1/path', 'fe80::1%12', '127.0.0.1:80'])
       expect(validHostsIp(invalid)).toBe(false);

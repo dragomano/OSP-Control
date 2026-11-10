@@ -3,7 +3,23 @@ import { extname, join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const root = process.cwd();
-const textExtensions = new Set(['.ts', '.tsx', '.rs', '.json', '.md', '.toml', '.mjs', '.yml', '.yaml']);
+const textExtensions = new Set([
+  '.ts',
+  '.tsx',
+  '.rs',
+  '.css',
+  '.html',
+  '.php',
+  '.json',
+  '.md',
+  '.toml',
+  '.mjs',
+  '.yml',
+  '.yaml',
+  '.txt',
+  '.ini',
+  '.env',
+]);
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -50,5 +66,16 @@ describe('sample data privacy', () => {
 
   it('does not embed concrete Windows user-profile directories', () => {
     expect(locations(/\b[a-z]:[\\/]+Users[\\/]+[^\\/\s'"]+/gi)).toEqual([]);
+  });
+
+  it('does not embed concrete Unix user-profile directories', () => {
+    expect(locations(/(?<![\w:])\/(?:Users|home)\/[a-z_][a-z0-9_.-]*(?=\/)/gi)).toEqual([]);
+  });
+
+  it('does not embed private key material or service access tokens', () => {
+    expect(locations(/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g)).toEqual([]);
+    expect(locations(/\b(?:gh[pousr]_[a-z0-9]{36,}|github_pat_[a-z0-9_]{50,}|AKIA[A-Z0-9]{16})\b/gi)).toEqual(
+      [],
+    );
   });
 });

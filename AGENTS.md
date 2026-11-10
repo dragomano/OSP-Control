@@ -45,7 +45,10 @@ Consider the task complete only when all commands pass without errors. For chang
 - Rust commands: argument whitelist, `fs::canonicalize` + `starts_with` for paths, never execute user input directly.
 - Create an automatic backup before restoring configurations (already implemented).
 - The user edits `locales` files by hand — never overwrite them at runtime.
+- Separate neighboring `it(...)` / `test(...)` blocks with a blank line, including parameterized tests (`it.each`, `test.each`) and conditional variants. Keep a test's explanatory comments attached to that test.
 - Code comments (TS/TSX, CSS, Rust, configs) — English only. Russian is allowed only in `locales` dictionaries and in data reproducing panel output (test fixtures, log regex parsers).
+- Keep comments consistent with the current implementation: explain constraints and non-obvious reasons, not obsolete behavior or guarantees the code does not enforce. Review affected comments when changing code; remove stale or redundant explanations rather than preserving them as history.
+- Never commit credentials, tokens, private keys, real account/profile names, machine-specific installation paths or unsanitized local output in code, comments, fixtures or documentation. Use clearly synthetic values; preserve public project attribution and standard discovery paths. Privacy checks must report locations, not echo sensitive values.
 - Sample data, tests, placeholders and documentation must use synthetic identities: reserved `.test`/`.example` domains, generic user names and fictional installation paths. Never copy personal project names, user names, profile paths or raw local panel snapshots into the repository.
 
 ## Known specifics

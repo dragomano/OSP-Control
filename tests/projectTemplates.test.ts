@@ -11,6 +11,7 @@ describe('project template catalog', () => {
     expect(preferredTemplateEngine([], 'Node-24')).toBe('');
     expect(versions).toEqual(['PHP-8.9', 'PHP-8.10', 'PHP-8.3']);
   });
+
   it('keeps template previews within the new project and lists no duplicate files', () => {
     expect(PROJECT_TEMPLATES.map((template) => template.id)).toEqual([
       'empty',
@@ -28,6 +29,7 @@ describe('project template catalog', () => {
       expect(new Set(template.files.map((file) => file.path)).size).toBe(template.files.length);
     }
   });
+
   it.each(['static', 'php', 'node', 'laravel', 'wordpress'])(
     'keeps commands and substitutions consistent in every %s document translation',
     (kind) => {

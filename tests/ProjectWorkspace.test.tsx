@@ -114,6 +114,7 @@ describe('project workspace drafts', () => {
     expect(screen.getByRole('tab', { name: 'Tasks', exact: true })).toBeEnabled();
     expect(mocks.readProjectWorkspace).toHaveBeenCalledTimes(2);
   });
+
   it('allows diagnostics even when project settings cannot be loaded', async () => {
     mocks.readProjectWorkspace.mockRejectedValue(new Error('err.projectWorkspaceInvalid'));
     setup();
@@ -123,6 +124,7 @@ describe('project workspace drafts', () => {
     expect(mocks.diagnoseProject).toHaveBeenCalledWith(project, 'shop.test');
     expect(mocks.saveProjectFile).not.toHaveBeenCalled();
   });
+
   it('marks diagnostics stale after saving settings but not after reading another tab', async () => {
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: t('workspace.tab.diagnostics'), exact: true }));
@@ -141,6 +143,7 @@ describe('project workspace drafts', () => {
     fireEvent.click(screen.getByRole('tab', { name: t('workspace.tab.diagnostics'), exact: true }));
     expect(await screen.findByText(t('diag.stale'))).toBeInTheDocument();
   });
+
   it('edits tasks visually, keeps incomplete drafts across tabs and domains and saves only tasks.ini', async () => {
     const original =
       '; Automation\r\n[shop.test]\r\nBuild = */5 * * * * * 0 echo {host}\r\n\r\n[api.shop.test]\r\nCheck = 0 9 * * 1-5 0 * echo api\r\n';
@@ -192,6 +195,7 @@ describe('project workspace drafts', () => {
     expect(mocks.askConfirm).not.toHaveBeenCalled();
     expect(mocks.saveProjectFile).toHaveBeenCalledTimes(1);
   });
+
   it('creates, duplicates and deletes tasks, blocks invalid schedules and retains drafts after conflicts', async () => {
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Tasks', exact: true }));
@@ -237,6 +241,7 @@ describe('project workspace drafts', () => {
       '[shop.test]\nRun job = * * * * 7 * 0 echo {host} & echo x=y\n',
     ]);
   });
+
   it('keeps the selected new task open after saving the file', async () => {
     mocks.readProjectFile.mockResolvedValue('[shop.test]\nFirst = * * * * * * 0 echo first\n');
     setup();
@@ -253,6 +258,7 @@ describe('project workspace drafts', () => {
     expect(screen.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Second action');
     expect(screen.getByRole('textbox', { name: 'Command', exact: true })).toHaveValue('echo second');
   });
+
   it('creates a project-scoped visual menu item and retains it across tabs before the shared save', async () => {
     const { onClose } = setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Menu', exact: true }));
@@ -315,6 +321,7 @@ describe('project workspace drafts', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(mocks.askConfirm).not.toHaveBeenCalled();
   });
+
   it('retains a menu draft and other settings if the menu was changed by an external editor', async () => {
     const { onClose } = setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Domains' }));
@@ -340,6 +347,7 @@ describe('project workspace drafts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }));
     await waitFor(() => expect(mocks.saveProjectFile).toHaveBeenCalled());
   });
+
   it('keeps file drafts across web-server tabs and preserves them after an external conflict', async () => {
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
@@ -359,6 +367,7 @@ describe('project workspace drafts', () => {
     );
     expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
   });
+
   it('edits the selected domain in a shared folder and retains other sections', async () => {
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Web server' }));
@@ -379,6 +388,7 @@ describe('project workspace drafts', () => {
     );
     expect(mocks.saveProjectFile.mock.calls[0][3]).toContain('php_engine = PHP-8.3');
   });
+
   it('asks before discarding changes and leaves the editor open when declined', async () => {
     const { onClose } = setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Domains' }));
@@ -390,6 +400,7 @@ describe('project workspace drafts', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('textbox', { name: 'Domain aliases' })).toHaveValue('www.shop.test');
   });
+
   it('retains remaining drafts when a later file fails and retries only unsaved files', async () => {
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Environment' }));

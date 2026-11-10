@@ -3,7 +3,7 @@ import { preact } from '@preact/preset-vite';
 import { defineConfig } from 'vite';
 
 // The single source of the product name is productName in tauri.conf.json.
-// In index.html it is substituted as %VITE_APP_NAME% (see htmlEnvHook),
+// Vite substitutes it for %VITE_APP_NAME% in index.html,
 // and the frontend reads it directly from the same JSON (src/brand.ts).
 const { productName } = JSON.parse(
   readFileSync(new URL('./src-tauri/tauri.conf.json', import.meta.url), 'utf8'),

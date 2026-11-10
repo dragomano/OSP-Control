@@ -109,6 +109,7 @@ describe('project tag metadata', () => {
     );
     expect(readProjectTagColors(key)).toEqual({ custom: '#Ab19EF' });
   });
+
   it('normalizes Windows domain casing on write and read', () => {
     const next = editProjectTags({}, ['SHOP.test'], ' #Client ', 'add');
     writeProjectTags(key, next);

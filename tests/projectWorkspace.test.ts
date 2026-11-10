@@ -25,6 +25,7 @@ describe('project settings INI editing', () => {
       'cmd.exe /c "echo # text; more"',
     );
   });
+
   it('removes an override to inherit settings, retaining its comment', () => {
     const next = patchProjectIni(source, 'shop.test', { php_engine: null });
     expect(next).toContain('; Keep this comment');
@@ -38,6 +39,7 @@ describe('project settings INI editing', () => {
       patchProjectIni(source, 'api.shop.test', { server_aliases: 'api-alias.test' }).endsWith('\r\n'),
     ).toBe(true);
   });
+
   it('normalizes new domains and rejects duplicate identities and injected values', () => {
     const next = appendProjectDomain(source, 'shop.test', 'ADMIN.Shop.test');
     expect(projectDomains(next, 'shop.test').map((item) => item.domain)).toEqual([
@@ -68,6 +70,7 @@ describe('web server syntax selection', () => {
       ),
     ).toBe('https://shop.test:8443/admin');
   });
+
   it('selects Nginx for project snippets and module configurations with the same extension', () => {
     const code = 'location / {\n  try_files $uri /index.php;\n}';
     expect(highlightConfig('nginx/shop.test.conf', code)).toContain('hljs-variable');
@@ -76,6 +79,7 @@ describe('web server syntax selection', () => {
     );
     expect(projectFileLanguage('nginx/shop.test.conf')).toBe('Nginx');
   });
+
   it('highlights Apache and Caddy separately, escaping source markup', () => {
     expect(
       highlightConfig('apache/shop.test.conf', '<Directory "public">\nRequire all granted\n</Directory>'),

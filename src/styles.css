@@ -1792,9 +1792,9 @@ button {
   }
 }
 @media (max-width: 760px) {
-  /* At this width the sidebar collapses into an icon rail (see App.tsx,
-     matchMedia + the "collapsed" class): a 130% display scale leaves the app
-     window under 760 CSS pixels; navigation must stay reachable. */
+  /* Additional compact-window rules: the sidebar has already collapsed at
+     NARROW_WINDOW_QUERY (1050px). Keep navigation reachable below 760 CSS pixels,
+     including when display scaling reduces the available CSS width. */
   .topbar {
     height: 55px;
     padding: 0 17px;
