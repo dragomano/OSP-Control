@@ -554,7 +554,7 @@ mod tests {
             fs::create_dir_all(root.join("home")).unwrap();
             let root = fs::canonicalize(root).unwrap();
             let template = crate::project_templates::template("laravel").unwrap();
-            let files = template.files("site.test", "Nginx", "PHP-8.3", "", 3000, language).unwrap();
+            let files = template.files("site.test", "Nginx", "PHP-8.3", "", 3000, 9123, language).unwrap();
             let project = template.create(&root.join("home"), "site.test", &files).unwrap();
             Self { root, project }
         }

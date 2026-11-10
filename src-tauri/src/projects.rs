@@ -825,6 +825,14 @@ pub fn create_project(
     params: CreateProjectParams,
     custom_path: Option<String>,
 ) -> Result<CreatedProject, CommandError> {
+    create_project_with_modules(params, custom_path, |root| crate::panel_api::api_json(root, "/getmodules"))
+}
+
+fn create_project_with_modules(
+    params: CreateProjectParams,
+    custom_path: Option<String>,
+    modules: impl FnOnce(&Path) -> Option<serde_json::Value>,
+) -> Result<CreatedProject, CommandError> {
     let root = fs::canonicalize(resolve_installation(custom_path.as_deref())?)?;
     let domain = normalize_project_domain(&params.domain)?;
     let template = crate::project_templates::template(params.template.as_deref().unwrap_or("empty"))?;
@@ -889,8 +897,21 @@ pub fn create_project(
     if template.node && port == 0 {
         return Err(CommandError::new("err.invalidSettingValue").with("value", "0"));
     }
-    let mut files =
-        template.files(&domain, &http, &php, &node, port, params.language.as_deref().unwrap_or("en"))?;
+    let php_port = if matches!(template.id.as_str(), "laravel" | "wordpress") {
+        let snapshot = modules(&root).ok_or_else(|| CommandError::new("err.panelNotReady"))?;
+        crate::project_templates::php_port(&snapshot, &php)?
+    } else {
+        0
+    };
+    let mut files = template.files(
+        &domain,
+        &http,
+        &php,
+        &node,
+        port,
+        php_port,
+        params.language.as_deref().unwrap_or("en"),
+    )?;
     if let Some(db) = &params.database {
         crate::project_database::validate(db, &template.id, &options.database_engines)?;
         files.extend(crate::project_database::files(db)?);
@@ -1053,11 +1074,35 @@ mod tests {
     }
 
     #[test]
+    fn framework_creation_without_php_port_does_not_write_project_files() {
+        let fixture = RenameFixture::empty();
+        for module in ["Apache", "PHP-8.3"] {
+            fs::create_dir_all(fixture.0.join("modules").join(module)).unwrap();
+        }
+        for id in ["laravel", "wordpress"] {
+            for snapshot in [None, Some(serde_json::json!({"_children":[]}))] {
+                let error = create_project_with_modules(
+                    CreateProjectParams {
+                        domain: format!("{id}.test"),
+                        template: Some(id.into()),
+                        ..Default::default()
+                    },
+                    Some(fixture.0.to_string_lossy().into_owned()),
+                    |_| snapshot,
+                )
+                .unwrap_err();
+                assert_eq!(error.code, "err.panelNotReady");
+                assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 0);
+            }
+        }
+    }
+
+    #[test]
     fn creates_template_settings_and_validates_requirements_before_writing() {
         let fixture = RenameFixture::empty();
         let custom = Some(fixture.0.to_string_lossy().into_owned());
         let create = |id: &str, port: Option<u16>| {
-            create_project(
+            create_project_with_modules(
                 CreateProjectParams {
                     domain: format!("{id}.test"),
                     template: Some(id.into()),
@@ -1065,6 +1110,15 @@ mod tests {
                     ..Default::default()
                 },
                 custom.clone(),
+                |_| {
+                    Some(serde_json::json!({"_children": [{"key":"PHP-8.10", "value":{"_children":[
+                        {"key":"profile", "value":{"_value":"development"}},
+                        {"key":"profiles", "value":{"_children":[
+                            {"key":"default", "value":{"_children":[{"key":"port", "value":{"_value":"9000"}}]}},
+                            {"key":"development", "value":{"_children":[{"key":"port", "value":{"_value":"9123"}}]}}
+                        ]}}
+                    ]}}]}))
+                },
             )
         };
         for (id, module) in [("static", "HTTP"), ("php", "HTTP"), ("node", "HTTP")] {
@@ -1090,6 +1144,12 @@ mod tests {
         for id in ["static", "php", "laravel", "wordpress", "node"] {
             let created = create(id, Some(4321)).unwrap();
             assert_eq!(created.http, "Apache");
+            if matches!(id, "laravel" | "wordpress") {
+                let config =
+                    fs::read_to_string(Path::new(&created.path).join(format!(".osp/caddy/{id}.test.conf")))
+                        .unwrap();
+                assert!(config.contains("php_fastcgi {php_engine}:9123 {"));
+            }
             let text = fs::read_to_string(Path::new(&created.path).join(".osp/project.ini")).unwrap();
             let sections = crate::project_workspace::parse(&text).unwrap();
             let values = &sections[&format!("{id}.test")];

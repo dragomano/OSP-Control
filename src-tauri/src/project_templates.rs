@@ -62,6 +62,18 @@ pub(crate) fn preferred_http(template: &str, options: &[String], global: &str) -
     preferred(options, global)
 }
 
+pub(crate) fn php_port(modules: &serde_json::Value, engine: &str) -> Result<u16, CommandError> {
+    use crate::panel_api::{active_profile_settings, dat_field, dat_string_value};
+    let module = dat_field(modules, engine).ok_or_else(|| CommandError::new("err.panelNotReady"))?;
+    let profile = dat_field(module, "profile").map(dat_string_value).unwrap_or_default();
+    active_profile_settings(module, &profile)
+        .and_then(|settings| dat_field(settings, "port"))
+        .map(dat_string_value)
+        .and_then(|value| value.parse::<u16>().ok())
+        .filter(|port| *port != 0)
+        .ok_or_else(|| CommandError::new("err.invalidSettingValue").with("value", "PHP port"))
+}
+
 impl Template {
     fn content(
         &self,
@@ -69,6 +81,7 @@ impl Template {
         domain: &str,
         php: &str,
         port: u16,
+        php_port: u16,
         ini: &str,
         locale: &StarterLocale,
     ) -> Result<String, CommandError> {
@@ -84,8 +97,15 @@ impl Template {
             "laravel-readme" => locale.document("laravel")?,
             "laravel-placeholder" => include_str!("../resources/project-starters/laravel-placeholder.php"),
             "laravel-state" | "wordpress-state" => {
-                let placeholder =
-                    self.content(&format!("{}-placeholder", self.id), domain, php, port, ini, locale)?;
+                let placeholder = self.content(
+                    &format!("{}-placeholder", self.id),
+                    domain,
+                    php,
+                    port,
+                    php_port,
+                    ini,
+                    locale,
+                )?;
                 return Ok(locale.marker(&placeholder)?.replace('\n', "\r\n"));
             }
             "wordpress-placeholder" => {
@@ -93,15 +113,12 @@ impl Template {
             }
             "wordpress-readme" => locale.document("wordpress")?,
             "node-readme" => locale.document("node")?,
-            "front-controller" => {
-                "# Domain snippet inside the existing server block.\nlocation / {\n    try_files $uri $uri/ /index.php?$query_string;\n}\n"
-            }
-            "apache-overrides" => {
-                "# Allow the application's public .htaccess rules.\n<Directory \"{web_root}\">\n    AllowOverride All\n</Directory>\n"
-            }
-            "caddy-front-controller" => {
-                "# Rewrite application routes before the existing PHP handler.\ntry_files {path} {path}/index.php /index.php\n"
-            }
+            "laravel-nginx" => include_str!("../resources/project-starters/laravel/nginx.conf"),
+            "laravel-apache" => include_str!("../resources/project-starters/laravel/apache.conf"),
+            "laravel-caddy" => include_str!("../resources/project-starters/laravel/caddy.conf"),
+            "wordpress-nginx" => include_str!("../resources/project-starters/wordpress/nginx.conf"),
+            "wordpress-apache" => include_str!("../resources/project-starters/wordpress/apache.conf"),
+            "wordpress-caddy" => include_str!("../resources/project-starters/wordpress/caddy.conf"),
             "wordpress-rewrite" => {
                 "# BEGIN WordPress\n<IfModule mod_rewrite.c>\nRewriteEngine On\nRewriteBase /\nRewriteRule ^index\\.php$ - [L]\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule . /index.php [L]\n</IfModule>\n# END WordPress\n"
             }
@@ -117,6 +134,7 @@ impl Template {
             .render(text)?
             .replace("__DOMAIN__", domain)
             .replace("__PHP_ENGINE__", php)
+            .replace("__PHP_PORT__", &php_port.to_string())
             .replace("__PORT__", &port.to_string())
             .replace("\r\n", "\n")
             .replace('\n', "\r\n"))
@@ -128,6 +146,7 @@ impl Template {
         php: &str,
         node: &str,
         port: u16,
+        php_port: u16,
         language: &str,
     ) -> Result<Vec<(String, String)>, CommandError> {
         let locale = StarterLocale::new(language)?;
@@ -148,7 +167,7 @@ impl Template {
             .map(|file| {
                 Ok((
                     file.path.replace("{domain}", domain),
-                    self.content(&file.source, domain, php, port, &ini, &locale)?,
+                    self.content(&file.source, domain, php, port, php_port, &ini, &locale)?,
                 ))
             })
             .collect()
@@ -259,8 +278,9 @@ mod tests {
         for language in crate::project_starter_locale::LANGUAGES {
             for id in ["empty", "static", "php", "laravel", "wordpress", "node"] {
                 let template = template(id).unwrap();
-                let files =
-                    template.files("example.test", "Nginx", "PHP-8.3", "Node-24", 4321, language).unwrap();
+                let files = template
+                    .files("example.test", "Nginx", "PHP-8.3", "Node-24", 4321, 9123, language)
+                    .unwrap();
                 let home = Home::new();
                 let created = template.create(&home.0, "example.test", &files).unwrap();
                 for (path, text) in &files {
@@ -324,6 +344,75 @@ mod tests {
     }
 
     #[test]
+    fn framework_server_configs_preserve_handlers_and_panel_placeholders() {
+        for id in ["laravel", "wordpress"] {
+            for domain in ["example.test", "other.test"] {
+                let files =
+                    template(id).unwrap().files(domain, "Nginx", "PHP-8.3", "", 3000, 9123, "en").unwrap();
+                let home = Home::new();
+                let created = template(id).unwrap().create(&home.0, domain, &files).unwrap();
+                let config = |engine: &str| {
+                    fs::read_to_string(created.join(format!(".osp/{engine}/{domain}.conf"))).unwrap()
+                };
+                let nginx = config("nginx");
+                assert!(nginx.contains("include snippets/maintenance_mode.conf;"));
+                assert!(nginx.contains("include snippets/fallback_redirect.conf;"));
+                assert!(nginx.contains("fastcgi_pass $backend_ip:$backend_port;"));
+                assert!(nginx.contains("try_files    $fastcgi_script_name =404;"));
+                assert!(nginx.contains("include      fastcgi.conf;"));
+                assert!(nginx.contains(&format!("include      env/{domain}.conf;")));
+                assert!(nginx.contains("index         index.php index.html index.htm;"));
+                assert!(nginx.contains("Cache-Control \"max-age=0, must-revalidate\" always;"));
+                let apache = config("apache");
+                assert!(apache.is_ascii());
+                assert!(apache.lines().all(|line| line.trim().is_empty() || line.starts_with('#')));
+                let caddy = config("caddy");
+                assert!(caddy.contains("import common_host {host}"));
+                assert!(caddy.contains("php_fastcgi {php_engine}:9123 {"));
+                assert!(caddy.contains("request_header X-Request-Id {http.request.uuid}"));
+                assert!(caddy.contains("env X_REQUEST_ID {http.request.uuid}"));
+                assert!(caddy.contains("import env_{host}"));
+                assert!(caddy.contains("import timeouts_config"));
+                assert!(caddy.contains("\r\nfile_server\r\n"));
+                assert!(!caddy.lines().any(|line| line.trim() == "import fastcgi_intercept_errors"));
+                let custom_try_files = caddy.lines().any(|line| line.trim().starts_with("try_files "));
+                assert_eq!(custom_try_files, id == "laravel");
+                if id == "laravel" {
+                    assert!(caddy.contains("try_files {path} /index.php"));
+                } else {
+                    let htaccess = fs::read_to_string(created.join("public/.htaccess")).unwrap();
+                    assert!(htaccess.contains("RewriteRule . /index.php [L]"));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn php_port_requires_the_selected_module_and_valid_profile_port() {
+        let snapshot = |port: serde_json::Value| {
+            serde_json::json!({"_children":[
+                {"key":"PHP-8.3", "value":{"_children":[
+                    {"key":"profiles", "value":{"_children":[
+                        {"key":"default", "value":{"_children":[{"key":"port", "value":{"_value":port}}]}}
+                    ]}}
+                ]}}
+            ]})
+        };
+        for port in [serde_json::json!(9123), serde_json::json!("65535")] {
+            assert!(php_port(&snapshot(port), "PHP-8.3").is_ok());
+        }
+        for port in [
+            serde_json::json!("0"),
+            serde_json::json!("65536"),
+            serde_json::json!("bad"),
+            serde_json::Value::Null,
+        ] {
+            assert_eq!(php_port(&snapshot(port), "PHP-8.3").unwrap_err().code, "err.invalidSettingValue");
+        }
+        assert_eq!(php_port(&snapshot(9123.into()), "PHP-8.4").unwrap_err().code, "err.panelNotReady");
+    }
+
+    #[test]
     fn starter_documents_and_pages_use_the_requested_language() {
         for (language, heading, ready) in [
             ("en", "# Local static site", "Your local site is ready."),
@@ -332,8 +421,10 @@ mod tests {
             ("be", "# Лакальны статычны сайт", "Лакальны сайт гатовы."),
             ("es", "# Sitio estático local", "Tu sitio local está listo."),
         ] {
-            let files =
-                template("static").unwrap().files("site.test", "Nginx", "", "", 3000, language).unwrap();
+            let files = template("static")
+                .unwrap()
+                .files("site.test", "Nginx", "", "", 3000, 9123, language)
+                .unwrap();
             let file = |name: &str| &files.iter().find(|(path, _)| path == name).unwrap().1;
             assert!(file("README.md").starts_with(heading));
             assert!(file("README.md").contains("site.test"));

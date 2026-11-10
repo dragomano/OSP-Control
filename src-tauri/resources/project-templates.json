@@ -99,15 +99,15 @@
       },
       {
         "path": ".osp/nginx/{domain}.conf",
-        "source": "front-controller"
+        "source": "laravel-nginx"
       },
       {
         "path": ".osp/apache/{domain}.conf",
-        "source": "apache-overrides"
+        "source": "laravel-apache"
       },
       {
         "path": ".osp/caddy/{domain}.conf",
-        "source": "caddy-front-controller"
+        "source": "laravel-caddy"
       },
       {
         "path": ".osp/laravel-readme.md",
@@ -142,11 +142,11 @@
       },
       {
         "path": ".osp/nginx/{domain}.conf",
-        "source": "front-controller"
+        "source": "wordpress-nginx"
       },
       {
         "path": ".osp/apache/{domain}.conf",
-        "source": "apache-overrides"
+        "source": "wordpress-apache"
       },
       {
         "path": "public/.htaccess",
@@ -158,7 +158,7 @@
       },
       {
         "path": ".osp/caddy/{domain}.conf",
-        "source": "caddy-front-controller"
+        "source": "wordpress-caddy"
       },
       {
         "path": ".osp/wordpress.json",
