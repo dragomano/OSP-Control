@@ -37,6 +37,7 @@ import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomai
 import { type ProjectTask, parseProjectTasks, renderProjectTasks, taskErrors } from '../../projectTasks';
 import {
   appendProjectDomain,
+  isApplicationFile,
   patchProjectIni,
   projectDomains,
   projectFileLanguage,
@@ -67,6 +68,7 @@ const TABS = [
   ['environment', SlidersHorizontal],
   ['web', Network],
   ['configs', FileCode2],
+  ['application', FileCode2],
   ['menu', ListTree],
   ['tasks', Clock3],
   ['diagnostics', Stethoscope],
@@ -101,12 +103,12 @@ export function ProjectWorkspace({
   const [files, setFiles] = useState<Record<string, FileDraft>>({});
   const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
   const [engine, setEngine] = useState('nginx');
+  const [applicationFile, setApplicationFile] = useState('.env');
   const [fileBusy, setFileBusy] = useState(false);
   const [fileRetry, setFileRetry] = useState(0);
   const [busy, setBusy] = useState(false);
   const [installingApplication, setInstallingApplication] = useState(false);
   const [error, setError] = useState('');
-  const [backup, setBackup] = useState('');
   const [restartNeeded, setRestartNeeded] = useState(false);
   const [newDomain, setNewDomain] = useState('');
   const [advanced, setAdvanced] = useState(false);
@@ -133,15 +135,22 @@ export function ProjectWorkspace({
     tasksDirty ||
     Object.values(files).some((file) => file.draft !== (file.original ?? ''));
   const locked = busy || installingApplication || blocked || menuState.busy;
+  const applicationFiles = doc?.files.filter(isApplicationFile) ?? [];
+  const tabs = TABS.filter(([key]) => key !== 'application' || applicationFiles.length > 0);
+  const selectedApplicationFile = applicationFiles.includes(applicationFile)
+    ? applicationFile
+    : applicationFiles[0];
   const file = advanced
     ? 'project.ini'
     : tab === 'tasks'
       ? 'tasks.ini'
       : tab === 'environment'
         ? 'env.ini'
-        : `${engine}/${domain}.conf`;
+        : tab === 'application'
+          ? (selectedApplicationFile ?? '.env')
+          : `${engine}/${domain}.conf`;
   const fileState = file === 'project.ini' ? { original: doc?.content ?? null, draft: ini } : files[file];
-  const editingFile = advanced || ['configs', 'tasks', 'environment'].includes(tab);
+  const editingFile = advanced || ['configs', 'tasks', 'environment', 'application'].includes(tab);
   const selectedDomain = displayProjectDomain(domain);
   const inherited = (key: string, global?: string) =>
     values[key] && values[key] !== 'auto' ? values[key] : global || t('projects.engineUnset');
@@ -263,7 +272,6 @@ export function ProjectWorkspace({
         setDoc((current) => current && { ...current, content: result.content });
         setIni(result.content);
         setDiagnosticsRevision((value) => value + 1);
-        if (result.backupPath) setBackup(result.backupPath);
         setRestartNeeded(true);
       }
       for (const [name, draft] of Object.entries(files)) {
@@ -274,10 +282,19 @@ export function ProjectWorkspace({
         setFiles((current) => ({ ...current, [name]: { original: result.content, draft: result.content } }));
         if (name === 'tasks.ini') setTasks(parseProjectTasks(result.content).tasks);
         setDiagnosticsRevision((value) => value + 1);
-        if (result.backupPath) setBackup(result.backupPath);
-        setRestartNeeded(true);
+        if (!isApplicationFile(name)) setRestartNeeded(true);
       }
-      notify(t('workspace.saved'), { label: t('projects.restartPanel'), run: onRestartPanel });
+      const panelChanged =
+        iniDirty ||
+        menuState.dirty ||
+        tasksDirty ||
+        Object.entries(files).some(
+          ([name, draft]) => !isApplicationFile(name) && draft.draft !== (draft.original ?? ''),
+        );
+      notify(
+        t('workspace.saved'),
+        panelChanged ? { label: t('projects.restartPanel'), run: onRestartPanel } : undefined,
+      );
     } catch (error) {
       setError(errorText(t, error, 'workspace.failed'));
     } finally {
@@ -358,7 +375,7 @@ export function ProjectWorkspace({
       <div className="workspace-file-head">
         <div>
           <FileCode2 size={15} />
-          <b>.osp/{file}</b>
+          <b>{isApplicationFile(file) ? file : `.osp/${file}`}</b>
         </div>
         <span>{projectFileLanguage(file)}</span>
       </div>
@@ -428,7 +445,7 @@ export function ProjectWorkspace({
         }
       />
       <div className="workspace-tabs" role="tablist" aria-label={t('workspace.sections')} ref={tabsRef}>
-        {TABS.map(([key, Icon], index) => (
+        {tabs.map(([key, Icon], index) => (
           <button
             key={key}
             type="button"
@@ -450,13 +467,13 @@ export function ProjectWorkspace({
                 event.key === 'Home'
                   ? 0
                   : event.key === 'End'
-                    ? TABS.length - 1
+                    ? tabs.length - 1
                     : offset
-                      ? (index + offset + TABS.length) % TABS.length
+                      ? (index + offset + tabs.length) % tabs.length
                       : -1;
               if (target >= 0) {
                 event.preventDefault();
-                setTab(TABS[target][0]);
+                setTab(tabs[target][0]);
                 setAdvanced(false);
                 tabsRef.current?.querySelectorAll<HTMLButtonElement>('button')[target]?.focus();
               }
@@ -582,8 +599,7 @@ export function ProjectWorkspace({
                           disabled={locked || dirty || fileBusy}
                           dirty={dirty}
                           onBusyChange={setInstallingApplication}
-                          onInstalled={async (result) => {
-                            setBackup(result.backupPath);
+                          onInstalled={async () => {
                             await load();
                             setRestartNeeded(true);
                             notify(t(`${kind}.done`), {
@@ -770,6 +786,25 @@ export function ProjectWorkspace({
                       {text('backend_port', '3000', 'number')}
                     </div>
                   )}
+                  {tab === 'application' && (
+                    <>
+                      <div className="workspace-file-tabs">
+                        {applicationFiles.map((path) => (
+                          <button
+                            type="button"
+                            className={selectedApplicationFile === path ? 'selected' : ''}
+                            aria-pressed={selectedApplicationFile === path}
+                            key={path}
+                            disabled={locked}
+                            onClick={() => setApplicationFile(path)}
+                          >
+                            {path}
+                          </button>
+                        ))}
+                      </div>
+                      {codeEditor}
+                    </>
+                  )}
                   {tab === 'configs' && (
                     <>
                       <div className="workspace-file-tabs">
@@ -864,9 +899,8 @@ export function ProjectWorkspace({
                       editorRef={menuEditor}
                       reloadVersion={menuReloadVersion}
                       onSaveRequest={() => void save()}
-                      onSaved={(result) => {
+                      onSaved={() => {
                         setDiagnosticsRevision((value) => value + 1);
-                        if (result.backupPath) setBackup(result.backupPath);
                         setRestartNeeded(true);
                       }}
                     />
@@ -928,25 +962,6 @@ export function ProjectWorkspace({
             <div className="workspace-safety">
               <ShieldCheck size={14} />
               {t('workspace.backupHint')}
-              {backup && (
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => void run(() => openProjectFolder(backup))}
-                >
-                  {t('workspace.openBackup')}
-                </button>
-              )}
-              {restartNeeded && (
-                <button
-                  className="text-button"
-                  type="button"
-                  disabled={locked || dirty}
-                  onClick={onRestartPanel}
-                >
-                  {t('projects.restartPanel')}
-                </button>
-              )}
             </div>
           </>
         )}

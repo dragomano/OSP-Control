@@ -257,6 +257,7 @@ function App() {
   // Pluralization: picks the <key>.one/.few/.many/.other form by language and count.
   // The dictionary is passed as the third argument — forms come from it, not from the base language.
   const plural = useMemo(() => makePlural(t, lang, dict), [t, lang, dict]);
+  const i18n = useMemo(() => ({ lang, t, plural }), [lang, t, plural]);
   // Name from the system; while it is not loaded or empty — a localized fallback.
   const userNameDisplay = userName || t('nav.userFallback');
   // Tail of the panel log for "Recent activity" on the overview page.
@@ -469,7 +470,9 @@ function App() {
         if (cancelled) return;
         const previous = panelOnlineRef.current;
         panelOnlineRef.current = online;
-        setSnapshot((current) => (current ? { ...current, panelRunning: online } : current));
+        setSnapshot((current) =>
+          current && current.panelRunning !== online ? { ...current, panelRunning: online } : current,
+        );
         if (previous !== null && previous !== online) void loadSnapshot();
       } catch {
         // Keep the last known status without a toast; a later status change reloads the snapshot.
@@ -934,7 +937,7 @@ function App() {
   const toastAction = toast?.action;
 
   return (
-    <I18nContext.Provider value={{ lang, t, plural }}>
+    <I18nContext.Provider value={i18n}>
       <ModuleUpdatesProvider
         refresh={loadSnapshot}
         startupReady={!panelStarting}

@@ -51,6 +51,17 @@ pub(crate) fn preferred(options: &[String], global: &str) -> Option<String> {
         })
         .cloned()
 }
+
+pub(crate) fn preferred_http(template: &str, options: &[String], global: &str) -> Option<String> {
+    if matches!(template, "wordpress" | "laravel") {
+        let apache: Vec<_> = options.iter().filter(|engine| engine.starts_with("Apache")).cloned().collect();
+        if !apache.is_empty() {
+            return preferred(&apache, global);
+        }
+    }
+    preferred(options, global)
+}
+
 impl Template {
     fn content(
         &self,

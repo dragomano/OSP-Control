@@ -1,5 +1,5 @@
 import { Copy, FileCode2, RefreshCw, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorText, useI18n } from '../../i18n';
 import {
   type CreatedProject,
@@ -15,12 +15,39 @@ import {
   PROJECT_TEMPLATES,
   type ProjectTemplateId,
   preferredTemplateEngine,
+  preferredTemplateHttpEngine,
   projectTemplate,
 } from '../../projectTemplates';
 import { copyText, type Notify, useDismiss } from '../shared';
 import { PathText } from '../widgets/PathText';
 import { ModuleSelect } from './ModuleSelect';
 import './createProject.css';
+
+// A controlled native popup must not be reset by unrelated panel/activity renders.
+const DatabaseEngineSelect = memo(function DatabaseEngineSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (engine: string) => void;
+}) {
+  return (
+    <label className="module-select">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+});
 
 export function CreateProjectDialog({
   notify,
@@ -57,6 +84,21 @@ export function CreateProjectDialog({
   const hasDatabase = templateId === 'laravel' || templateId === 'wordpress';
   const dbName = databaseName ?? suggestedDatabaseName(normalizedDomain ?? '');
   const dbEngines = projectDatabaseEngines(templateId, options?.databaseEngines ?? []);
+  const databaseOptions = useMemo(
+    () => [
+      ...(templateId === 'laravel' ? [{ value: 'sqlite', label: t('projectDb.sqlite') }] : []),
+      ...projectDatabaseEngines(templateId, options?.databaseEngines ?? []).map((engine) => ({
+        value: engine,
+        label: engine,
+      })),
+      { value: 'none', label: t('projectDb.later') },
+    ],
+    [templateId, options, t],
+  );
+  const changeDatabaseEngine = useCallback((engine: string) => {
+    setDatabaseEngine(engine);
+    setDatabaseUser(engine.startsWith('PostgreSQL-') ? 'postgres' : 'root');
+  }, []);
   const databaseValid =
     !hasDatabase ||
     databaseEngine === 'none' ||
@@ -131,7 +173,9 @@ export function CreateProjectDialog({
     if (!options) return;
     const next = projectTemplate(id);
     setHttpEngine(
-      id === 'empty' ? 'auto' : preferredTemplateEngine(options.httpEngines, globalEngines?.httpEngine),
+      id === 'empty'
+        ? 'auto'
+        : preferredTemplateHttpEngine(id, options.httpEngines, globalEngines?.httpEngine),
     );
     setPhpEngine(
       id === 'empty'
@@ -252,6 +296,20 @@ export function CreateProjectDialog({
                   {t('err.invalidDomain')}
                 </p>
               )}
+              {normalizedDomain && !normalizedDomain.includes('.') && (
+                <div className="modal-hint">
+                  <p>{t('projects.domainZoneHint')}</p>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => setDomain(`${normalizedDomain}.test`)}
+                  >
+                    {t('projects.useTestDomain', {
+                      domain: displayProjectDomain(`${normalizedDomain}.test`),
+                    })}
+                  </button>
+                </div>
+              )}
               <label className="module-select">
                 <span>{t('templates.label')}</span>
                 <select
@@ -267,7 +325,9 @@ export function CreateProjectDialog({
                 </select>
               </label>
               <section className="project-template-preview" aria-label={t('templates.preview')}>
-                <p>{t(`templates.${templateId}.description`)}</p>
+                <p>
+                  <PathText text={t(`templates.${templateId}.description`)} />
+                </p>
                 {templateId !== 'empty' && (
                   <>
                     <dl>
@@ -325,29 +385,16 @@ export function CreateProjectDialog({
                   onChange={setPhpEngine}
                 />
                 {(!template.node || options.nodeEngines.length > 0) && (
-                  <div className="create-project-node-choice">
-                    <ModuleSelect
-                      label={t('projects.createNodeEngine')}
-                      value={nodeEngine}
-                      options={options.nodeEngines}
-                      autoLabel={t('projects.modulesAuto')}
-                      includeAuto={templateId === 'empty'}
-                      globalHint={null}
-                      noneLabel={templateId === 'empty' || template.node ? undefined : t('templates.unused')}
-                      onChange={setNodeEngine}
-                    />
-                    {template.node && (
-                      <button
-                        type="button"
-                        className="text-button"
-                        disabled={busy || refreshing}
-                        onClick={() => void refreshVersions()}
-                      >
-                        <RefreshCw size={13} />
-                        {t('templates.node.refresh')}
-                      </button>
-                    )}
-                  </div>
+                  <ModuleSelect
+                    label={t('projects.createNodeEngine')}
+                    value={nodeEngine}
+                    options={options.nodeEngines}
+                    autoLabel={t('projects.modulesAuto')}
+                    includeAuto={templateId === 'empty'}
+                    globalHint={null}
+                    noneLabel={templateId === 'empty' || template.node ? undefined : t('templates.unused')}
+                    onChange={setNodeEngine}
+                  />
                 )}
               </div>
               {template.node && !options.nodeEngines.length && (
@@ -389,25 +436,12 @@ export function CreateProjectDialog({
               {hasDatabase && (
                 <section className="create-project-database" aria-label={t('projectDb.title')}>
                   <h4>{t('projectDb.title')}</h4>
-                  <label className="module-select">
-                    <span>{t('projectDb.engine')}</span>
-                    <select
-                      value={databaseEngine}
-                      onChange={(event) => {
-                        const engine = event.target.value;
-                        setDatabaseEngine(engine);
-                        setDatabaseUser(engine.startsWith('PostgreSQL-') ? 'postgres' : 'root');
-                      }}
-                    >
-                      {templateId === 'laravel' && <option value="sqlite">{t('projectDb.sqlite')}</option>}
-                      {dbEngines.map((engine) => (
-                        <option key={engine} value={engine}>
-                          {engine}
-                        </option>
-                      ))}
-                      <option value="none">{t('projectDb.later')}</option>
-                    </select>
-                  </label>
+                  <DatabaseEngineSelect
+                    label={t('projectDb.engine')}
+                    value={databaseEngine}
+                    options={databaseOptions}
+                    onChange={changeDatabaseEngine}
+                  />
                   {databaseEngine !== 'none' && (
                     <>
                       <label className="module-select">
@@ -427,7 +461,7 @@ export function CreateProjectDialog({
                       )}
                       {databaseEngine === 'sqlite' ? (
                         <p className="modal-hint">
-                          {t('projectDb.sqliteHint', { path: `database/${dbName}.sqlite` })}
+                          <PathText text={t('projectDb.sqliteHint', { path: `database/${dbName}.sqlite` })} />
                         </p>
                       ) : (
                         <>
@@ -452,7 +486,9 @@ export function CreateProjectDialog({
                               />
                             </label>
                           </div>
-                          <p className="modal-hint">{t('projectDb.hint')}</p>
+                          <p className="modal-hint">
+                            <PathText text={t('projectDb.hint')} />
+                          </p>
                         </>
                       )}
                     </>

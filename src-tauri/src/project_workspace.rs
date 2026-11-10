@@ -167,7 +167,56 @@ fn sections_at(dir: &Path) -> Result<Sections, CommandError> {
     read(&ini)?.map(|c| parse(&c)).unwrap_or_else(|| Ok(Sections::new()))
 }
 
+fn application_files(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
+    let mut directories = BTreeSet::from([String::new(), "public".into()]);
+    for values in sections_at(dir)?.values() {
+        for key in ["project_root", "web_root"] {
+            let Some(value) = values.get(key) else { continue };
+            let value = value.replace('\\', "/");
+            let relative = if value == "{base_dir}" {
+                ""
+            } else if let Some(relative) = value.strip_prefix("{base_dir}/") {
+                relative.trim_end_matches('/')
+            } else {
+                continue;
+            };
+            if relative.is_empty()
+                || relative.split('/').all(|part| {
+                    !part.is_empty() && part != "." && part != ".." && !part.contains([':', '{', '}'])
+                })
+            {
+                directories.insert(relative.into());
+            }
+        }
+    }
+    Ok(directories
+        .into_iter()
+        .flat_map(|directory| {
+            [".env", "wp-config.php"]
+                .map(|file| if directory.is_empty() { file.into() } else { format!("{directory}/{file}") })
+        })
+        .collect())
+}
+
+fn application_path(dir: &Path, file: &str) -> Result<PathBuf, CommandError> {
+    let mut path = dir.to_path_buf();
+    for part in file.split('/') {
+        path = child(&path, part)?;
+    }
+    Ok(path)
+}
+
 fn file_path(dir: &Path, domain: &str, file: &str, create: bool) -> Result<PathBuf, CommandError> {
+    if matches!(file.rsplit('/').next(), Some(".env" | "wp-config.php"))
+        && application_files(dir)?.contains(file)
+    {
+        let path = application_path(dir, file)?;
+        // Application configuration is editable only when it already exists.
+        if create && !path.is_file() {
+            return Err(conflict());
+        }
+        return Ok(path);
+    }
     let fixed = ["project.ini", "env.ini", "menu.ini", "tasks.ini"];
     let mut osp = child(dir, ".osp")?;
     if !osp.exists() && create {
@@ -205,6 +254,11 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
     for domain in domains {
         for engine in ["nginx", "apache", "caddy"] {
             files.push(format!("{engine}/{domain}.conf"));
+        }
+    }
+    for file in application_files(&dir)? {
+        if application_path(&dir, &file).is_ok_and(|path| path.is_file()) {
+            files.push(file);
         }
     }
     let laravel = crate::laravel_installer::state(&dir);
@@ -584,6 +638,53 @@ mod tests {
         assert!(file_path(&PathBuf::from(f.dir()), "shop.test", "../../system/program.dat", false).is_err());
         assert!(file_path(&PathBuf::from(f.dir()), "shop.test", "nginx/unknown.test.conf", false).is_err());
     }
+
+    #[test]
+    fn application_configuration_is_discovered_backed_up_and_checked_for_conflicts() {
+        let f = Fixture::new();
+        let dir = PathBuf::from(f.dir());
+        fs::create_dir_all(dir.join("public")).unwrap();
+        fs::create_dir_all(dir.join("api")).unwrap();
+        for file in [".env", "public/wp-config.php", "api/.env"] {
+            fs::write(dir.join(file), "original\r\n").unwrap();
+        }
+        let doc = workspace(&f.0, "shop.test", &f.dir()).unwrap();
+        for file in [".env", "public/wp-config.php", "api/.env"] {
+            assert!(doc.files.contains(&file.into()));
+            let result = save(&f.0, "shop.test", &f.dir(), file, Some("original\r\n"), "updated\n").unwrap();
+            assert_eq!(fs::read_to_string(dir.join(file)).unwrap(), "updated\r\n");
+            assert_eq!(fs::read_to_string(result.backup_path.unwrap()).unwrap(), "original\r\n");
+            assert_eq!(
+                save(&f.0, "shop.test", &f.dir(), file, Some("original\r\n"), "stale\n").unwrap_err().code,
+                "err.projectWorkspaceConflict"
+            );
+        }
+        assert!(!doc.files.contains(&"wp-config.php".into()));
+        assert!(save(&f.0, "shop.test", &f.dir(), "wp-config.php", None, "new").is_err());
+        for file in ["../.env", "public/../.env", "other/.env", "public/index.php"] {
+            assert!(file_path(&dir, "shop.test", file, false).is_err());
+        }
+    }
+
+    #[test]
+    fn application_files_follow_configured_roots_inside_the_project_only() {
+        let f = Fixture::new();
+        let dir = PathBuf::from(f.dir());
+        fs::create_dir_all(dir.join("application/www")).unwrap();
+        fs::write(
+            dir.join(".osp/project.ini"),
+            "[shop.test]\nproject_root = {base_dir}\\application\nweb_root = {base_dir}\\application\\www\n",
+        )
+        .unwrap();
+        fs::write(dir.join("application/.env"), "APP_ENV=local\n").unwrap();
+        fs::write(dir.join("application/www/wp-config.php"), "<?php\n").unwrap();
+        let doc = workspace(&f.0, "shop.test", &f.dir()).unwrap();
+        assert!(doc.files.contains(&"application/.env".into()));
+        assert!(doc.files.contains(&"application/www/wp-config.php".into()));
+        fs::write(dir.join(".osp/project.ini"), "[shop.test]\nweb_root = {base_dir}\\..\\outside\n").unwrap();
+        assert!(file_path(&dir, "shop.test", "../outside/wp-config.php", false).is_err());
+    }
+
     #[test]
     fn exact_backup_conflict_detection_and_new_file_creation() {
         let f = Fixture::new();

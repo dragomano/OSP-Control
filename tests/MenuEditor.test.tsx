@@ -226,7 +226,7 @@ describe('MenuEditor', () => {
       </I18nContext.Provider>,
     );
     expect(await screen.findByRole('textbox', { name: 'Name' })).toHaveValue('Restored editor');
-    expect(onStateChange).toHaveBeenLastCalledWith({ dirty: false, busy: false });
+    await waitFor(() => expect(onStateChange).toHaveBeenLastCalledWith({ dirty: false, busy: false }));
     expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
     expect(writeMenu).not.toHaveBeenCalled();
   });

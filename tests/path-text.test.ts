@@ -14,6 +14,16 @@ describe('path highlighting in prose', () => {
     ]);
   });
 
+  it('marks database metadata and the public directory without sentence punctuation', () => {
+    const text = 'Settings: (.osp/database.json), files in public/. Also .osp\\database.json and public\\.';
+    expect(bold(text)).toEqual(['.osp/database.json', 'public/', '.osp\\database.json', 'public\\']);
+    expect(
+      splitPaths(text)
+        .map((part) => part.text)
+        .join(''),
+    ).toBe(text);
+  });
+
   it('marks a path inside brackets without taking the brackets', () => {
     const parts = splitPaths(
       'On app start, modules pinned in project settings (home/<domain>/.osp/project.ini) will be started.',

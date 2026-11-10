@@ -98,7 +98,12 @@ export function projectFileLanguage(file: string): string {
   if (path.startsWith('nginx/')) return 'Nginx';
   if (path.startsWith('apache/')) return 'Apache';
   if (path.startsWith('caddy/')) return 'Caddyfile';
+  if (path.endsWith('.php')) return 'PHP';
   return 'INI';
+}
+
+export function isApplicationFile(file: string): boolean {
+  return /^(?:.*\/)?(?:\.env|wp-config\.php)$/.test(file);
 }
 
 export function projectOpeningUrl(

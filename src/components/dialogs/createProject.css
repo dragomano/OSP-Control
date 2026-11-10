@@ -28,11 +28,6 @@
 .create-project-engines.without-node {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.create-project-node-choice {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-}
 .create-project-node-missing {
   display: grid;
   gap: 12px;

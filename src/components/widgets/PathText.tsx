@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-// Prose in hints and notes mentions files and folders — "Will create the home/<domain>
+// Prose in hints and notes mentions files and folders — "Will create the home\<domain>
 // folder with .osp\project.ini". The path is the part a reader scans for, so it is set in
 // bold. The markup lives in the code, not in the dictionaries: a hand-edited locale file
 // stays plain text and a translator never has to learn a marker syntax.
@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
 // starts with a directory of the panel, mentions the .osp marker, or ends with a known
 // file extension. Ordinary prose slashes — "I/O", "module/add-on" — stay plain.
 
-const PANEL_DIR = /^(?:home|system|modules|bin|config|backups|locales|domains|userdata)[\\/]/i;
+const PANEL_DIR = /^(?:home|system|modules|bin|config|backups|locales|domains|userdata|public)[\\/]/i;
 const OSP_MARK = /\.osp(?:[-\\/]|$)/i;
 const FILE_EXT =
   /\.(?:ini|dat|json|exe|bat|cmd|log|conf|cfg|txt|xml|yaml|yml|md|php|css|sql|zip|db|sqlite|html|htm|htaccess|sh|ps1)$/i;

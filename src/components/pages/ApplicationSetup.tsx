@@ -87,7 +87,11 @@ export function ApplicationSetup({
           </button>
         )}
       </div>
-      {!result && <p className="application-setup-hint">{t(`${kind}.hint`)}</p>}
+      {!result && (
+        <p className="application-setup-hint">
+          <PathText text={t(`${kind}.hint`)} />
+        </p>
+      )}
       {!running && dirty && <p className="application-setup-hint">{t(`${kind}.unsaved`)}</p>}
       {running && <p role="status">{t(`${kind}.${phase}`)}</p>}
       {running && download && (

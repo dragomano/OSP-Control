@@ -841,7 +841,12 @@ pub fn create_project(
         } else {
             match input.as_deref() {
                 Some(value) if value != "auto" => value.into(),
-                _ if required => crate::project_templates::preferred(available, global).unwrap_or_default(),
+                _ if required => if key == "http_engine" {
+                    crate::project_templates::preferred_http(&template.id, available, global)
+                } else {
+                    crate::project_templates::preferred(available, global)
+                }
+                .unwrap_or_default(),
                 Some("auto") => ENGINE_AUTO.into(),
                 _ => String::new(),
             }
@@ -1098,6 +1103,45 @@ mod tests {
             assert!(!values["web_root"].is_empty());
         }
         assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 5);
+    }
+
+    #[test]
+    fn application_templates_prefer_apache_but_preserve_explicit_http_choices_and_fallbacks() {
+        let fixture = RenameFixture::empty();
+        for module in ["Apache", "Nginx", "PHP-8.5"] {
+            fs::create_dir_all(fixture.0.join("modules").join(module)).unwrap();
+        }
+        let create = |template: &str, variant: &str, http_engine: Option<&str>| {
+            create_project(
+                CreateProjectParams {
+                    domain: format!("{template}-{variant}.test"),
+                    template: Some(template.into()),
+                    http_engine: http_engine.map(str::to_string),
+                    ..Default::default()
+                },
+                Some(fixture.0.to_string_lossy().into_owned()),
+            )
+            .unwrap()
+        };
+        for template in ["wordpress", "laravel"] {
+            for (variant, input, expected) in [
+                ("default", None, "Apache"),
+                ("auto", Some("auto"), "Apache"),
+                ("manual", Some("Nginx"), "Nginx"),
+            ] {
+                let created = create(template, variant, input);
+                assert_eq!(created.http, expected);
+                let ini = fs::read_to_string(Path::new(&created.path).join(".osp/project.ini")).unwrap();
+                assert_eq!(
+                    crate::project_workspace::parse(&ini).unwrap()[&created.domain]["http_engine"],
+                    expected
+                );
+            }
+        }
+        fs::remove_dir(fixture.0.join("modules/Apache")).unwrap();
+        for template in ["wordpress", "laravel"] {
+            assert_eq!(create(template, "fallback", None).http, "Nginx");
+        }
     }
 
     #[test]

@@ -32,3 +32,15 @@ export function preferredTemplateEngine(options: string[], global = ''): string 
       .pop() ?? ''
   );
 }
+
+export function preferredTemplateHttpEngine(
+  template: ProjectTemplateId,
+  options: string[],
+  global = '',
+): string {
+  if (template === 'wordpress' || template === 'laravel') {
+    const apache = options.filter((engine) => engine.startsWith('Apache'));
+    if (apache.length) return preferredTemplateEngine(apache, global);
+  }
+  return preferredTemplateEngine(options, global);
+}

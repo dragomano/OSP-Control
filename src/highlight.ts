@@ -3,6 +3,7 @@ import apache from 'highlight.js/lib/languages/apache';
 import ini from 'highlight.js/lib/languages/ini';
 import json from 'highlight.js/lib/languages/json';
 import nginx from 'highlight.js/lib/languages/nginx';
+import php from 'highlight.js/lib/languages/php';
 import properties from 'highlight.js/lib/languages/properties';
 import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
@@ -10,6 +11,7 @@ import yaml from 'highlight.js/lib/languages/yaml';
 hljs.registerLanguage('ini', ini);
 hljs.registerLanguage('apache', apache);
 hljs.registerLanguage('nginx', nginx);
+hljs.registerLanguage('php', php);
 hljs.registerLanguage('yaml', yaml);
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('xml', xml);
@@ -30,6 +32,8 @@ hljs.registerLanguage('caddy', (language) => ({
 
 const LANG_BY_EXT: Record<string, string> = {
   ini: 'ini',
+  env: 'ini',
+  php: 'php',
   cnf: 'ini',
   cfg: 'ini',
   toml: 'ini',

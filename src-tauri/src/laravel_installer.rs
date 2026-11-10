@@ -276,27 +276,63 @@ fn payload(stage: &Path) -> Result<PathBuf, CommandError> {
 fn bootstrap(
     root: &Path,
     project: &Path,
+    domain: &str,
     application: &Path,
     php: &str,
     channel: &Channel<Progress>,
 ) -> Result<(), CommandError> {
     let ini = child(&child(&child(root, "modules")?, php)?, "php.ini")?;
-    bootstrap_with_ini(root, project, application, php, &ini, channel)
+    bootstrap_with_ini(root, project, domain, application, php, &ini, channel)
 }
+
+fn application_url(root: &Path, project: &Path, domain: &str) -> Result<String, CommandError> {
+    use crate::panel_api::{dat_field, dat_string_value, parse_osp_json};
+    let domain = crate::paths::normalize_project_domain(domain)?;
+    let sections = parse(&fs::read_to_string(child(&child(project, ".osp")?, "project.ini")?)?)?;
+    let values = sections.get(&domain).ok_or_else(|| error("err.laravelNotPrepared"))?;
+    let system = child(root, "system")?;
+    let global = fs::read_to_string(child(&system, "program.dat")?).ok().and_then(|s| parse_osp_json(&s));
+    let defaults = global.as_ref().and_then(|json| dat_field(json, "projects"));
+    let setting = |key: &str, fallback: &str| {
+        values
+            .get(key)
+            .filter(|v| !v.is_empty() && v.as_str() != "auto")
+            .cloned()
+            .or_else(|| {
+                defaults
+                    .and_then(|node| dat_field(node, key))
+                    .map(dat_string_value)
+                    .filter(|v| !v.is_empty() && v != "auto")
+            })
+            .unwrap_or_else(|| fallback.into())
+    };
+    let tls = setting("tls_enabled", "on") != "off";
+    let scheme = if tls { "https" } else { "http" };
+    let default_port = if tls { "443" } else { "80" };
+    let port = setting(if tls { "https_port" } else { "http_port" }, default_port);
+    let number: u16 =
+        port.parse().ok().filter(|p| *p > 0).ok_or_else(|| error("err.projectWorkspaceInvalid"))?;
+    let suffix = if port == default_port { String::new() } else { format!(":{number}") };
+    Ok(format!("{scheme}://{domain}{suffix}"))
+}
+
 fn bootstrap_with_ini(
     root: &Path,
     project: &Path,
+    domain: &str,
     application: &Path,
     php: &str,
     ini: &Path,
     channel: &Channel<Progress>,
 ) -> Result<(), CommandError> {
     use crate::project_database::{laravel_env, provision};
+    let url = application_url(root, project, domain)?;
     progress(channel, "database", String::new());
     let stage = application.parent().ok_or_else(|| error("err.laravelPayload"))?;
     let connection = provision(root, project, stage, false)?;
     let env_example = child(application, ".env.example")?;
     let mut env = fs::read_to_string(env_example)?;
+    env = crate::project_database::env_set(&env, "APP_URL", &url);
     let sqlite = connection.as_ref().filter(|c| c.db.engine == "sqlite");
     let sqlite_name =
         sqlite.map(|c| format!("{}.sqlite", c.db.name)).unwrap_or_else(|| "database.sqlite".into());
@@ -494,7 +530,7 @@ pub(crate) async fn install_project_laravel(
                 run(&mut command, &on_progress)
             },
             || progress(&on_progress, "publishing", String::new()),
-            |application, php, dir| bootstrap(&root, dir, application, php, &on_progress),
+            |application, php, dir| bootstrap(&root, dir, &domain, application, php, &on_progress),
         )
     })
     .await
@@ -560,6 +596,29 @@ mod tests {
         fs::write(stage.join("application/composer.json"), r#"{"name":"laravel/laravel"}"#)?;
         Ok(())
     }
+
+    #[test]
+    fn application_url_uses_the_domain_and_inherits_tls_and_ports() {
+        let f = Fixture::new();
+        assert_eq!(application_url(&f.root, &f.project, "site.test").unwrap(), "https://site.test");
+        fs::create_dir(f.root.join("system")).unwrap();
+        let scalar = |key, value| serde_json::json!({"key": key, "value": {"_value": value}});
+        let defaults = serde_json::json!({"_children": [{"key": "projects", "value": {"_children": [
+            scalar("tls_enabled", serde_json::json!(false)),
+            scalar("http_port", serde_json::json!(8080)),
+        ]}}]});
+        fs::write(f.root.join("system/program.dat"), defaults.to_string()).unwrap();
+        assert_eq!(application_url(&f.root, &f.project, "site.test").unwrap(), "http://site.test:8080");
+        for (section, settings, expected) in [
+            ("site.test", "tls_enabled = on\nhttps_port = 8443\n", "https://site.test:8443"),
+            ("site", "tls_enabled = off\nhttp_port = 80\n", "http://site"),
+            ("xn--caf-dma.test", "tls_enabled = auto\nhttp_port = auto\n", "http://xn--caf-dma.test:8080"),
+        ] {
+            fs::write(f.project.join(".osp/project.ini"), format!("[{section}]\n{settings}")).unwrap();
+            assert_eq!(application_url(&f.root, &f.project, section).unwrap(), expected);
+        }
+    }
+
     #[test]
     fn successful_install_keeps_configuration_and_exact_original_backup_without_wrapper_directory() {
         let f = Fixture::new();
@@ -775,7 +834,15 @@ mod tests {
                     .env("TEMP", external_path(&sandbox.join("temp")))
                     .env("TMP", external_path(&sandbox.join("temp")));
                 run(&mut command, &channel)?;
-                bootstrap_with_ini(&source, &f.project, &stage.join("application"), php, &ini_path, &channel)
+                bootstrap_with_ini(
+                    &source,
+                    &f.project,
+                    "site.test",
+                    &stage.join("application"),
+                    php,
+                    &ini_path,
+                    &channel,
+                )
             })
             .unwrap();
         assert!(f.project.join("app").is_dir());

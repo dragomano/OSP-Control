@@ -146,6 +146,50 @@ describe('CreateProjectDialog', () => {
     return { notify, onCreated, onRestartPanel, onClose };
   };
 
+  it('offers a .test domain without silently changing a single-label project name', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    renderDialog();
+    const domain = await screen.findByLabelText('Domain name');
+    fireEvent.change(domain, { target: { value: 'my-project' } });
+    expect(domain).toHaveValue('my-project');
+    fireEvent.click(screen.getByRole('button', { name: 'Use my-project.test' }));
+    expect(domain).toHaveValue('my-project.test');
+    expect(screen.queryByRole('button', { name: 'Use my-project.test' })).not.toBeInTheDocument();
+  });
+
+  it('preserves a pending native database choice during unrelated parent renders', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue({
+      ...moduleOptions,
+      databaseEngines: ['MySQL-8.4', 'PostgreSQL-17'],
+    });
+    const t = makeTranslator(embeddedDict('en'), embeddedDict('en'));
+    const context = { lang: 'en', t, plural: makePlural(t, 'en') };
+    const dialog = () => (
+      <I18nContext.Provider value={context}>
+        <CreateProjectDialog
+          notify={vi.fn()}
+          onCreated={vi.fn()}
+          onClose={vi.fn()}
+          onRestartPanel={vi.fn()}
+        />
+      </I18nContext.Provider>
+    );
+    const view = render(dialog());
+    await screen.findByLabelText('Domain name');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'laravel' },
+    });
+    const select = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Database engine' });
+    // Native keyboard navigation can update the DOM value before the popup commits onChange.
+    select.value = 'PostgreSQL-17';
+    view.rerender(dialog());
+    expect(screen.getByRole('combobox', { name: 'Database engine' })).toBe(select);
+    expect(select).toHaveValue('PostgreSQL-17');
+    expect(mocks.getProjectModuleOptions).toHaveBeenCalledTimes(1);
+    fireEvent.change(select, { target: { value: 'PostgreSQL-17' } });
+    expect(screen.getByLabelText('Database user')).toHaveValue('postgres');
+  });
+
   it.each(['en', 'ru', 'uk', 'be', 'es'])(
     'passes the current application language %s to scaffold creation',
     async (language) => {
@@ -316,6 +360,46 @@ describe('CreateProjectDialog', () => {
     expect(domain).toHaveValue('CAFÉ.test');
   });
 
+  it.each(['wordpress', 'laravel'])(
+    'defaults %s to installed Apache even when Nginx is global and preserves a manual override',
+    async (template) => {
+      mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+      mocks.getGlobalProjectEngines.mockResolvedValue({
+        httpEngine: 'Nginx_1.25',
+        phpEngine: 'PHP_8.3',
+        nodeEngine: '',
+      });
+      mocks.createProject.mockResolvedValue(createdProject);
+      renderDialog();
+      fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'site.test' } });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+        target: { value: template },
+      });
+      const http = screen.getByRole('combobox', { name: 'HTTP engine' });
+      expect(http).toHaveValue('Apache_2.4');
+      fireEvent.change(http, { target: { value: 'Nginx_1.25' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+      await vi.waitFor(() =>
+        expect(mocks.createProject).toHaveBeenCalledWith(
+          expect.objectContaining({ template, httpEngine: 'Nginx_1.25' }),
+        ),
+      );
+    },
+  );
+
+  it.each(['wordpress', 'laravel'])(
+    'falls back to an installed server for %s without Apache',
+    async (template) => {
+      mocks.getProjectModuleOptions.mockResolvedValue({ ...moduleOptions, httpEngines: ['Nginx_1.25'] });
+      renderDialog();
+      await screen.findByLabelText('Domain name');
+      fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+        target: { value: template },
+      });
+      expect(screen.getByRole('combobox', { name: 'HTTP engine' })).toHaveValue('Nginx_1.25');
+    },
+  );
+
   it('defaults Laravel to a named SQLite database and submits the choice', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
     mocks.createProject.mockResolvedValue(createdProject);
@@ -357,6 +441,8 @@ describe('CreateProjectDialog', () => {
       'MariaDB-11.8',
       'none',
     ]);
+    expect(screen.getByText('public/', { selector: 'b' })).toBeVisible();
+    expect(screen.getAllByText('.osp/database.json').some((element) => element.tagName === 'B')).toBe(true);
     fireEvent.change(db, { target: { value: 'MySQL-8.4' } });
     fireEvent.change(screen.getByLabelText('New database name'), { target: { value: 'cms_data' } });
     fireEvent.change(screen.getByLabelText('Database user'), { target: { value: 'local_admin' } });

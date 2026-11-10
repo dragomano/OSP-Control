@@ -57,6 +57,11 @@ describe('Laravel setup', () => {
 });
 
 describe('WordPress setup', () => {
+  it('emphasizes the public directory in the installation hint', () => {
+    setup(false, 'wordpress');
+    expect(screen.getByText('public/').tagName).toBe('B');
+  });
+
   it('reports download progress and calls completion only after successful publication', async () => {
     let finish: (value: { backupPath: string }) => void = () => {};
     vi.mocked(installProjectWordPress).mockImplementation((_project, progress) => {
