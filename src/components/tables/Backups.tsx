@@ -22,6 +22,7 @@ import { displayProjectDomain } from '../../projectDomain';
 import { formatSize, type Notify, type Service } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
+import '../widgets/formControls.css';
 
 // "All" sentinel for the backup subject selects: '*' can never collide with a module or domain name.
 const ALL_TARGETS = '*';
@@ -331,7 +332,7 @@ export function Backups({
           </div>
           <div className="backup-actions">
             {dbModules.length > 0 ? (
-              <label className="module-select">
+              <label className="backup-select">
                 <select
                   aria-label={t('settings.backupsDbTitle')}
                   value={selectedDbModule}
@@ -366,7 +367,7 @@ export function Backups({
           </div>
           <div className="backup-actions">
             {projectDomains.length > 0 ? (
-              <label className="module-select">
+              <label className="backup-select">
                 <select
                   aria-label={t('settings.backupsProjectTitle')}
                   value={selectedProjectDomain}
@@ -396,7 +397,7 @@ export function Backups({
         </div>
         <div className="backup-filter">
           <span>{t('backups.filter')}</span>
-          <label className="module-select">
+          <label className="backup-select">
             <select
               aria-label={t('backups.filter')}
               value={filter}

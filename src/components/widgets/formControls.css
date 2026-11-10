@@ -1,5 +1,6 @@
 .menu-field input,
 .menu-field select,
+.backup-select select,
 .workspace-setting input,
 .workspace-setting select,
 .workspace-domain-select select,
@@ -17,6 +18,7 @@
 }
 .menu-field input:focus,
 .menu-field select:focus,
+.backup-select select:focus,
 .workspace-setting input:focus,
 .workspace-setting select:focus,
 .workspace-domain-select select:focus,

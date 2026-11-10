@@ -2843,8 +2843,15 @@ button {
   font-size: 10px;
   color: #858d98;
 }
+.backup-select {
+  display: grid;
+  min-width: 0;
+}
+.backup-select select {
+  width: 100%;
+}
 /* Width of the backup subject dropdown next to the button. */
-.backup-actions .module-select {
+.backup-actions .backup-select {
   min-width: 200px;
 }
 .module-select select {
@@ -3133,6 +3140,15 @@ button {
     background: var(--dark-grain), linear-gradient(135deg, var(--panel2), var(--panel));
     border-color: var(--line);
     box-shadow: 0 3px 12px var(--dark-shadow);
+  }
+
+  .backup-list > .backup-row {
+    background: var(--dark-grain), color-mix(in srgb, var(--text) 5%, var(--panel2));
+    box-shadow: none;
+  }
+
+  .backup-list > .backup-row:nth-child(even) {
+    background: var(--dark-grain), color-mix(in srgb, var(--text) 10%, var(--panel2));
   }
 
   :is(
@@ -3432,6 +3448,14 @@ button {
       .configs-list
     ) {
     box-shadow: 0 2px 5px var(--lt-shadow);
+  }
+
+  .backup-list > .backup-row {
+    background: var(--lt-panel-2);
+  }
+
+  .backup-list > .backup-row:nth-child(even) {
+    background: var(--lt-panel);
   }
 
   .log-line.warning {
