@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { isPathToken, splitPaths } from '../src/components/widgets/PathText';
+import { cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { isPathToken, PathText, splitPaths } from '../src/components/widgets/PathText';
+
+afterEach(cleanup);
 
 const bold = (text: string) =>
   splitPaths(text)
@@ -65,6 +68,25 @@ describe('path highlighting in prose', () => {
     expect(parts.map((part) => part.text).join('')).toBe('Stored in .osp\\project.ini.');
   });
 
+  it('marks bare directory names that prose references without a separator', () => {
+    const text = 'Копия каталога config. Папки node_modules и vendor исключаются.';
+
+    expect(bold(text)).toEqual(['config', 'node_modules', 'vendor']);
+    expect(
+      splitPaths(text)
+        .map((part) => part.text)
+        .join(''),
+    ).toBe(text);
+    expect(bold('A zip archive of the project folder; node_modules and vendor are excluded.')).toEqual([
+      'node_modules',
+      'vendor',
+    ]);
+  });
+
+  it('leaves bare words that prose also uses generically alone', () => {
+    expect(bold('Modules and public domains stay plain without a separator.')).toEqual([]);
+  });
+
   it('rejoins into the original text character for character', () => {
     const texts = [
       'Будет создана папка home/домен с файлом .osp\\project.ini.',
@@ -93,5 +115,20 @@ describe('path highlighting in prose', () => {
     expect(isPathToken('module/add-on')).toBe(false);
     expect(isPathToken('/')).toBe(false);
     expect(isPathToken('OSPanel.')).toBe(false);
+  });
+});
+
+describe('PathText component', () => {
+  // A container that gaps its children (an inline-flex text-button, for example) turns
+  // every child into a separate flex item, so the whole sentence has to stay inside one
+  // element — otherwise a visible gap appears around every highlighted path.
+  it('renders the sentence as a single inline run', () => {
+    const text = 'Создаётся копия в backups/. Изменения применяются после перезапуска OSPanel.';
+    const { container } = render(<PathText text={text} />);
+
+    expect(container.children).toHaveLength(1);
+    expect(container.firstElementChild?.tagName).toBe('SPAN');
+    expect(container.textContent).toBe(text);
+    expect(container.querySelector('span > b')?.textContent).toBe('backups/');
   });
 });

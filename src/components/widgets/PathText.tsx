@@ -6,13 +6,20 @@ import type { ReactNode } from 'react';
 // stays plain text and a translator never has to learn a marker syntax.
 //
 // A token counts as a path when it carries a Windows separator (prose never uses one),
-// starts with a directory of the panel, mentions the .osp marker, or ends with a known
-// file extension. Ordinary prose slashes — "I/O", "module/add-on" — stay plain.
+// starts with a directory of the panel, mentions the .osp marker, ends with a known
+// file extension, or is one of the few directory names prose references bare. Ordinary
+// prose slashes — "I/O", "module/add-on" — stay plain.
 
 const PANEL_DIR = /^(?:home|system|modules|bin|config|backups|locales|domains|userdata|public)[\\/]/i;
 const OSP_MARK = /\.osp(?:[-\\/]|$)/i;
 const FILE_EXT =
   /\.(?:ini|dat|json|exe|bat|cmd|log|conf|cfg|txt|xml|yaml|yml|md|php|css|sql|zip|db|sqlite|html|htm|htaccess|sh|ps1)$/i;
+
+// Directory names that prose references bare — without a separator or extension
+// ("A copy of the config folder", "node_modules and vendor are excluded"). The list is
+// narrow on purpose: "modules", "public" and "domains" are also ordinary words, so
+// without a separator they stay plain.
+const BARE_DIR = /^(?:config|node_modules|vendor)$/i;
 
 // Punctuation next to a path stays outside the bold run: the sentence keeps its opening
 // bracket and its closing period, only the path itself is highlighted.
@@ -24,7 +31,13 @@ export type TextPart = { text: string; path: boolean };
 export function isPathToken(token: string): boolean {
   if (!/[0-9a-zа-яё]/i.test(token)) return false;
 
-  return token.includes('\\') || PANEL_DIR.test(token) || OSP_MARK.test(token) || FILE_EXT.test(token);
+  return (
+    token.includes('\\') ||
+    PANEL_DIR.test(token) ||
+    OSP_MARK.test(token) ||
+    FILE_EXT.test(token) ||
+    BARE_DIR.test(token)
+  );
 }
 
 // The text split into path and plain runs; the runs join back into the original string
@@ -70,13 +83,21 @@ export function splitPaths(text: string): TextPart[] {
 
 // The runs of one text are positional and never reordered, so the offset they start at is
 // a stable key: the same string always produces the same keys, whatever the language.
+//
+// The runs are grouped under a single <span>: in a container that gaps its children
+// (an inline-flex text-button, for example) each bare run would become a separate flex
+// item and the gap would tear the sentence apart around every highlighted path.
 export function PathText({ text }: { text: string }): ReactNode {
   let offset = 0;
 
-  return splitPaths(text).map((part) => {
-    const start = offset;
-    offset += part.text.length;
+  return (
+    <span>
+      {splitPaths(text).map((part) => {
+        const start = offset;
+        offset += part.text.length;
 
-    return part.path ? <b key={start}>{part.text}</b> : part.text;
-  });
+        return part.path ? <b key={start}>{part.text}</b> : part.text;
+      })}
+    </span>
+  );
 }

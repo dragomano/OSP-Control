@@ -295,7 +295,9 @@ export function Backups({
         <div className="setting-block">
           <div>
             <h3>{t('settings.backupsTitle')}</h3>
-            <p>{t('settings.backupsText')}</p>
+            <p>
+              <PathText text={t('settings.backupsText')} />
+            </p>
           </div>
           <button
             type="button"
@@ -362,7 +364,9 @@ export function Backups({
         <div className="setting-block">
           <div>
             <h3>{t('settings.backupsProjectTitle')}</h3>
-            <p>{t('settings.backupsProjectText')}</p>
+            <p>
+              <PathText text={t('settings.backupsProjectText')} />
+            </p>
           </div>
           <div className="backup-actions">
             {projectDomains.length > 0 ? (
