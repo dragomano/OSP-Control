@@ -1171,15 +1171,24 @@ mod tests {
         for module in ["Apache", "Nginx", "PHP-8.5"] {
             fs::create_dir_all(fixture.0.join("modules").join(module)).unwrap();
         }
+        let custom = Some(fixture.0.to_string_lossy().into_owned());
         let create = |template: &str, variant: &str, http_engine: Option<&str>| {
-            create_project(
+            create_project_with_modules(
                 CreateProjectParams {
                     domain: format!("{template}-{variant}.test"),
                     template: Some(template.into()),
                     http_engine: http_engine.map(str::to_string),
                     ..Default::default()
                 },
-                Some(fixture.0.to_string_lossy().into_owned()),
+                custom.clone(),
+                |_| {
+                    Some(serde_json::json!({"_children": [{"key":"PHP-8.5", "value":{"_children":[
+                        {"key":"profile", "value":{"_value":"default"}},
+                        {"key":"profiles", "value":{"_children":[
+                            {"key":"default", "value":{"_children":[{"key":"port", "value":{"_value":"9123"}}]}}
+                        ]}}
+                    ]}}]}))
+                },
             )
             .unwrap()
         };
