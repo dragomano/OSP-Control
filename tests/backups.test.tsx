@@ -292,19 +292,23 @@ describe('Backups restore', () => {
     expect(mocks.listBackups).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps unsaved menu edits when the additional confirmation is declined', async () => {
+  it('keeps unsaved menu edits when the merged confirmation is declined', async () => {
     mocks.listBackups.mockResolvedValue([menuBackup]);
-    mocks.askConfirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    mocks.askConfirm.mockResolvedValue(false);
     const onMenuRestored = vi.fn();
     renderBackups(vi.fn(), { menuDirty: true, onMenuRestored });
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
-    await vi.waitFor(() => expect(mocks.askConfirm).toHaveBeenCalledTimes(2));
-    expect(mocks.askConfirm).toHaveBeenLastCalledWith(t('menu.restoreDiscardConfirm'), 'Confirmation');
+    await vi.waitFor(() => expect(mocks.askConfirm).toHaveBeenCalledOnce());
+    // The dirty-editor variant folds the discard warning into the restore question.
+    expect(mocks.askConfirm).toHaveBeenCalledWith(
+      expect.stringContaining('Unsaved edits in the menu editor'),
+      'Confirmation',
+    );
     expect(mocks.restoreMenuBackup).not.toHaveBeenCalled();
     expect(onMenuRestored).not.toHaveBeenCalled();
   });
 
-  it('restores after both confirmations and retains the editor on failure', async () => {
+  it('restores after one confirmation and retains the editor on failure', async () => {
     mocks.listBackups.mockResolvedValue([menuBackup]);
     mocks.askConfirm.mockResolvedValue(true);
     mocks.restoreMenuBackup.mockRejectedValue(new Error('err.menuInvalid'));
@@ -314,7 +318,11 @@ describe('Backups restore', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith(t('err.menuInvalid')));
     expect(mocks.restoreMenuBackup).toHaveBeenCalledOnce();
-    expect(mocks.askConfirm).toHaveBeenCalledTimes(2);
+    expect(mocks.askConfirm).toHaveBeenCalledTimes(1);
+    expect(mocks.askConfirm).toHaveBeenCalledWith(
+      expect.stringContaining('Unsaved edits in the menu editor'),
+      'Confirmation',
+    );
     expect(onMenuRestored).not.toHaveBeenCalled();
   });
 

@@ -2919,6 +2919,31 @@ button {
 .modal-path .path-link:hover {
   text-decoration: none;
 }
+/* In-app confirmation dialog replacing the native message box (no system sound).
+   Must follow .modal-foot so the flex-end override wins. */
+.confirm-window {
+  width: min(400px, 100%);
+}
+.confirm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.confirm-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.confirm-message {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.confirm-foot {
+  justify-content: flex-end;
+}
 .light .modal-overlay {
   background: rgba(226, 231, 236, 0.72);
 }

@@ -856,11 +856,30 @@ export async function getUserInfo(): Promise<UserInfo> {
   return { name: 'Demo User' };
 }
 
+// In-app confirmation requests: askConfirm hands the question to the ConfirmDialog
+// host mounted once in App, and the host resolves it with the user's answer. This
+// replaces the native message box, whose warning icon always plays a system sound
+// that cannot be muted through the dialog plugin. Overlapping callers queue up.
+export type ConfirmRequest = {
+  message: string;
+  title: string;
+  resolve: (confirmed: boolean) => void;
+};
+
+let confirmHost: ((request: ConfirmRequest) => void) | null = null;
+
+// The host registers on mount; its cleanup unregisters and declines everything
+// still pending, so callers never wait on an unmounted dialog.
+export function registerConfirmHost(handler: ((request: ConfirmRequest) => void) | null): void {
+  confirmHost = handler;
+}
+
 export async function askConfirm(message: string, title?: string): Promise<boolean> {
   if (isTauri()) {
-    const { confirm } = await import('@tauri-apps/plugin-dialog');
+    const host = confirmHost;
+    if (!host) return false;
 
-    return confirm(message, { title, kind: 'warning' });
+    return new Promise<boolean>((resolve) => host({ message, title: title ?? '', resolve }));
   }
 
   return window.confirm(message);

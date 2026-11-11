@@ -202,9 +202,14 @@ export function ModuleProfilesDialog({
     })();
   };
   const remove = async () => {
-    if (locked || !profile || profile.builtin || selected === list?.active || !(await discard())) return;
-    if (!(await askConfirm(t('profiles.deleteConfirm', { profile: selected }), t('common.confirmTitle'))))
-      return;
+    if (locked || !profile || profile.builtin || selected === list?.active) return;
+    // One question even with a dirty draft: deleting the profile discards the edits,
+    // so the warning is part of the delete confirmation instead of a second dialog.
+    const confirmed = await askConfirm(
+      t(dirty ? 'profiles.deleteDirtyConfirm' : 'profiles.deleteConfirm', { profile: selected }),
+      t('common.confirmTitle'),
+    );
+    if (!confirmed) return;
     await run(async () => {
       const path = await deleteModuleProfile(service.name, selected);
       await reload();

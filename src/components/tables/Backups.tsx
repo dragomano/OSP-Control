@@ -231,15 +231,14 @@ export function Backups({
     setBusy(true);
     if (item.kind === 'menu') onMenuRestoreBusyChange?.(true);
     try {
-      const confirmed = await askConfirm(t(plan.confirmKey, plan.confirmVars), t('common.confirmTitle'));
+      // The discard warning is folded into the restore question so a dirty menu editor
+      // never raises two native dialogs in a row.
+      const dirtyMenuRestore = item.kind === 'menu' && menuDirty;
+      const confirmed = await askConfirm(
+        t(dirtyMenuRestore ? 'settings.backupsConfirmMenuDirty' : plan.confirmKey, plan.confirmVars),
+        t('common.confirmTitle'),
+      );
       if (!confirmed) return;
-      if (
-        item.kind === 'menu' &&
-        menuDirty &&
-        !(await askConfirm(t('menu.restoreDiscardConfirm'), t('common.confirmTitle')))
-      ) {
-        return;
-      }
       await plan.restore();
       if (item.kind === 'menu') {
         onMenuRestored?.();

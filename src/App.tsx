@@ -18,6 +18,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { version as appVersion } from '../package.json';
 import { AppUpdateButton, AppUpdatesProvider } from './appUpdates';
 import { APP_NAME } from './brand';
+import { ConfirmDialog } from './components/dialogs/ConfirmDialog';
 import { QuickSearch } from './components/dialogs/QuickSearch';
 import { Overview } from './components/pages/Overview';
 import { Projects } from './components/pages/Projects';
@@ -1348,6 +1349,7 @@ function App() {
               </div>
             )}
             <QuickSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={navigateTo} />
+            <ConfirmDialog />
             {profileService && (
               <Suspense fallback={null}>
                 <ModuleProfilesDialog

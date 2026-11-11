@@ -85,7 +85,9 @@ describe('menu backup navigation and editor synchronization', () => {
     await openBackupsWithDraft();
     fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
     await waitFor(() => expect(restoreMenuBackup).toHaveBeenCalledOnce());
-    expect(confirm).toHaveBeenCalledTimes(2);
+    // A dirty menu editor folds its discard warning into the single restore question.
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Unsaved edits in the menu editor'));
     fireEvent.click(screen.getByRole('button', { name: 'Menu editor' }));
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Restored menu'));
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -95,11 +97,11 @@ describe('menu backup navigation and editor synchronization', () => {
     expect(await screen.findByRole('combobox', { name: 'Backup type' })).toHaveValue('all');
   });
 
-  it('preserves the editor draft if discarding it is declined', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(true).mockReturnValueOnce(false);
+  it('preserves the editor draft when the restore confirmation is declined', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await openBackupsWithDraft();
     fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
-    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: 'Menu editor' }));
     expect(await screen.findByRole('textbox', { name: 'Name' })).toHaveValue('Unsaved draft');
     expect(restoreMenuBackup).not.toHaveBeenCalled();
