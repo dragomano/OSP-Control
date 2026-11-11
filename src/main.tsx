@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { initializeSettings } from './settingsStorage';
 import './styles.css';
+import './components/widgets/formControls.css';
 import './projectTags.css';
 
 // Disable the WebView2 default context menu (Back/Refresh/Save as/Print) —

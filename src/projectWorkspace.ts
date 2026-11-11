@@ -4,6 +4,7 @@ export type ProjectWorkspace = {
   baseDir: string;
   content: string | null;
   files: string[];
+  readme?: string | null;
   laravel?: 'pending' | 'installed' | null;
   wordpress?: 'pending' | 'installed' | null;
 };

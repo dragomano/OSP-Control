@@ -13,6 +13,36 @@ import {
 
 const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8').toLowerCase();
 
+describe('project creation dropdown styles', () => {
+  it('shares control and focus rules with workspace dropdowns', () => {
+    const shared = readFileSync(resolve(process.cwd(), 'src/components/widgets/formControls.css'), 'utf8');
+    const style = document.createElement('style');
+    style.textContent = shared;
+    document.head.append(style);
+    try {
+      const rules = Array.from(style.sheet?.cssRules ?? []) as CSSStyleRule[];
+      const control = rules.find((rule) => rule.selectorText.includes('.module-select select,'));
+      const focus = rules.find((rule) => rule.selectorText.includes('.module-select select:focus,'));
+      expect(control?.selectorText).toContain('.workspace-setting select,');
+      expect(control?.style.getPropertyValue('background')).toBe('var(--bg)');
+      expect(focus?.selectorText).toContain('.workspace-setting select:focus,');
+      expect(focus?.style.getPropertyValue('outline')).toBe('2px solid var(--accent)');
+      expect(focus?.style.getPropertyValue('outline-offset')).toBe('2px');
+      expect(css).not.toMatch(/:is\([^)]*\.module-select select/);
+    } finally {
+      style.remove();
+    }
+  });
+
+  it('reserves space for the full focus outline inside the dialog scroll area', () => {
+    const dialog = readFileSync(resolve(process.cwd(), 'src/components/dialogs/createProject.css'), 'utf8');
+    const body = dialog.match(/\.create-project-body\s*\{([^}]+)\}/)?.[1];
+    expect(body).toMatch(/padding:\s*4px;/);
+    expect(body).toMatch(/margin-inline:\s*-4px;/);
+    expect(body).toMatch(/overflow-y:\s*auto;/);
+  });
+});
+
 describe('accentSwatch (hue rotation)', () => {
   it('returns every palette literal unchanged at delta 0', () => {
     for (const literal of ACCENT_LITERALS) {

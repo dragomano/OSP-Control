@@ -146,6 +146,39 @@ describe('CreateProjectDialog', () => {
     return { notify, onCreated, onRestartPanel, onClose };
   };
 
+  it('sorts directories, database files and substituted template paths together', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'SHOP.test' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'wordpress' },
+    });
+    fireEvent.click(screen.getByText('Files to create: 10'));
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      '.osp/.gitignore',
+      '.osp/apache/shop.test.conf',
+      '.osp/caddy/shop.test.conf',
+      '.osp/database.json',
+      '.osp/nginx/shop.test.conf',
+      '.osp/project.ini',
+      '.osp/wordpress-readme.md',
+      '.osp/wordpress.json',
+      'public/',
+      'public/.htaccess',
+      'public/index.php',
+    ]);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project template' }), {
+      target: { value: 'static' },
+    });
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      '.osp/project.ini',
+      'public/',
+      'public/index.html',
+      'public/styles.css',
+      'README.md',
+    ]);
+  });
+
   it('offers a .test domain without silently changing a single-label project name', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
     renderDialog();

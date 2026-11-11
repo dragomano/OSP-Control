@@ -656,6 +656,29 @@ export function ProjectWorkspace({
                               <dt>{t('workspace.settings')}</dt>
                               <dd>.osp/project.ini</dd>
                             </div>
+                            {doc.readme && (
+                              <div>
+                                <dt>{t('workspace.readme')}</dt>
+                                <dd>
+                                  <button
+                                    type="button"
+                                    className="text-button"
+                                    title={t('workspace.openReadme')}
+                                    disabled={locked}
+                                    onClick={() =>
+                                      void run(() =>
+                                        openFileExternally(
+                                          `${doc.baseDir}\\${doc.readme?.replace(/\//g, '\\')}`,
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    {doc.readme}
+                                    <ArrowUpRight size={13} />
+                                  </button>
+                                </dd>
+                              </div>
+                            )}
                           </dl>
                         </div>
                       </div>

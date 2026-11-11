@@ -349,16 +349,17 @@ export function CreateProjectDialog({
                     {t('templates.files', { n: template.files.length + (hasDatabase ? 2 : 0) })}
                   </summary>
                   <ul>
-                    {template.directories.map((path) => (
-                      <li key={`${path}/`}>{path}/</li>
-                    ))}
-                    {hasDatabase &&
-                      ['.osp/database.json', '.osp/.gitignore'].map((path) => <li key={path}>{path}</li>)}
-                    {template.files.map((file) => (
-                      <li key={file.path}>
-                        {file.path.replace(/\{domain\}/g, normalizedDomain ?? '<domain>')}
-                      </li>
-                    ))}
+                    {[
+                      ...template.directories.map((path) => `${path}/`),
+                      ...(hasDatabase ? ['.osp/database.json', '.osp/.gitignore'] : []),
+                      ...template.files.map((file) =>
+                        file.path.replace(/\{domain\}/g, normalizedDomain ?? '<domain>'),
+                      ),
+                    ]
+                      .sort((a, b) => a.localeCompare(b, lang))
+                      .map((path) => (
+                        <li key={path}>{path}</li>
+                      ))}
                   </ul>
                 </details>
               </section>

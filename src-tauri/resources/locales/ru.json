@@ -943,6 +943,8 @@
   "workspace.primary": "Основной",
   "workspace.configure": "Настроить",
   "workspace.paths": "Каталоги проекта",
+  "workspace.readme": "Инструкция по проекту",
+  "workspace.openReadme": "Открыть во внешнем редакторе",
   "workspace.inherit": "Как в OSPanel → {value}",
   "workspace.on": "Включено",
   "workspace.off": "Выключено",

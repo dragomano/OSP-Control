@@ -14,6 +14,9 @@
 }
 .create-project-body {
   min-height: 0;
+  /* Keep the shared 2px outline + 2px offset inside the scroll clipping edge. */
+  padding: 4px;
+  margin-inline: -4px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

@@ -2855,18 +2855,7 @@ button {
   min-width: 200px;
 }
 .module-select select {
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel2);
-  color: var(--text);
-  font-size: 12px;
-  outline: 0;
   width: 100%;
-}
-.module-select select:focus {
-  border-color: var(--accent);
 }
 /* Input field in the project creation form: without explicit rules the browser
    renders a short light-toned input, so we set the same sizes as the select. */
@@ -3395,7 +3384,7 @@ button {
   .modal-window {
     box-shadow: 0 24px 60px var(--dark-shadow);
   }
-  :is(.modal-input, .modal-select, .module-select select, .quick-search-input) {
+  :is(.modal-input, .modal-select, .quick-search-input) {
     background: var(--panel2);
     color: var(--text);
     border-color: var(--line);

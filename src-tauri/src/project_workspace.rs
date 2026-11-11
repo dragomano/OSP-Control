@@ -26,6 +26,7 @@ pub(crate) struct ProjectWorkspace {
     base_dir: String,
     content: Option<String>,
     files: Vec<String>,
+    readme: Option<String>,
     laravel: Option<String>,
     wordpress: Option<String>,
 }
@@ -266,6 +267,10 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
         base_dir: external_path(&dir).to_string_lossy().into_owned(),
         content,
         files,
+        readme: [".osp/laravel-readme.md", ".osp/wordpress-readme.md", "README.md"]
+            .into_iter()
+            .find(|file| application_path(&dir, file).is_ok_and(|path| path.is_file()))
+            .map(str::to_owned),
         laravel,
         wordpress: crate::wordpress_installer::state(&dir),
     })
@@ -637,6 +642,26 @@ mod tests {
         assert!(base(&f.0, "shop.test", f.0.to_str().unwrap()).is_err());
         assert!(file_path(&PathBuf::from(f.dir()), "shop.test", "../../system/program.dat", false).is_err());
         assert!(file_path(&PathBuf::from(f.dir()), "shop.test", "nginx/unknown.test.conf", false).is_err());
+    }
+
+    #[test]
+    fn overview_readme_requires_an_existing_file_and_prefers_starter_instructions() {
+        let f = Fixture::new();
+        let dir = PathBuf::from(f.dir());
+        assert!(workspace(&f.0, "shop.test", &f.dir()).unwrap().readme.is_none());
+        fs::create_dir(dir.join("README.md")).unwrap();
+        assert!(workspace(&f.0, "shop.test", &f.dir()).unwrap().readme.is_none());
+        fs::remove_dir(dir.join("README.md")).unwrap();
+        fs::write(dir.join("README.md"), "# Project").unwrap();
+        assert_eq!(workspace(&f.0, "shop.test", &f.dir()).unwrap().readme.as_deref(), Some("README.md"));
+        for file in [".osp/laravel-readme.md", ".osp/wordpress-readme.md"] {
+            fs::write(dir.join(file), "# Starter instructions").unwrap();
+            assert_eq!(workspace(&f.0, "shop.test", &f.dir()).unwrap().readme.as_deref(), Some(file));
+            assert!(file_path(&dir, "shop.test", file, true).is_err());
+            fs::remove_file(dir.join(file)).unwrap();
+        }
+        fs::remove_file(dir.join("README.md")).unwrap();
+        assert!(workspace(&f.0, "shop.test", &f.dir()).unwrap().readme.is_none());
     }
 
     #[test]

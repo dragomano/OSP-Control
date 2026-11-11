@@ -943,6 +943,8 @@
   "workspace.primary": "Основний",
   "workspace.configure": "Налаштувати",
   "workspace.paths": "Каталоги проєкту",
+  "workspace.readme": "Інструкція до проєкту",
+  "workspace.openReadme": "Відкрити в зовнішньому редакторі",
   "workspace.inherit": "Як в OSPanel → {value}",
   "workspace.on": "Увімкнено",
   "workspace.off": "Вимкнено",

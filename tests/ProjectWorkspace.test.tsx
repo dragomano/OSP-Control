@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   writeMenu: vi.fn(),
   diagnoseProject: vi.fn(),
   installProjectLaravel: vi.fn(),
+  openFileExternally: vi.fn(),
 }));
 vi.mock('../src/ospanel', async (original) => ({
   ...(await original<typeof import('../src/ospanel')>()),
@@ -88,6 +89,27 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('project workspace drafts', () => {
+  it.each(['.osp/wordpress-readme.md', '.osp/laravel-readme.md', 'README.md'])(
+    'opens %s from the overview in an external editor',
+    async (readme) => {
+      mocks.readProjectWorkspace.mockResolvedValue({ baseDir: project.path, content, files: [], readme });
+      setup();
+      const link = await screen.findByRole('button', { name: readme });
+      expect(link).toHaveAttribute('title', t('workspace.openReadme'));
+      expect(screen.getByText(t('workspace.readme'))).toBeInTheDocument();
+      fireEvent.click(link);
+      expect(mocks.openFileExternally).toHaveBeenCalledWith(
+        `${project.path}\\${readme.replace(/\//g, '\\')}`,
+      );
+    },
+  );
+
+  it('does not show instructions when the project has no description file', async () => {
+    setup();
+    await screen.findByText('Project directories');
+    expect(screen.queryByText(t('workspace.readme'))).not.toBeInTheDocument();
+  });
+
   it.each([
     ['Configurations', 'nginx/shop.test.conf'],
     ['Application files', '.env'],

@@ -933,6 +933,8 @@
   "workspace.primary": "Primary",
   "workspace.configure": "Configure",
   "workspace.paths": "Project directories",
+  "workspace.readme": "Project instructions",
+  "workspace.openReadme": "Open in external editor",
   "workspace.inherit": "As in OSPanel → {value}",
   "workspace.on": "Enabled",
   "workspace.off": "Disabled",

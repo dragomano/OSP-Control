@@ -1,3 +1,4 @@
+.module-select select,
 .menu-field input,
 .menu-field select,
 .backup-select select,
@@ -17,6 +18,7 @@
   background: var(--bg);
   color: var(--text);
 }
+.module-select select:focus,
 .menu-field input:focus,
 .menu-field select:focus,
 .backup-select select:focus,
