@@ -200,6 +200,22 @@ fn download(update: &AppUpdate, path: &Path, ch: &Channel<Progress>) -> Result<(
     Ok(())
 }
 
+// The shipped dictionaries must contain only what the runtime's flattenDict() can read:
+// flat string keys and one nested object of CLDR plural forms per key, every leaf a
+// non-empty string. The former all-values-are-strings check rejected those nested
+// families, which is why the built-in updater of every release before this fix reported
+// "err.appUpdateArchive" when installing archives shipped since the format change.
+fn valid_dict(value: &serde_json::Value, lang: &str) -> bool {
+    let leaf = |v: &serde_json::Value| v.as_str().is_some_and(|s| !s.trim().is_empty());
+    let family =
+        |v: &serde_json::Value| v.as_object().is_some_and(|m| !m.is_empty() && m.values().all(|v| leaf(v)));
+    value.as_object().is_some_and(|object| {
+        object.get("lang.code").and_then(|v| v.as_str()) == Some(lang)
+            && object.get("lang.name").and_then(|v| v.as_str()).is_some_and(|s| !s.trim().is_empty())
+            && object.values().all(|v| leaf(v) || family(v))
+    })
+}
+
 fn payload(dir: &Path, ver: &str) -> Result<PathBuf, CommandError> {
     let arch = arch()?;
     let nested = dir.join(format!("OSP_Control_{ver}_{arch}"));
@@ -211,11 +227,7 @@ fn payload(dir: &Path, ver: &str) -> Result<PathBuf, CommandError> {
         let value: serde_json::Value =
             serde_json::from_slice(&fs::read(path).map_err(|_| CommandError::new("err.appUpdateArchive"))?)
                 .map_err(|_| CommandError::new("err.appUpdateArchive"))?;
-        let object = value.as_object().ok_or_else(|| CommandError::new("err.appUpdateArchive"))?;
-        if object.get("lang.code").and_then(|v| v.as_str()) != Some(lang)
-            || object.get("lang.name").and_then(|v| v.as_str()).is_none_or(|s| s.trim().is_empty())
-            || object.values().any(|v| v.as_str().is_none_or(|s| s.trim().is_empty()))
-        {
+        if !valid_dict(&value, lang) {
             return Err(CommandError::new("err.appUpdateArchive"));
         }
     }
@@ -371,6 +383,20 @@ mod tests {
             .unwrap();
         }
         assert!(payload(&root, "0.3.0").is_ok());
+        // The shipped shape since the plural-format change: flat keys beside nested families.
+        fs::write(
+            root.join("locales/ru.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "lang.code": "ru",
+                "lang.name": "Russian",
+                "settings.sourcesCount": {
+                    "one": "{count} адрес", "few": "{count} адреса", "many": "{count} адресов", "other": "{count} адреса"
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(payload(&root, "0.3.0").is_ok());
         fs::write(root.join("osp-control.exe"), vec![0u8; 70]).unwrap();
         assert!(payload(&root, "0.3.0").is_err());
         fs::write(root.join("osp-control.exe"), &pe).unwrap();
@@ -380,6 +406,39 @@ mod tests {
         fs::write(root.join("unexpected.dll"), b"no").unwrap();
         assert!(payload(&root, "0.3.0").is_err());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn dictionaries_accept_flat_keys_and_one_level_plural_families() {
+        let base = serde_json::json!({"lang.code": "en", "lang.name": "English"});
+        let with = |extra: serde_json::Value| {
+            let mut object = base.clone();
+            object.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+            object
+        };
+        // Both shapes flattenDict() reads: dotted plural keys and one nested family per key.
+        assert!(valid_dict(&with(serde_json::json!({"a.b.one": "a", "a.b.other": "b"})), "en"));
+        assert!(valid_dict(&with(serde_json::json!({"a.b": {"one": "a", "other": "b"}})), "en"));
+
+        for extra in [
+            // Empty leaves are useless for translation, and deeper or non-object nesting is
+            // silently dropped by flattenDict(), so the archive must not ship them.
+            serde_json::json!({"empty": ""}),
+            serde_json::json!({"blank": " "}),
+            serde_json::json!({"family": {"one": ""}}),
+            serde_json::json!({"family": {}}),
+            serde_json::json!({"family": {"deep": {"one": "a"}}}),
+            serde_json::json!({"list": ["a"]}),
+            serde_json::json!({"number": 1}),
+        ] {
+            assert!(!valid_dict(&with(extra), "en"));
+        }
+
+        assert!(!valid_dict(&serde_json::json!({"lang.code": "ru", "lang.name": "English"}), "en"));
+        assert!(!valid_dict(&serde_json::json!({"lang.code": "en"}), "en"));
+        assert!(!valid_dict(&serde_json::json!({"lang.code": "en", "lang.name": " "}), "en"));
+        assert!(!valid_dict(&serde_json::json!("string"), "en"));
+        assert!(!valid_dict(&serde_json::Value::Null, "en"));
     }
 
     #[test]
