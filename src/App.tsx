@@ -124,6 +124,32 @@ function App() {
   useEffect(() => {
     if (page === 'projects') setProjectsVisited(true);
   }, [page]);
+  // Bumped when the tray menu asks for a new project; the Projects page watches
+  // this counter and opens its creation dialog.
+  const [createProjectSignal, setCreateProjectSignal] = useState(0);
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    const subscribe = async () => {
+      const { listen } = await import('@tauri-apps/api/event');
+      const off = await listen('tray-create-project', () => {
+        setPage('projects');
+        setCreateProjectSignal((n) => n + 1);
+      });
+      if (cancelled) off();
+      else unlisten = off;
+    };
+    // The tray entry brings the window up on the Rust side; here we only switch
+    // to the projects page and let it open the dialog. Subscription is
+    // best-effort: a failure (no Tauri internals in tests) leaves the tray
+    // entry inert and must not crash the app on startup.
+    subscribe().catch(() => {});
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
   const [menuReloadVersion, setMenuReloadVersion] = useState(0);
   const [menuRestoring, setMenuRestoring] = useState(false);
   useEffect(() => {
@@ -1176,6 +1202,7 @@ function App() {
                       query={query}
                       setQuery={setQuery}
                       notify={notify}
+                      createSignal={createProjectSignal}
                       onProjectCreated={addProject}
                       onProjectDeleted={(domain) => void removeProject(domain)}
                       onProjectRenamed={projectRenamed}

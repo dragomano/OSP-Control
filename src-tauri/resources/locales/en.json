@@ -583,6 +583,7 @@
   "err.invalidSettingValue": "Invalid module value: {value}",
   "err.trayFailed": "Failed to create the tray icon",
   "tray.show": "Show window",
+  "tray.createProject": "Create project",
   "tray.quit": "Quit",
   "search.open": "Quick search",
   "search.placeholder": "Search sections and options…",

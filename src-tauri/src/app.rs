@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
 
-use tauri::Manager;
-use tauri::menu::{Menu, MenuItem};
+use tauri::{Emitter, Manager};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
 use crate::error::{CommandError, spawn_failed};
@@ -120,9 +120,16 @@ fn ensure_tray(app: &tauri::AppHandle, lang: &str) -> Result<(), CommandError> {
     let icon = app.default_window_icon().cloned().ok_or_else(tray_failed)?;
     let show_item = MenuItem::with_id(app, "show", locale_key_string(lang, "tray.show"), true, None::<&str>)
         .map_err(|_| tray_failed())?;
+    let create_item =
+        MenuItem::with_id(app, "create_project", locale_key_string(lang, "tray.createProject"), true, None::<&str>)
+            .map_err(|_| tray_failed())?;
     let quit_item = MenuItem::with_id(app, "quit", locale_key_string(lang, "tray.quit"), true, None::<&str>)
         .map_err(|_| tray_failed())?;
-    let menu = Menu::with_items(app, &[&show_item, &quit_item]).map_err(|_| tray_failed())?;
+    // Native separator before the destructive "quit" entry so it does not sit
+    // directly against the other actions.
+    let separator = PredefinedMenuItem::separator(app).map_err(|_| tray_failed())?;
+    let menu = Menu::with_items(app, &[&show_item, &create_item, &separator, &quit_item])
+        .map_err(|_| tray_failed())?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
@@ -131,6 +138,12 @@ fn ensure_tray(app: &tauri::AppHandle, lang: &str) -> Result<(), CommandError> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => show_main_window(app),
+            // Creating a project happens in the UI, so bring the window up and
+            // let the frontend switch to the projects page and open its dialog.
+            "create_project" => {
+                show_main_window(app);
+                let _ = app.emit("tray-create-project", ());
+            }
             "quit" => app.exit(0),
             _ => {}
         })

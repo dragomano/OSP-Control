@@ -588,6 +588,7 @@
   "err.invalidSettingValue": "Valor de módulo no válido: {value}",
   "err.trayFailed": "No se pudo crear el icono de la bandeja",
   "tray.show": "Mostrar la ventana",
+  "tray.createProject": "Crear proyecto",
   "tray.quit": "Salir",
   "search.open": "Búsqueda rápida",
   "search.placeholder": "Buscar secciones y opciones…",

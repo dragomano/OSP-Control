@@ -71,6 +71,7 @@ type ProjectsProps = {
   query: string;
   setQuery: (value: string) => void;
   notify: Notify;
+  createSignal?: number;
   onProjectCreated: (created: CreatedProject) => void;
   onProjectDeleted: (domain: string) => void;
   onProjectRenamed: (domain: string, renamed: OsPanelProject) => void;
@@ -90,6 +91,7 @@ function ProjectsContent({
   query,
   setQuery,
   notify,
+  createSignal = 0,
   onProjectCreated,
   onProjectDeleted,
   onProjectRenamed,
@@ -135,6 +137,16 @@ function ProjectsContent({
   const [editingTags, setEditingTags] = useState<string | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [bulkTag, setBulkTag] = useState('');
+  // The tray "create project" entry switches to this page and bumps the signal;
+  // open the dialog and clear whatever else might be in the way.
+  useEffect(() => {
+    if (createSignal <= 0) return;
+    setModulesFor(null);
+    setHostsOpen(false);
+    setRenameFor(null);
+    setEditingTags(null);
+    setCreateDialogOpen(true);
+  }, [createSignal]);
   useEffect(() => {
     const tags = readProjectTags(tagStorageKey);
     const colors = readProjectTagColors(tagStorageKey);
