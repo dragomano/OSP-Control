@@ -199,6 +199,7 @@ English is the base language: anything missing from another dictionary silently 
 Translations live in `src-tauri/resources/locales/*.json` and are embedded into the binary. The portable build ships a copy in `locales/` next to the executable: edit the files there and the changes are picked up when the window regains focus, or via the "Reload translations" button in the settings.
 
 A new language is a single `<code>.json` file (for example `de.json` or `pt_BR.json`) in `locales/` next to the executable; in a dev build — `src-tauri/target/debug/locales/`. The code is 2–8 characters: Latin letters, digits, `-` and `_`. The language appears in the settings on its own — no rebuild needed. File format:
+
 - a JSON object of "key — non-empty string" entries; a plural family is a nested object (see below);
 - the keys are listed in the order of `en.json` (the base language), so two dictionaries can be compared line by line;
 - `lang.name` — the language name in itself ("Deutsch"); without it the language will not appear in the settings list;

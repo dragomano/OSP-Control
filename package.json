@@ -1,7 +1,7 @@
 {
   "name": "osp-control",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -22,15 +22,15 @@
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.4",
     "highlight.js": "^11.12.0",
-    "lucide-react": "^1.68.0",
-    "marked": "^18.1.3",
-    "preact": "^11.1.1",
+    "lucide-react": "^1.72.0",
+    "marked": "^18.2.0",
+    "preact": "^11.2.0",
     "punycode": "^2.3.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.4",
+    "@biomejs/biome": "^2.6.6",
     "@fortawesome/fontawesome-free-ospanel": "npm:@fortawesome/fontawesome-free@6.5.2",
     "@preact/preset-vite": "^2.10.6",
     "@tauri-apps/cli": "^2.12.4",
@@ -39,11 +39,11 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.2.1",
+    "@vitejs/plugin-react": "^6.3.0",
     "@vitest/coverage-v8": "5.1.0",
-    "jsdom": "^30.1.3",
+    "jsdom": "^31.0.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.5",
+    "vite": "^8.3.8",
     "vitest": "^5.1.0"
   }
 }
