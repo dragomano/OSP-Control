@@ -80,6 +80,27 @@ fn section(doc: &mut DocumentMut, name: &str) -> Result<(), CommandError> {
     }
     Ok(())
 }
+fn remove_empty_project_sections(doc: &mut DocumentMut) -> Result<bool, CommandError> {
+    let Some(projects) = doc.get_mut("projects") else {
+        return Ok(false);
+    };
+    let projects = projects.as_table_mut().ok_or_else(invalid)?;
+    let empty = projects
+        .iter()
+        .filter_map(|(domain, item)| {
+            item.as_table().filter(|table| table.is_empty()).map(|_| domain.to_owned())
+        })
+        .collect::<Vec<_>>();
+    let mut changed = !empty.is_empty();
+    for domain in empty {
+        projects.remove(&domain);
+    }
+    if projects.is_empty() {
+        doc.remove("projects");
+        changed = true;
+    }
+    Ok(changed)
+}
 fn strings(item: &Item) -> Result<Vec<String>, CommandError> {
     item.as_array()
         .ok_or_else(invalid)?
@@ -148,6 +169,7 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
                 doc["projects"][&domain].as_table_mut().ok_or_else(invalid)?.remove("tags");
             }
         }
+        let mut used_tags = std::collections::BTreeSet::new();
         for (domain, tags) in projects {
             if domain.is_empty() || domain.len() > 253 || domain.chars().any(char::is_control) {
                 return Err(invalid());
@@ -165,12 +187,20 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
             {
                 return Err(invalid());
             }
+            if tags.is_empty() {
+                if let Some(project) = doc["projects"].get_mut(domain) {
+                    project.as_table_mut().ok_or_else(invalid)?.remove("tags");
+                }
+                continue;
+            }
             if doc["projects"].get(domain).is_none() {
                 doc["projects"][domain] = Item::Table(Table::new());
             }
+            used_tags.extend(tags.iter().map(|tag| tag.to_lowercase()));
             put(&mut doc["projects"][domain], "tags", array(&tags));
         }
-        // Tag-only edits must not erase the existing palette.
+        remove_empty_project_sections(doc)?;
+        // Tag-only edits retain colors for tags that are still in use.
         if let Some(colors) = parsed.get("colors") {
             let colors = colors.as_object().ok_or_else(invalid)?;
             section(doc, "project_tag_colors")?;
@@ -191,6 +221,13 @@ fn set_value(doc: &mut DocumentMut, key: &str, text: &str) -> Result<(), Command
                     return Err(invalid());
                 }
                 put(&mut doc["project_tag_colors"], name, value(color));
+            }
+        }
+        if let Some(palette) = doc.get_mut("project_tag_colors") {
+            let palette = palette.as_table_mut().ok_or_else(invalid)?;
+            palette.retain(|name, _| used_tags.contains(&name.to_lowercase()));
+            if palette.is_empty() {
+                doc.remove("project_tag_colors");
             }
         }
     } else {
@@ -339,7 +376,13 @@ impl SettingsStore {
     }
     pub fn load(&self) -> Result<Snapshot, CommandError> {
         let _guard = self.lock.lock().map_err(|_| invalid())?;
-        let doc = self.read().map_err(|e| self.error(e))?;
+        let mut doc = self.read().map_err(|e| self.error(e))?;
+        if let Some(document) = doc.as_mut() {
+            if remove_empty_project_sections(document)? {
+                // Best effort: a read-only file must not prevent the app from loading.
+                let _ = self.write(&document.to_string());
+            }
+        }
         Ok(Snapshot {
             values: match &doc {
                 Some(doc) => values(doc)?,
@@ -384,7 +427,7 @@ impl SettingsStore {
             }
         }
         let snapshot = values(&doc).map_err(|e| self.error(e))?;
-        if !snapshot.is_empty() && before.as_deref() != Some(&doc.to_string()) {
+        if before.as_deref() != Some(&doc.to_string()) && (before.is_some() || !snapshot.is_empty()) {
             if doc.get("schema_version").is_none() {
                 doc["schema_version"] = value(1);
             }
@@ -611,8 +654,8 @@ mod tests {
     fn tag_colors_survive_save_response_reload_and_unrelated_edits() {
         let f = Fixture::new();
         let metadata = serde_json::json!({
-            "version": 1, "projects": {"shop.test": ["Client"]},
-            "colors": {"client": "#12a4ce", "unused": "#cc4488", "mixed": "#Ab19EF"}
+            "version": 1, "projects": {"shop.test": ["Client", "Mixed"]},
+            "colors": {"client": "#12a4ce", "mixed": "#Ab19EF"}
         });
         let snapshot = f.save(TAG_KEY, &metadata.to_string());
         assert_eq!(serde_json::from_str::<serde_json::Value>(&snapshot.values[TAG_KEY]).unwrap(), metadata);
@@ -623,17 +666,19 @@ mod tests {
             metadata
         );
         let cleared = serde_json::json!({"version": 1, "projects": {}, "colors": {}});
-        f.save(TAG_KEY, &cleared.to_string());
-        assert_eq!(
-            serde_json::from_str::<serde_json::Value>(&reopened.load().unwrap().values[TAG_KEY]).unwrap(),
-            cleared
-        );
+        let snapshot = f.save(TAG_KEY, &cleared.to_string());
+        assert!(!snapshot.values.contains_key(TAG_KEY));
+        assert!(!f.text().contains("[projects"));
+        assert!(!reopened.load().unwrap().values.contains_key(TAG_KEY));
     }
 
     #[test]
     fn tag_colors_validate_hex_values_and_preserve_colors_during_tag_edits() {
         let f = Fixture::new();
-        f.save(TAG_KEY, r##"{"version":1,"projects":{},"colors":{"client":"#12a4ce"}}"##);
+        f.save(
+            TAG_KEY,
+            r##"{"version":1,"projects":{"shop.test":["Client"]},"colors":{"client":"#12a4ce"}}"##,
+        );
         f.save(TAG_KEY, r#"{"version":1,"projects":{"shop.test":["Client"]}}"#);
         let saved: serde_json::Value =
             serde_json::from_str(&f.store.load().unwrap().values[TAG_KEY]).unwrap();
@@ -656,6 +701,79 @@ mod tests {
             assert!(f.store.save([(TAG_KEY.into(), metadata.to_string())].into(), false).is_err());
             assert_eq!(f.text(), before);
         }
+    }
+
+    #[test]
+    fn unused_tag_colors_are_removed_only_after_the_last_reference() {
+        for include_colors in [false, true] {
+            let f = Fixture::new();
+            fs::write(&f.store.path, "schema_version=1\n[projects.'shop.test']\ntags=['Client']\nnote='Keep'\n[projects.'api.test']\ntags=['CLIENT']\n[project_tag_colors]\nclient='#12a4ce'\nunused='#cc4488'\n").unwrap();
+            let mut metadata = serde_json::json!({"version":1,"projects":{"api.test":["CLIENT"]}});
+            if include_colors {
+                metadata["colors"] = serde_json::json!({"client":"#12a4ce","unused":"#cc4488"});
+            }
+            let snapshot = f.save(TAG_KEY, &metadata.to_string());
+            let saved: serde_json::Value = serde_json::from_str(&snapshot.values[TAG_KEY]).unwrap();
+            assert_eq!(saved["colors"], serde_json::json!({"client":"#12a4ce"}));
+            assert!(!f.text().contains("unused"));
+            metadata["projects"] = serde_json::json!({});
+            let snapshot = f.save(TAG_KEY, &metadata.to_string());
+            let saved: serde_json::Value = serde_json::from_str(&snapshot.values[TAG_KEY]).unwrap();
+            assert_eq!(saved["colors"], serde_json::json!({}));
+            assert!(!f.text().contains("project_tag_colors"));
+            assert!(f.text().contains("note='Keep'"));
+            assert_eq!(f.store.load().unwrap().values[TAG_KEY], snapshot.values[TAG_KEY]);
+        }
+    }
+
+    #[test]
+    fn empty_project_sections_are_removed_after_tags() {
+        let f = Fixture::new();
+        fs::write(
+            &f.store.path,
+            "schema_version=1\n[projects.'shop.test']\ntags=['Old']\n\n[projects.'api.test']\n\n[projects.'keep.test']\ntags=['Old']\nnote='Keep'\n",
+        )
+        .unwrap();
+        f.save(TAG_KEY, r#"{"version":1,"projects":{"keep.test":["New"]}}"#);
+        assert!(!f.text().contains("[projects.'shop.test']"));
+        assert!(!f.text().contains("[projects.'api.test']"));
+        assert!(f.text().contains("[projects.'keep.test']"));
+        assert!(f.text().contains("tags=[\"New\"]"));
+        assert!(f.text().contains("note='Keep'"));
+    }
+
+    #[test]
+    fn empty_projects_table_is_removed_when_no_project_settings_remain() {
+        let f = Fixture::new();
+        fs::write(&f.store.path, "schema_version=1\n[projects.'shop.test']\ntags=['Old']\n").unwrap();
+        let snapshot = f.save(TAG_KEY, r#"{"version":1,"projects":{}}"#);
+        assert!(!snapshot.values.contains_key(TAG_KEY));
+        assert!(!f.text().contains("[projects"));
+        assert!(!f.store.load().unwrap().values.contains_key(TAG_KEY));
+    }
+
+    #[test]
+    fn empty_tag_lists_do_not_keep_empty_project_sections() {
+        let f = Fixture::new();
+        fs::write(&f.store.path, "schema_version=1\n[projects.'shop.test']\ntags=['Old']\n").unwrap();
+        let snapshot = f.save(TAG_KEY, r#"{"version":1,"projects":{"shop.test":[]}}"#);
+        assert!(!snapshot.values.contains_key(TAG_KEY));
+        assert!(!f.text().contains("[projects"));
+    }
+
+    #[test]
+    fn loading_settings_removes_empty_project_sections() {
+        let f = Fixture::new();
+        fs::write(
+            &f.store.path,
+            "schema_version=1\n[projects.'empty.test']\n\n[projects.'keep.test']\ntags=['Old']\nnote='Keep'\n",
+        )
+        .unwrap();
+        let snapshot = f.store.load().unwrap();
+        assert!(snapshot.values["ospanel.projectTags"].contains("Old"));
+        assert!(!f.text().contains("[projects.'empty.test']"));
+        assert!(f.text().contains("[projects.'keep.test']"));
+        assert!(f.text().contains("note='Keep'"));
     }
 
     #[test]

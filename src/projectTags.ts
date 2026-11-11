@@ -103,9 +103,20 @@ export function readProjectTagColors(key: string): ProjectTagColors {
   }
 }
 
-export function writeProjectTags(key: string, tags: ProjectTags, colors = readProjectTagColors(key)): void {
+export function pruneProjectTagColors(tags: ProjectTags, colors: ProjectTagColors): ProjectTagColors {
+  const used = new Set(Object.values(tags).flat().map(projectTagKey));
+  return Object.fromEntries(Object.entries(colors).filter(([name]) => used.has(projectTagKey(name))));
+}
+
+export function writeProjectTags(
+  key: string,
+  tags: ProjectTags,
+  colors = readProjectTagColors(key),
+): ProjectTagColors {
   try {
-    settingsStorage.setItem(key, JSON.stringify({ version: 1, projects: tags, colors }));
+    const retained = pruneProjectTagColors(tags, colors);
+    settingsStorage.setItem(key, JSON.stringify({ version: 1, projects: tags, colors: retained }));
+    return retained;
   } catch {
     throw new Error('err.projectTagsSaveFailed');
   }

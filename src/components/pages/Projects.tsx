@@ -41,6 +41,7 @@ import {
   type ProjectSort,
   type ProjectTagColor,
   projectTagAppearance,
+  pruneProjectTagColors,
   readProjectTagColors,
   readProjectTags,
   renameProjectTags,
@@ -135,11 +136,18 @@ function ProjectsContent({
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [bulkTag, setBulkTag] = useState('');
   useEffect(() => {
-    setTagState({
-      key: tagStorageKey,
-      tags: readProjectTags(tagStorageKey),
-      colors: readProjectTagColors(tagStorageKey),
-    });
+    const tags = readProjectTags(tagStorageKey);
+    const colors = readProjectTagColors(tagStorageKey);
+    const retained = pruneProjectTagColors(tags, colors);
+    if (Object.keys(retained).length !== Object.keys(colors).length) {
+      try {
+        // Clear colors left behind by earlier releases when the palette is first read.
+        writeProjectTags(tagStorageKey, tags, retained);
+      } catch {
+        // A failed cleanup must not prevent the projects page from loading.
+      }
+    }
+    setTagState({ key: tagStorageKey, tags, colors: retained });
     setSelected(new Set());
     setEditingTags(null);
     setTagFilters([]);
@@ -239,7 +247,7 @@ function ProjectsContent({
   const changeTags = (domains: string[], tag: string, action: 'add' | 'remove') => {
     try {
       const next = editProjectTags(tagsRef.current, domains, tag, action);
-      writeProjectTags(tagStorageKey, next, colorsRef.current);
+      colorsRef.current = writeProjectTags(tagStorageKey, next, colorsRef.current);
       tagsRef.current = next;
       setTagState({ key: tagStorageKey, tags: next, colors: colorsRef.current });
       return true;
@@ -251,9 +259,8 @@ function ProjectsContent({
   const changeTagColor = (tag: string, color: ProjectTagColor | null) => {
     try {
       const next = setProjectTagColor(colorsRef.current, tag, color);
-      writeProjectTags(tagStorageKey, tagsRef.current, next);
-      colorsRef.current = next;
-      setTagState({ key: tagStorageKey, tags: tagsRef.current, colors: next });
+      colorsRef.current = writeProjectTags(tagStorageKey, tagsRef.current, next);
+      setTagState({ key: tagStorageKey, tags: tagsRef.current, colors: colorsRef.current });
     } catch (error) {
       notify(errorText(t, error, 'projects.tagsSaveFailed'));
     }
@@ -726,7 +733,7 @@ function ProjectsContent({
               domain: displayProjectDomain(renamed.domain),
             });
             try {
-              writeProjectTags(tagStorageKey, next, colorsRef.current);
+              colorsRef.current = writeProjectTags(tagStorageKey, next, colorsRef.current);
             } catch (error) {
               message += ` ${errorText(t, error, 'projects.tagsSaveFailed')}`;
             }

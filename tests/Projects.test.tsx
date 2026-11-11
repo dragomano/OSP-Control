@@ -4,7 +4,12 @@ import { Projects } from '../src/components/pages/Projects';
 import type { Notify } from '../src/components/shared';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
 import type { OsPanelProject } from '../src/ospanel';
-import { PROJECT_TAGS_KEY, readProjectTags, writeProjectTags } from '../src/projectTags';
+import {
+  PROJECT_TAGS_KEY,
+  readProjectTagColors,
+  readProjectTags,
+  writeProjectTags,
+} from '../src/projectTags';
 
 const mocks = vi.hoisted(() => ({
   getProjectActivity: vi.fn(),
@@ -275,6 +280,24 @@ describe('Projects filtering', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Active' }));
     expect(onToggleSsl).toHaveBeenCalledWith('my-shop.test', false);
+  });
+});
+
+describe('Projects tag cleanup', () => {
+  it('removes orphaned colors when the projects page loads', () => {
+    localStorage.setItem(
+      PROJECT_TAGS_KEY,
+      JSON.stringify({
+        version: 1,
+        projects: { 'my-shop.test': ['Client'] },
+        colors: { client: '#12a4ce', 'новая метка': '#19e11c' },
+      }),
+    );
+
+    renderProjects(vi.fn());
+
+    expect(readProjectTags(PROJECT_TAGS_KEY)).toEqual({ 'my-shop.test': ['Client'] });
+    expect(readProjectTagColors(PROJECT_TAGS_KEY)).toEqual({ client: '#12a4ce' });
   });
 });
 

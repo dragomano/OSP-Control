@@ -90,6 +90,31 @@ describe('project tag metadata', () => {
     expect(setProjectTagColor(colors, 'CLIENT', null)).toEqual({});
   });
 
+  it('removes colors only when their last tag reference is removed and does not restore them', () => {
+    writeProjectTags(key, initial, { client: '#12a4ce', unused: '#cc4488' });
+    expect(readProjectTagColors(key)).toEqual({ client: '#12a4ce' });
+    const remaining = editProjectTags(initial, ['shop.test'], 'CLIENT', 'remove');
+    writeProjectTags(key, remaining);
+    expect(readProjectTagColors(key)).toEqual({ client: '#12a4ce' });
+    const removed = editProjectTags(remaining, ['api.test'], 'client', 'remove');
+    expect(writeProjectTags(key, removed)).toEqual({});
+    expect(readProjectTagColors(key)).toEqual({});
+    writeProjectTags(key, editProjectTags(removed, ['shop.test'], 'Client', 'add'));
+    expect(readProjectTagColors(key)).toEqual({});
+  });
+
+  it('matches normalized tag identities when retaining colors', () => {
+    writeProjectTags(
+      key,
+      { 'shop.test': ['Ｃｌｉｅｎｔ', ' #Two   Words '] },
+      {
+        client: '#12a4ce',
+        'two words': '#cc4488',
+      },
+    );
+    expect(readProjectTagColors(key)).toEqual({ client: '#12a4ce', 'two words': '#cc4488' });
+  });
+
   it('ignores invalid stored colors and unsupported metadata versions', () => {
     localStorage.setItem(
       key,
