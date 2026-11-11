@@ -2095,6 +2095,16 @@ button {
 .light .brand .brand-version {
   color: var(--k-8a5a1a);
 }
+.backup-create-card {
+  padding-bottom: 0;
+}
+.backup-create-card > .setting-block:last-child {
+  border-bottom: 0;
+}
+.backup-history-card {
+  margin-top: 16px;
+  padding-top: 17px;
+}
 .backup-list {
   display: flex;
   flex-direction: column;
@@ -2109,6 +2119,9 @@ button {
   margin-top: 18px;
   font-size: 11px;
   color: var(--muted);
+}
+.backup-history-card > .backup-filter {
+  margin-top: 0;
 }
 .backup-load-error {
   display: flex;

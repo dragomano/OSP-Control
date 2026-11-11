@@ -125,6 +125,27 @@ describe('Backups loading', () => {
 });
 
 describe('Backups list', () => {
+  it('separates creation controls from the filter and saved backups', async () => {
+    mocks.listBackups.mockResolvedValue([configBackup]);
+    const { container } = renderBackups(vi.fn(), {
+      services: [database('MySQL-8.0')],
+      projects: [project],
+    });
+    const savedBackup = await screen.findByText('Configurations', { selector: '.backup-kind' });
+    const cards = container.querySelectorAll('.settings-card');
+
+    expect(cards).toHaveLength(2);
+    for (const name of ['Create copy', 'Create menu copy', 'Create dump', 'Create archive']) {
+      expect(cards[0]).toContainElement(screen.getByRole('button', { name }));
+    }
+    for (const name of ['Database dumps', 'Project backups']) {
+      expect(cards[0]).toContainElement(screen.getByRole('combobox', { name }));
+    }
+    expect(cards[1]).toContainElement(screen.getByRole('combobox', { name: 'Backup type' }));
+    expect(cards[1]).toContainElement(savedBackup);
+    expect(cards[0].nextElementSibling).toBe(cards[1]);
+  });
+
   it('renders all four kinds with their subjects, date and size', async () => {
     mocks.listBackups.mockResolvedValue([configBackup, dbBackup, projectBackup, menuBackup]);
     renderBackups(vi.fn());

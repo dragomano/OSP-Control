@@ -292,7 +292,7 @@ export function Backups({
   return (
     <>
       <PageHeader eyebrow={t('nav.system')} heading={t('nav.backups')} description={t('backups.subtitle')} />
-      <div className="settings-card">
+      <div className="settings-card backup-create-card">
         <div className="setting-block">
           <div>
             <h3>{t('settings.backupsTitle')}</h3>
@@ -395,6 +395,8 @@ export function Backups({
             </button>
           </div>
         </div>
+      </div>
+      <div className="settings-card backup-history-card">
         <div className="backup-filter">
           <span>{t('backups.filter')}</span>
           <label className="backup-select">
