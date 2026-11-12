@@ -3,7 +3,15 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { type MenuEntry, type MenuTrigger, useDismiss } from '../shared';
 
-export function RowMenu({ entries, trigger }: { entries: MenuEntry[]; trigger?: MenuTrigger }) {
+export function RowMenu({
+  entries,
+  trigger,
+  onOpen,
+}: {
+  entries: MenuEntry[];
+  trigger?: MenuTrigger;
+  onOpen?: () => void;
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -24,6 +32,7 @@ export function RowMenu({ entries, trigger }: { entries: MenuEntry[]; trigger?: 
     // Sections in the fresh menu are always collapsed, even when it is reopened.
     setExpanded(null);
     setOpen(true);
+    onOpen?.();
   };
 
   // The menu opens downward from the button; when it does not fit the window (a row at the

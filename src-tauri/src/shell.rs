@@ -586,6 +586,7 @@ pub fn read_log_tail(
 pub(crate) struct EditorInfo {
     id: String,
     name: String,
+    exe: String,
 }
 
 // Directories in base whose name starts with prefix (case-insensitive) —
@@ -625,7 +626,9 @@ fn editor_executables() -> Vec<(EditorInfo, PathBuf)> {
             return;
         }
         if let Some(path) = candidates.into_iter().find(|path| path.is_file()) {
-            found.push((EditorInfo { id: id.into(), name: name.into() }, path));
+            let exe =
+                path.file_stem().map(|stem| stem.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+            found.push((EditorInfo { id: id.into(), name: name.into(), exe }, path));
         }
     };
 
@@ -677,7 +680,7 @@ fn editor_executables() -> Vec<(EditorInfo, PathBuf)> {
             }
         }
     }
-    add("phpstorm", "PhpStorm", phpstorm);
+    add("phpstorm", "PHPStorm", phpstorm);
 
     // Zed: the exe in the install directory, in bin\ next to it, and on PATH; the folder
     // name may differ from "Zed" (forks like "Zed i18n") — searching by prefix.

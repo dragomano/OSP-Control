@@ -1351,7 +1351,26 @@ export async function deleteProject(domain: string): Promise<void> {
 }
 
 // Editors found in standard installation locations — for the "Open in" menu item.
-export type EditorInfo = { id: string; name: string };
+export type EditorInfo = { id: string; name: string; exe?: string };
+
+export async function listProjectEditors(project: OsPanelProject): Promise<EditorInfo[]> {
+  if (isTauri()) return invoke<EditorInfo[]>('list_project_editors', projectFileArgs(project));
+  const [global, local] = await Promise.all([readMenu(), readProjectMenu(project)]);
+  return [
+    ...global.items.map((item) => ({ ...item, id: `global:${item.id}` })),
+    ...local.items.map((item) => ({ ...item, id: `project:${item.id}` })),
+  ]
+    .filter((item) => item.fields.command?.includes('{base_dir}') && item.fields.enabled !== 'off')
+    .map((item) => ({ id: item.id, name: item.fields.caption ?? '' }));
+}
+
+export async function openProjectEditor(project: OsPanelProject, editorId: string): Promise<void> {
+  if (isTauri()) {
+    await invoke('open_project_editor', { ...projectFileArgs(project), editorId });
+    return;
+  }
+  throw new Error('err.desktopOnly');
+}
 
 export async function listEditors(): Promise<EditorInfo[]> {
   if (isTauri()) return invoke<EditorInfo[]>('list_editors');

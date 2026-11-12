@@ -1,7 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { menuCategories, menuDraft, newMenuId, projectMenuIdPrefix } from '../src/menu';
-import { type OsPanelProject, readMenu, readProjectMenu, writeProjectMenu } from '../src/ospanel';
+import {
+  listProjectEditors,
+  type OsPanelProject,
+  openProjectEditor,
+  readMenu,
+  readProjectMenu,
+  writeProjectMenu,
+} from '../src/ospanel';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 const project: OsPanelProject = {
@@ -58,6 +65,23 @@ describe('project menu persistence', () => {
         items: [],
         expectedRevision: 'version',
       }),
+    );
+  });
+
+  it('passes only project identity and the saved program ID to native editor commands', async () => {
+    flag().__TAURI_INTERNALS__ = {};
+    vi.mocked(invoke).mockResolvedValue([{ id: 'project:custom', name: 'Sublime Text', exe: 'subl' }]);
+    expect(await listProjectEditors(project)).toEqual([
+      { id: 'project:custom', name: 'Sublime Text', exe: 'subl' },
+    ]);
+    expect(invoke).toHaveBeenLastCalledWith(
+      'list_project_editors',
+      expect.objectContaining({ domain: project.domain, baseDir: project.path }),
+    );
+    await openProjectEditor(project, 'project:custom');
+    expect(invoke).toHaveBeenLastCalledWith(
+      'open_project_editor',
+      expect.objectContaining({ domain: project.domain, baseDir: project.path, editorId: 'project:custom' }),
     );
   });
 

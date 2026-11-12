@@ -28,13 +28,16 @@ import {
   filterProjects,
   isEngineUnset,
   listEditors,
+  listProjectEditors,
   type OsPanelProject,
   openInBrowser,
   openInEditor,
   openProjectConsole,
+  openProjectEditor,
   openProjectFolder,
 } from '../../ospanel';
 import { displayProjectDomain } from '../../projectDomain';
+import { mergeProjectEditors, type ProjectEditor } from '../../projectEditors';
 import {
   editProjectTags,
   knownProjectTags,
@@ -281,6 +284,12 @@ function ProjectsContent({
   };
   // Editors for "Open in": looked up once when the page opens.
   const [editors, setEditors] = useState<EditorInfo[]>([]);
+  const [customEditors, setCustomEditors] = useState<Record<string, EditorInfo[]>>({});
+  const loadCustomEditors = (project: OsPanelProject) => {
+    listProjectEditors(project)
+      .then((items) => setCustomEditors((current) => ({ ...current, [project.domain]: items })))
+      .catch(() => setCustomEditors((current) => ({ ...current, [project.domain]: [] })));
+  };
 
   useEffect(() => {
     listEditors()
@@ -312,11 +321,12 @@ function ProjectsContent({
       notify(errorText(t, error, 'projects.toastFolderFailed'));
     }
   };
-  const openProjectIn = async (project: OsPanelProject, editorId: string, editorName: string) => {
+  const openProjectIn = async (project: OsPanelProject, editor: ProjectEditor) => {
     try {
-      await openInEditor(editorId, project.path);
+      if (editor.custom) await openProjectEditor(project, editor.id);
+      else await openInEditor(editor.id, project.path);
       notify(
-        t('projects.toastOpenedIn', { domain: displayProjectDomain(project.domain), editor: editorName }),
+        t('projects.toastOpenedIn', { domain: displayProjectDomain(project.domain), editor: editor.name }),
       );
     } catch (error) {
       notify(errorText(t, error, 'projects.toastOpenInFailed'));
@@ -506,6 +516,7 @@ function ProjectsContent({
           activityGroups.flatMap((group) =>
             group.projects.map((project, index) => {
               const displayDomain = displayProjectDomain(project.domain);
+              const projectEditors = mergeProjectEditors(editors, customEditors[project.domain] ?? []);
               const entry = activity[project.domain];
               const modified = activityDate(entry);
               const expanded = expandedProject === project.domain;
@@ -630,6 +641,7 @@ function ProjectsContent({
                         {t('projects.open')}
                       </button>
                       <RowMenu
+                        onOpen={() => loadCustomEditors(project)}
                         entries={[
                           {
                             label: t('workspace.settings'),
@@ -657,15 +669,14 @@ function ProjectsContent({
                             icon: FolderOpen,
                             onSelect: () => void openProjectDir(project),
                           },
-                          // The "Open in" section is shown only if editors were found.
-                          ...(editors.length > 0
+                          ...(projectEditors.length > 0
                             ? [
                                 {
                                   label: t('projects.openIn'),
                                   icon: Code2,
-                                  children: editors.map((editor) => ({
+                                  children: projectEditors.map((editor) => ({
                                     label: editor.name,
-                                    onSelect: () => void openProjectIn(project, editor.id, editor.name),
+                                    onSelect: () => void openProjectIn(project, editor),
                                   })),
                                 },
                               ]

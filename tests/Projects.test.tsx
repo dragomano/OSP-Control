@@ -14,6 +14,8 @@ import {
 const mocks = vi.hoisted(() => ({
   getProjectActivity: vi.fn(),
   listEditors: vi.fn(),
+  listProjectEditors: vi.fn(),
+  openProjectEditor: vi.fn(),
   openInBrowser: vi.fn(),
   openProjectFolder: vi.fn(),
   openProjectConsole: vi.fn(),
@@ -102,7 +104,8 @@ const stubClipboard = (impl: () => Promise<void>) => {
 beforeEach(() => {
   localStorage.clear();
   for (const mock of Object.values(mocks)) mock.mockReset();
-  mocks.listEditors.mockResolvedValue([{ id: 'vscode', name: 'VS Code' }]);
+  mocks.listEditors.mockResolvedValue([{ id: 'vscode', name: 'VS Code', exe: 'code' }]);
+  mocks.listProjectEditors.mockResolvedValue([]);
   mocks.getProjectActivity.mockResolvedValue([]);
   mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
   mocks.getProjectSettings.mockResolvedValue({
@@ -412,6 +415,42 @@ describe('Projects row menu', () => {
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('my-shop.test opened in VS Code'));
     expect(mocks.openInEditor).toHaveBeenCalledWith('vscode', 'C:\\OSPanel\\domains\\my-shop');
+  });
+
+  it('uses the saved custom program instead of the detected editor and reloads on reopening', async () => {
+    const notify = vi.fn<Notify>();
+    mocks.listProjectEditors.mockResolvedValue([
+      { id: 'global:custom', name: 'Microsoft VS Code', exe: 'code' },
+    ]);
+    mocks.openProjectEditor.mockResolvedValue(undefined);
+    renderProjects(notify, [shopProject]);
+    let menu = openRowMenu();
+    await waitFor(() => expect(mocks.listProjectEditors).toHaveBeenCalledWith(shopProject));
+    fireEvent.click(await within(menu).findByRole('menuitem', { name: 'Open in' }));
+    await waitFor(() => expect(within(menu).getAllByRole('menuitem', { name: 'VS Code' })).toHaveLength(1));
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'VS Code' }));
+    await waitFor(() => expect(mocks.openProjectEditor).toHaveBeenCalledWith(shopProject, 'global:custom'));
+    expect(mocks.openInEditor).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('my-shop.test opened in VS Code');
+    mocks.listProjectEditors.mockResolvedValue([{ id: 'global:other', name: 'Sublime Text', exe: 'subl' }]);
+    menu = openRowMenu();
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Open in' }));
+    expect(await within(menu).findByRole('menuitem', { name: 'Sublime Text' })).toBeVisible();
+  });
+
+  it('shows custom programs without detected editors and reports launch errors', async () => {
+    const notify = vi.fn<Notify>();
+    mocks.listEditors.mockResolvedValue([]);
+    mocks.listProjectEditors.mockResolvedValue([{ id: 'project:custom', name: 'Sublime Text', exe: 'subl' }]);
+    mocks.openProjectEditor.mockRejectedValue(new Error('boom'));
+    renderProjects(notify, [landingProject]);
+    const menu = openRowMenu();
+    fireEvent.click(await within(menu).findByRole('menuitem', { name: 'Open in' }));
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Sublime Text' }));
+    await waitFor(() =>
+      expect(notify).toHaveBeenCalledExactlyOnceWith('Failed to open the project in the editor'),
+    );
+    expect(mocks.openProjectEditor).toHaveBeenCalledWith(landingProject, 'project:custom');
   });
 
   it('copies the domain to the clipboard and reports a failure', async () => {

@@ -21,6 +21,7 @@ mod php_releases;
 mod project_activity;
 mod project_database;
 mod project_diagnostics;
+mod project_editors;
 mod project_starter_locale;
 mod project_templates;
 mod project_workspace;
@@ -291,6 +292,8 @@ fn main() {
             projects::delete_project,
             projects::rename_project,
             project_activity::project_activity,
+            project_editors::list_project_editors,
+            project_editors::open_project_editor,
             shell::list_editors,
             shell::open_in_editor,
             services::restart_ospanel,
