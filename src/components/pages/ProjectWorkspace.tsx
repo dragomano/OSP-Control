@@ -47,6 +47,7 @@ import {
 import type { Notify } from '../shared';
 import { ConfigEditor } from '../widgets/ConfigEditor';
 import { PageHeader } from '../widgets/PageHeader';
+import { PathText } from '../widgets/PathText';
 import '../widgets/formControls.css';
 import './projectWorkspace.css';
 import { ApplicationSetup } from './ApplicationSetup';
@@ -104,6 +105,7 @@ export function ProjectWorkspace({
   const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
   const [engine, setEngine] = useState('nginx');
   const [applicationFile, setApplicationFile] = useState('.env');
+  const [phpFile, setPhpFile] = useState('.user.ini');
   const [fileBusy, setFileBusy] = useState(false);
   const [fileRetry, setFileRetry] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -136,6 +138,8 @@ export function ProjectWorkspace({
     Object.values(files).some((file) => file.draft !== (file.original ?? ''));
   const locked = busy || installingApplication || blocked || menuState.busy;
   const applicationFiles = doc?.files.filter(isApplicationFile) ?? [];
+  const phpFiles = doc?.files.filter((path) => /(?:^|\/)\.user\.ini$/.test(path)) ?? [];
+  const selectedPhpFile = phpFiles.includes(phpFile) ? phpFile : (phpFiles[0] ?? '.user.ini');
   const tabs = TABS.filter(([key]) => key !== 'application' || applicationFiles.length > 0);
   const selectedApplicationFile = applicationFiles.includes(applicationFile)
     ? applicationFile
@@ -148,7 +152,10 @@ export function ProjectWorkspace({
         ? 'env.ini'
         : tab === 'application'
           ? (selectedApplicationFile ?? '.env')
-          : `${engine}/${domain}.conf`;
+          : engine === 'php'
+            ? selectedPhpFile
+            : `${engine}/${domain}.conf`;
+  const isPhpFile = /(?:^|\/)\.user\.ini$/.test(file);
   const fileState = file === 'project.ini' ? { original: doc?.content ?? null, draft: ini } : files[file];
   const editingFile = advanced || ['configs', 'tasks', 'environment', 'application'].includes(tab);
   const selectedDomain = displayProjectDomain(domain);
@@ -267,14 +274,24 @@ export function ProjectWorkspace({
         setTab('menu');
         return;
       }
+      // Save PHP drafts before project.ini can remove their authorized roots.
+      for (const [name, draft] of Object.entries(files)) {
+        if (!name.endsWith('.user.ini') || draft.draft === (draft.original ?? '')) continue;
+        const result = await saveProjectFile(project, name, draft.original, draft.draft);
+        setFiles((current) => ({ ...current, [name]: { original: result.content, draft: result.content } }));
+        setDiagnosticsRevision((value) => value + 1);
+      }
       if (iniDirty) {
         const result = await saveProjectFile(project, 'project.ini', doc.content, ini);
         setDoc((current) => current && { ...current, content: result.content });
         setIni(result.content);
         setDiagnosticsRevision((value) => value + 1);
         setRestartNeeded(true);
+        const refreshed = await readProjectWorkspace(project);
+        setDoc((current) => current && { ...current, files: refreshed.files });
       }
       for (const [name, draft] of Object.entries(files)) {
+        if (name.endsWith('.user.ini')) continue;
         const content =
           name === 'tasks.ini' && tasksDirty && tasks ? renderProjectTasks(draft.draft, tasks) : draft.draft;
         if (content === (draft.original ?? '')) continue;
@@ -282,14 +299,15 @@ export function ProjectWorkspace({
         setFiles((current) => ({ ...current, [name]: { original: result.content, draft: result.content } }));
         if (name === 'tasks.ini') setTasks(parseProjectTasks(result.content).tasks);
         setDiagnosticsRevision((value) => value + 1);
-        if (!isApplicationFile(name)) setRestartNeeded(true);
+        if (!isApplicationFile(name) && !name.endsWith('.user.ini')) setRestartNeeded(true);
       }
       const panelChanged =
         iniDirty ||
         menuState.dirty ||
         tasksDirty ||
         Object.entries(files).some(
-          ([name, draft]) => !isApplicationFile(name) && draft.draft !== (draft.original ?? ''),
+          ([name, draft]) =>
+            !isApplicationFile(name) && !name.endsWith('.user.ini') && draft.draft !== (draft.original ?? ''),
         );
       notify(
         t('workspace.saved'),
@@ -375,7 +393,13 @@ export function ProjectWorkspace({
       <div className="workspace-file-head">
         <div>
           <FileCode2 size={15} />
-          <b>{isApplicationFile(file) ? file : `.osp/${file}`}</b>
+          <b>
+            {isPhpFile
+              ? `${doc?.baseDir}\\${file.replace(/\//g, '\\')}`
+              : isApplicationFile(file)
+                ? file
+                : `.osp/${file}`}
+          </b>
         </div>
         <span>{projectFileLanguage(file)}</span>
       </div>
@@ -789,6 +813,17 @@ export function ProjectWorkspace({
                         {text('app_start_command')}
                         {text('terminal_codepage', '65001')}
                       </div>
+                      <button
+                        type="button"
+                        className="text-button workspace-spaced"
+                        disabled={locked}
+                        onClick={() => {
+                          setEngine('php');
+                          setTab('configs');
+                        }}
+                      >
+                        {t('workspace.phpSettings')}
+                      </button>
                       <h3 className="workspace-selected-domain">{t('workspace.variables')}</h3>
                       {codeEditor}
                     </>
@@ -831,21 +866,64 @@ export function ProjectWorkspace({
                   {tab === 'configs' && (
                     <>
                       <div className="workspace-file-tabs">
-                        {['nginx', 'apache', 'caddy'].map((name) => (
+                        {['nginx', 'apache', 'caddy', 'php'].map((name) => (
                           <button
                             type="button"
                             className={engine === name ? 'selected' : ''}
                             key={name}
+                            disabled={locked}
+                            aria-pressed={engine === name}
                             onClick={() => setEngine(name)}
                           >
-                            {name === 'nginx' ? 'Nginx' : name === 'apache' ? 'Apache' : 'Caddy'}
+                            {name === 'nginx'
+                              ? 'Nginx'
+                              : name === 'apache'
+                                ? 'Apache'
+                                : name === 'php'
+                                  ? 'PHP'
+                                  : 'Caddy'}
                           </button>
                         ))}
                       </div>
+                      {engine === 'php' && (
+                        <>
+                          <h3>{t('workspace.phpTitle')}</h3>
+                          <div className="workspace-file-tabs">
+                            {phpFiles.map((path) => (
+                              <button
+                                type="button"
+                                key={path}
+                                disabled={locked}
+                                className={selectedPhpFile === path ? 'selected' : ''}
+                                aria-pressed={selectedPhpFile === path}
+                                onClick={() => setPhpFile(path)}
+                              >
+                                {path}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="workspace-hint">
+                            <PathText text={t('workspace.phpScope')} />
+                          </p>
+                          {domains.length > 1 && (
+                            <p className="workspace-error" role="note">
+                              <PathText
+                                text={t('workspace.phpShared', {
+                                  domains: domains
+                                    .map((item) => displayProjectDomain(item.domain))
+                                    .join(', '),
+                                })}
+                              />
+                            </p>
+                          )}
+                        </>
+                      )}
                       {codeEditor}
                       <p className="workspace-hint">
                         <Info size={14} />
-                        {t('workspace.localConfigs')}
+                        <PathText
+                          text={t(engine === 'php' ? 'workspace.phpHint' : 'workspace.localConfigs')}
+                        />
                       </p>
                     </>
                   )}

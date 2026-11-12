@@ -89,6 +89,105 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('project workspace drafts', () => {
+  it('opens PHP settings from environment, creates on save and shares drafts across domains', async () => {
+    mocks.readProjectWorkspace.mockResolvedValue({
+      baseDir: project.path,
+      content,
+      files: ['.user.ini', 'api/.user.ini'],
+    });
+    const { notify } = setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Environment' }));
+    fireEvent.click(screen.getByRole('button', { name: t('workspace.phpSettings') }));
+    expect(screen.getByRole('tab', { name: 'Configurations' })).toHaveAttribute('aria-selected', 'true');
+    const editor = await screen.findByRole('textbox', { name: 'Contents of .user.ini' });
+    expect(screen.getByText(`${project.path}\\.user.ini`)).toBeInTheDocument();
+    // Both PHP hints bold the .user.ini mention; the whole sentence still renders as one paragraph.
+    const bolded = screen.getAllByText('.user.ini', { selector: 'b' });
+    expect(bolded).toHaveLength(2);
+    expect(bolded.map((el) => el.closest('p')?.textContent)).toEqual([
+      t('workspace.phpScope'),
+      t('workspace.phpHint'),
+    ]);
+    expect(screen.getByText(t('workspace.createFile'))).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('shop.test, api.shop.test');
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(mocks.saveProjectFile).not.toHaveBeenCalled();
+    fireEvent.change(editor, { target: { value: 'memory_limit=256M\n' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Domain' }), {
+      target: { value: 'api.shop.test' },
+    });
+    expect(screen.getByRole('textbox', { name: 'Contents of .user.ini' })).toHaveValue('memory_limit=256M\n');
+    fireEvent.click(screen.getByRole('button', { name: 'api/.user.ini' }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Contents of api/.user.ini' }), {
+      target: { value: 'memory_limit=128M\n' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '.user.ini', exact: true }));
+    expect(await screen.findByRole('textbox', { name: 'Contents of .user.ini' })).toHaveValue(
+      'memory_limit=256M\n',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith(t('workspace.saved'), undefined));
+    expect(mocks.saveProjectFile).toHaveBeenCalledWith(project, '.user.ini', null, 'memory_limit=256M\n');
+    expect(mocks.saveProjectFile).toHaveBeenCalledWith(project, 'api/.user.ini', null, 'memory_limit=128M\n');
+    expect(screen.queryByText(t('workspace.createFile'))).not.toBeInTheDocument();
+    expect(screen.queryByText(t('workspace.restartNeeded'))).not.toBeInTheDocument();
+  });
+
+  it('saves PHP drafts before changing their configured root and refreshes available paths', async () => {
+    mocks.readProjectWorkspace
+      .mockResolvedValueOnce({ baseDir: project.path, content, files: ['api/.user.ini'] })
+      .mockResolvedValue({ baseDir: project.path, content, files: ['new-api/.user.ini'] });
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
+    fireEvent.click(screen.getByRole('button', { name: 'PHP', exact: true }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Contents of api/.user.ini' }), {
+      target: { value: 'memory_limit=256M\n' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Web server' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Domain' }), {
+      target: { value: 'api.shop.test' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Public directory' }), {
+      target: { value: '{base_dir}\\new-api' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mocks.readProjectWorkspace).toHaveBeenCalledTimes(2));
+    expect(mocks.saveProjectFile.mock.calls.map((call) => call[1])).toEqual(['api/.user.ini', 'project.ini']);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled());
+    fireEvent.click(screen.getByRole('tab', { name: 'Configurations' }));
+    expect(await screen.findByRole('button', { name: 'new-api/.user.ini' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'api/.user.ini' })).not.toBeInTheDocument();
+  });
+
+  it('retains a PHP draft after a save conflict and retries with its original revision', async () => {
+    mocks.readProjectWorkspace.mockResolvedValue({
+      baseDir: project.path,
+      content: '[shop.test]\n',
+      files: ['.user.ini'],
+    });
+    mocks.readProjectFile.mockResolvedValue('memory_limit=128M\n');
+    mocks.saveProjectFile.mockRejectedValueOnce(new Error('err.projectWorkspaceConflict'));
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
+    fireEvent.click(screen.getByRole('button', { name: 'PHP', exact: true }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Contents of .user.ini' }), {
+      target: { value: 'memory_limit=256M\n' },
+    });
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed by another program');
+    expect(screen.getByRole('textbox', { name: 'Contents of .user.ini' })).toHaveValue('memory_limit=256M\n');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mocks.saveProjectFile).toHaveBeenCalledTimes(2));
+    expect(mocks.saveProjectFile.mock.calls[1]).toEqual([
+      project,
+      '.user.ini',
+      'memory_limit=128M\n',
+      'memory_limit=256M\n',
+    ]);
+  });
+
   it.each(['.osp/wordpress-readme.md', '.osp/laravel-readme.md', 'README.md'])(
     'opens %s from the overview in an external editor',
     async (readme) => {

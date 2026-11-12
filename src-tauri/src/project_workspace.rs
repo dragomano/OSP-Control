@@ -168,7 +168,7 @@ fn sections_at(dir: &Path) -> Result<Sections, CommandError> {
     read(&ini)?.map(|c| parse(&c)).unwrap_or_else(|| Ok(Sections::new()))
 }
 
-fn application_files(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
+fn configuration_directories(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
     let mut directories = BTreeSet::from([String::new(), "public".into()]);
     for values in sections_at(dir)?.values() {
         for key in ["project_root", "web_root"] {
@@ -190,7 +190,25 @@ fn application_files(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
             }
         }
     }
-    Ok(directories
+    Ok(directories)
+}
+
+fn php_files(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
+    Ok(configuration_directories(dir)?
+        .into_iter()
+        .filter(|directory| {
+            directory.is_empty() || application_path(dir, directory).is_ok_and(|path| path.is_dir())
+        })
+        .map(
+            |directory| {
+                if directory.is_empty() { ".user.ini".into() } else { format!("{directory}/.user.ini") }
+            },
+        )
+        .collect())
+}
+
+fn application_files(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
+    Ok(configuration_directories(dir)?
         .into_iter()
         .flat_map(|directory| {
             [".env", "wp-config.php"]
@@ -208,6 +226,12 @@ fn application_path(dir: &Path, file: &str) -> Result<PathBuf, CommandError> {
 }
 
 fn file_path(dir: &Path, domain: &str, file: &str, create: bool) -> Result<PathBuf, CommandError> {
+    if file.rsplit('/').next() == Some(".user.ini") {
+        if !php_files(dir)?.contains(file) {
+            return Err(CommandError::new("err.accessDenied"));
+        }
+        return application_path(dir, file);
+    }
     if matches!(file.rsplit('/').next(), Some(".env" | "wp-config.php"))
         && application_files(dir)?.contains(file)
     {
@@ -252,6 +276,7 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
         domains.push(name(domain)?);
     }
     let mut files = vec!["project.ini".into(), "env.ini".into(), "menu.ini".into(), "tasks.ini".into()];
+    files.extend(php_files(&dir)?);
     for domain in domains {
         for engine in ["nginx", "apache", "caddy"] {
             files.push(format!("{engine}/{domain}.conf"));
@@ -708,6 +733,50 @@ mod tests {
         assert!(doc.files.contains(&"application/www/wp-config.php".into()));
         fs::write(dir.join(".osp/project.ini"), "[shop.test]\nweb_root = {base_dir}\\..\\outside\n").unwrap();
         assert!(file_path(&dir, "shop.test", "../outside/wp-config.php", false).is_err());
+    }
+
+    #[test]
+    fn php_settings_are_created_only_on_save_with_backups_and_conflict_detection() {
+        let f = Fixture::new();
+        let dir = PathBuf::from(f.dir());
+        fs::create_dir_all(dir.join("public")).unwrap();
+        fs::create_dir_all(dir.join("api")).unwrap();
+        let doc = workspace(&f.0, "shop.test", &f.dir()).unwrap();
+        for file in [".user.ini", "public/.user.ini", "api/.user.ini"] {
+            assert!(doc.files.contains(&file.into()));
+            let path = file_path(&dir, "shop.test", file, false).unwrap();
+            assert_eq!(read(&path).unwrap(), None);
+            assert!(!path.exists());
+            let first = save(&f.0, "shop.test", &f.dir(), file, None, "memory_limit=256M\n").unwrap();
+            assert!(first.backup_path.is_none());
+            assert_eq!(read(&path).unwrap().as_deref(), Some("memory_limit=256M\n"));
+            assert!(save(&f.0, "shop.test", &f.dir(), file, None, "stale").is_err());
+            let updated =
+                save(&f.0, "api.shop.test", &f.dir(), file, Some(&first.content), "memory_limit=512M\n")
+                    .unwrap();
+            assert_eq!(fs::read_to_string(updated.backup_path.unwrap()).unwrap(), first.content);
+        }
+        assert!(!dir.join(".osp/.user.ini").exists());
+        for file in
+            ["../.user.ini", "public/../.user.ini", "other/.user.ini", ".osp/.user.ini", "public/.USER.INI"]
+        {
+            assert!(file_path(&dir, "shop.test", file, true).is_err());
+        }
+    }
+
+    #[test]
+    fn php_settings_follow_existing_configured_roots_only() {
+        let f = Fixture::new();
+        let dir = PathBuf::from(f.dir());
+        fs::create_dir_all(dir.join("app/www")).unwrap();
+        fs::write(dir.join(".osp/project.ini"), "[shop.test]\nproject_root={base_dir}/app\nweb_root={base_dir}/app/www\n[api.shop.test]\nweb_root={base_dir}/missing\n").unwrap();
+        let doc = workspace(&f.0, "shop.test", &f.dir()).unwrap();
+        assert!(doc.files.contains(&"app/.user.ini".into()));
+        assert!(doc.files.contains(&"app/www/.user.ini".into()));
+        assert!(!doc.files.contains(&"missing/.user.ini".into()));
+        assert!(save(&f.0, "shop.test", &f.dir(), "missing/.user.ini", None, "test").is_err());
+        fs::write(dir.join(".osp/project.ini"), "[shop.test]\nweb_root={base_dir}/../outside\n").unwrap();
+        assert!(file_path(&dir, "shop.test", "../outside/.user.ini", false).is_err());
     }
 
     #[test]

@@ -1,4 +1,9 @@
 {
+  "workspace.phpSettings": "Ajustes de PHP",
+  "workspace.phpTitle": "Ajustes de PHP — .user.ini",
+  "workspace.phpScope": "Se aplica a los archivos PHP de este directorio y sus subdirectorios, dentro del límite de búsqueda de configuración de PHP. Los archivos .user.ini anidados pueden sobrescribir estos ajustes.",
+  "workspace.phpShared": "Directorio de proyecto compartido: {domains}. Los cambios afectan a cada dominio que utiliza este directorio; no es un archivo independiente por dominio.",
+  "workspace.phpHint": "Solo se admiten directivas INI_PERDIR, INI_USER e INI_ALL. PHP puede almacenar .user.ini en caché; los cambios se aplican al vencer user_ini.cache_ttl (normalmente 300 segundos) o al reiniciar el módulo PHP. PHP en la línea de comandos no utiliza este archivo.",
   "templates.node.missing": "No hay versiones de Node.js instaladas. Ejecuta el siguiente comando en la consola de OSPanel y actualiza las versiones aquí. También puedes instalar latest o una versión concreta.",
   "templates.node.nvmMissing": "El complemento NVM no está disponible. Instálalo con el instalador de OSPanel, reinicia el panel y actualiza las versiones aquí.",
   "templates.node.command": "comando de instalación de Node.js",

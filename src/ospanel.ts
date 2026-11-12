@@ -1108,6 +1108,8 @@ export async function readProjectWorkspace(project: OsPanelProject): Promise<Pro
       'env.ini',
       'menu.ini',
       'tasks.ini',
+      '.user.ini',
+      'public/.user.ini',
       ...['nginx', 'apache', 'caddy'].map((engine) => `${engine}/${project.domain}.conf`),
     ],
   };
