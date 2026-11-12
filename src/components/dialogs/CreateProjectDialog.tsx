@@ -1,5 +1,5 @@
 import { Copy, FileCode2, RefreshCw, X } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorText, useI18n } from '../../i18n';
 import {
   type CreatedProject,
@@ -19,12 +19,12 @@ import {
   projectTemplate,
 } from '../../projectTemplates';
 import { copyText, type Notify, useDismiss } from '../shared';
+import { MenuSelect } from '../widgets/MenuSelect';
 import { PathText } from '../widgets/PathText';
-import { ModuleSelect } from './ModuleSelect';
+import { defaultEngineLabel, ModuleSelect } from './ModuleSelect';
 import './createProject.css';
 
-// A controlled native popup must not be reset by unrelated panel/activity renders.
-const DatabaseEngineSelect = memo(function DatabaseEngineSelect({
+function DatabaseEngineSelect({
   label,
   value,
   options,
@@ -35,19 +35,14 @@ const DatabaseEngineSelect = memo(function DatabaseEngineSelect({
   options: { value: string; label: string }[];
   onChange: (engine: string) => void;
 }) {
+  // Not a <label>: the trigger button carries its own accessible name via aria-label.
   return (
-    <label className="module-select">
+    <div className="module-select">
       <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+      <MenuSelect align="start" ariaLabel={label} value={value} options={options} onChange={onChange} />
+    </div>
   );
-});
+}
 
 export function CreateProjectDialog({
   notify,
@@ -99,6 +94,13 @@ export function CreateProjectDialog({
     setDatabaseEngine(engine);
     setDatabaseUser(engine.startsWith('PostgreSQL-') ? 'postgres' : 'root');
   }, []);
+  // "Default (Nginx)" — the global value from the panel's own Settings → Projects.
+  const defaultLabel = (global: string) =>
+    defaultEngineLabel(
+      t('projects.modulesAuto'),
+      t('projects.defaultNotSet'),
+      globalEngines === null ? null : global,
+    );
   const databaseValid =
     !hasDatabase ||
     databaseEngine === 'none' ||
@@ -310,20 +312,20 @@ export function CreateProjectDialog({
                   </button>
                 </div>
               )}
-              <label className="module-select">
+              <div className="module-select">
                 <span>{t('templates.label')}</span>
-                <select
+                <MenuSelect<ProjectTemplateId>
+                  align="start"
+                  ariaLabel={t('templates.label')}
                   value={templateId}
                   disabled={refreshing}
-                  onChange={(event) => selectTemplate(event.target.value as ProjectTemplateId)}
-                >
-                  {PROJECT_TEMPLATES.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {t(`templates.${template.id}.name`)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={PROJECT_TEMPLATES.map((template) => ({
+                    value: template.id,
+                    label: t(`templates.${template.id}.name`),
+                  }))}
+                  onChange={selectTemplate}
+                />
+              </div>
               <section className="project-template-preview" aria-label={t('templates.preview')}>
                 <p>
                   <PathText text={t(`templates.${templateId}.description`)} />
@@ -370,7 +372,7 @@ export function CreateProjectDialog({
                   label={t('projects.createHttpEngine')}
                   value={httpEngine}
                   options={options.httpEngines}
-                  autoLabel={t('projects.modulesAuto')}
+                  autoLabel={defaultLabel(globalEngines?.httpEngine ?? '')}
                   includeAuto={templateId === 'empty'}
                   globalHint={null}
                   onChange={setHttpEngine}
@@ -379,7 +381,7 @@ export function CreateProjectDialog({
                   label={t('projects.createPhpEngine')}
                   value={phpEngine}
                   options={options.phpEngines}
-                  autoLabel={t('projects.modulesAuto')}
+                  autoLabel={defaultLabel(globalEngines?.phpEngine ?? '')}
                   includeAuto={templateId === 'empty'}
                   globalHint={null}
                   noneLabel={templateId === 'empty' || template.php ? undefined : t('templates.unused')}
@@ -390,7 +392,7 @@ export function CreateProjectDialog({
                     label={t('projects.createNodeEngine')}
                     value={nodeEngine}
                     options={options.nodeEngines}
-                    autoLabel={t('projects.modulesAuto')}
+                    autoLabel={defaultLabel(globalEngines?.nodeEngine ?? '')}
                     includeAuto={templateId === 'empty'}
                     globalHint={null}
                     noneLabel={templateId === 'empty' || template.node ? undefined : t('templates.unused')}

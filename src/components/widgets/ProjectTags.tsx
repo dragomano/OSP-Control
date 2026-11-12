@@ -10,6 +10,8 @@ import {
   type TagMatch,
 } from '../../projectTags';
 import { useDismiss } from '../shared';
+import { MenuSelect } from './MenuSelect';
+import { SuggestInput } from './SuggestInput';
 
 export function ProjectSelection({
   checked,
@@ -101,13 +103,18 @@ export function ProjectTagFilter({
               </span>
             </label>
           ))}
-          <label className="project-tags-match">
-            {t('projects.tagsMatch')}
-            <select value={match} onChange={(event) => onMatch(event.target.value as TagMatch)}>
-              <option value="any">{t('projects.tagsAny')}</option>
-              <option value="all">{t('projects.tagsAll')}</option>
-            </select>
-          </label>
+          <div className="project-tags-match">
+            <span>{t('projects.tagsMatch')}</span>
+            <MenuSelect<TagMatch>
+              ariaLabel={t('projects.tagsMatch')}
+              value={match}
+              options={[
+                { value: 'any', label: t('projects.tagsAny') },
+                { value: 'all', label: t('projects.tagsAll') },
+              ]}
+              onChange={onMatch}
+            />
+          </div>
         </fieldset>
       )}
     </div>
@@ -135,11 +142,7 @@ export function ProjectTagEditor({
   const [value, setValue] = useState('');
   const [colorFor, setColorFor] = useState<string | null>(null);
   const colorInput = useRef<HTMLInputElement>(null);
-  const ref = useRef<HTMLInputElement>(null);
-  const id = useId();
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -147,6 +150,9 @@ export function ProjectTagEditor({
     document.addEventListener('keydown', onEscape);
     return () => document.removeEventListener('keydown', onEscape);
   }, [onClose]);
+
+  // Catalog tags that are not on the project yet; SuggestInput narrows them by the typed text.
+  const suggestions = available.filter((tag) => !tags.includes(tag));
   return (
     <section className="project-tag-editor" aria-label={t('projects.tagsEditFor', { domain })}>
       <div className="project-tag-editor-head">
@@ -240,25 +246,20 @@ export function ProjectTagEditor({
           event.preventDefault();
           if (onChange(value, 'add')) {
             setValue('');
-            ref.current?.focus();
+            inputRef.current?.focus();
           }
         }}
       >
-        <input
-          ref={ref}
-          className="project-tag-input"
+        <SuggestInput
           value={value}
-          onChange={(event) => setValue(event.target.value)}
-          list={id}
-          maxLength={MAX_PROJECT_TAG_LENGTH * 2}
-          aria-label={t('projects.tagsName')}
+          onValueChange={setValue}
+          suggestions={suggestions}
+          ariaLabel={t('projects.tagsName')}
           placeholder={t('projects.tagsPlaceholder')}
+          maxLength={MAX_PROJECT_TAG_LENGTH * 2}
+          autoFocus
+          inputRef={inputRef}
         />
-        <datalist id={id}>
-          {available.map((tag) => (
-            <option value={tag} key={tag} />
-          ))}
-        </datalist>
         <button type="submit" className="primary-button" disabled={!value.trim()}>
           <Plus size={14} />
           {t('projects.tagsAdd')}

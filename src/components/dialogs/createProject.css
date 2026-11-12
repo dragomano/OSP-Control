@@ -1,5 +1,6 @@
 .modal-window.create-project-window {
-  width: min(600px, 100%);
+  /* Wide enough for three engine dropdowns in a row ("По умолчанию (не задано)"). */
+  width: min(680px, 100%);
   max-height: calc(100dvh - 40px);
   display: flex;
   flex-direction: column;
@@ -18,6 +19,11 @@
   padding: 4px;
   margin-inline: -4px;
   overflow-y: auto;
+  /* The form is fixed-width: horizontal overflow is only ever sub-pixel rounding of
+     the 3-column engine row. `clip` (unlike `hidden`) never reserves a scrollbar, and
+     the 6px clip margin keeps the rightmost dropdown border out of the cut edge. */
+  overflow-x: clip;
+  overflow-clip-margin: 6px;
   overscroll-behavior: contain;
 }
 .create-project-window :is(.modal-head, .modal-foot) {
@@ -26,7 +32,8 @@
 .create-project-engines {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  /* Tighter than the 12px section gap: three dropdowns share one row. */
+  gap: 8px;
 }
 .create-project-engines.without-node {
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -7,10 +7,14 @@ export function RowMenu({
   entries,
   trigger,
   onOpen,
+  align = 'end',
 }: {
   entries: MenuEntry[];
   trigger?: MenuTrigger;
   onOpen?: () => void;
+  // Horizontal anchor of the popover: "end" right-aligns it to the button (toolbar
+  // menus), "start" opens it from the left edge (full-width form field triggers).
+  align?: 'start' | 'end';
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -27,7 +31,12 @@ export function RowMenu({
 
     const rect = ref.current?.getBoundingClientRect();
 
-    if (rect) setPos({ top: rect.bottom + 6, left: Math.max(8, rect.right - 192) });
+    if (rect) {
+      setPos({
+        top: rect.bottom + 6,
+        left: Math.max(8, align === 'start' ? rect.left : rect.right - 192),
+      });
+    }
 
     // Sections in the fresh menu are always collapsed, even when it is reopened.
     setExpanded(null);

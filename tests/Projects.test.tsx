@@ -287,6 +287,23 @@ describe('Projects filtering', () => {
   });
 });
 
+describe('Projects sorting', () => {
+  it('reorders the table when a sort option is picked from the toolbar menu', () => {
+    renderProjects(vi.fn());
+
+    // The trigger keeps the control name and shows the current selection until another option is chosen.
+    expect(screen.getByRole('button', { name: 'Sort projects' })).toHaveTextContent(
+      'Most recently modified first',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sort projects' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Domain A–Z' }));
+
+    const landing = screen.getByRole('button', { name: 'landing.test' });
+    const shop = screen.getByRole('button', { name: 'my-shop.test' });
+    expect(landing.compareDocumentPosition(shop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('Projects tag cleanup', () => {
   it('removes orphaned colors when the projects page loads', () => {
     localStorage.setItem(

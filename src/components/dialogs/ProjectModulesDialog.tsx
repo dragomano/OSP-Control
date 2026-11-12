@@ -16,7 +16,7 @@ import {
 import { displayProjectDomain } from '../../projectDomain';
 import { type Notify, useDismiss } from '../shared';
 import { PathText } from '../widgets/PathText';
-import { ModuleSelect } from './ModuleSelect';
+import { defaultEngineLabel, ModuleSelect } from './ModuleSelect';
 
 export function ProjectModulesDialog({
   project,
@@ -108,6 +108,14 @@ export function ProjectModulesDialog({
     return global ? t('projects.globalSet', { value: global }) : t('projects.globalUnset');
   };
 
+  // "По умолчанию (Nginx)" — the global value in parentheses when it could be read.
+  const defaultLabel = (global: string) =>
+    defaultEngineLabel(
+      t('projects.modulesAuto'),
+      t('projects.defaultNotSet'),
+      globalEngines === null ? null : global,
+    );
+
   // The note marks the file name with {file} — it is rendered as a link opening project.ini.
   const [noteBefore, noteAfter] = t('projects.modulesFileNote').split('{file}');
   const openIni = async () => {
@@ -145,7 +153,7 @@ export function ProjectModulesDialog({
               label={t('projects.modulesHttpEngine')}
               value={draft.httpEngine}
               options={options.httpEngines}
-              autoLabel={t('projects.modulesAuto')}
+              autoLabel={defaultLabel(globalEngines?.httpEngine ?? '')}
               globalHint={hintFor(globalEngines?.httpEngine)}
               onChange={(value) => setDraft({ ...draft, httpEngine: value })}
             />
@@ -153,7 +161,7 @@ export function ProjectModulesDialog({
               label={t('projects.modulesPhpEngine')}
               value={draft.phpEngine}
               options={options.phpEngines}
-              autoLabel={t('projects.modulesAuto')}
+              autoLabel={defaultLabel(globalEngines?.phpEngine ?? '')}
               globalHint={hintFor(globalEngines?.phpEngine)}
               onChange={(value) => setDraft({ ...draft, phpEngine: value })}
             />
@@ -161,7 +169,7 @@ export function ProjectModulesDialog({
               label={t('projects.modulesNodeEngine')}
               value={draft.nodeEngine}
               options={options.nodeEngines}
-              autoLabel={t('projects.modulesAuto')}
+              autoLabel={defaultLabel(globalEngines?.nodeEngine ?? '')}
               globalHint={hintFor(globalEngines?.nodeEngine)}
               onChange={(value) => setDraft({ ...draft, nodeEngine: value })}
             />

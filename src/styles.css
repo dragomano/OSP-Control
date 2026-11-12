@@ -1957,6 +1957,11 @@ button {
   background: #242830;
   color: var(--text);
 }
+/* Keyboard-highlighted item (e.g. in the tag name suggestions list). */
+.menu-item.active {
+  background: #242830;
+  color: var(--text);
+}
 .menu-item:disabled {
   opacity: 0.45;
   cursor: default;
@@ -2528,6 +2533,7 @@ button {
 .light .filter-button.reset:hover,
 .light .config-item:hover,
 .light .menu-item:hover,
+.light .menu-item.active,
 .light .toast .toast-action:hover {
   background: var(--lt-hover);
   color: var(--lt-text);
@@ -2867,8 +2873,43 @@ button {
 .backup-actions .backup-select {
   min-width: 200px;
 }
-.module-select select {
+.module-select .row-menu {
   width: 100%;
+}
+/* Dialog menu trigger: the same sizes as the neighboring text inputs (the comment
+   on .modal-body .module-select input explains why explicit sizes are needed). */
+.modal-body .module-select .filter-button {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  justify-content: space-between;
+}
+/* Trigger option text: shrinks with an ellipsis when the column is too narrow. */
+.menu-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.modal-body .module-select .filter-button svg {
+  flex-shrink: 0;
+}
+.modal-body .module-select .filter-button:hover {
+  background: var(--panel2);
+}
+.modal-body .module-select .filter-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.modal-body .module-select .filter-button:disabled:hover {
+  border-color: var(--line);
+  background: var(--panel2);
+  color: var(--text);
 }
 /* Input field in the project creation form: without explicit rules the browser
    renders a short light-toned input, so we set the same sizes as the select. */
@@ -3422,7 +3463,7 @@ button {
   .modal-window {
     box-shadow: 0 24px 60px var(--dark-shadow);
   }
-  :is(.modal-input, .modal-select, .quick-search-input) {
+  :is(.modal-input, .modal-select) {
     background: var(--panel2);
     color: var(--text);
     border-color: var(--line);

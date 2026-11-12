@@ -1,11 +1,11 @@
-import { type Activity, Check, ChevronRight } from 'lucide-react';
+import type { Activity } from 'lucide-react';
 import { isEngineUnset } from '../../ospanel';
-import { RowMenu } from './RowMenu';
+import { MenuSelect } from './MenuSelect';
 
-// A single-choice filter menu: the button shows the current selection,
-// and a check mark marks the active item in the list.
+// A single-choice filter menu: the button shows the facet name while the filter is
+// inactive and the current selection otherwise, with a check mark on the active item.
 export function FilterFacet<T extends string>({
-  icon: Icon,
+  icon,
   label,
   allLabel,
   value,
@@ -24,28 +24,13 @@ export function FilterFacet<T extends string>({
   const current = options.find((option) => option.value === value);
 
   return (
-    <RowMenu
-      trigger={({ onToggle, open }) => (
-        <button
-          type="button"
-          className={`filter-button ${active ? 'active' : ''}`}
-          onClick={onToggle}
-          aria-haspopup="menu"
-          aria-expanded={open}
-        >
-          <Icon size={15} />
-          {active ? (current?.label ?? label) : label}
-          <ChevronRight size={14} />
-        </button>
-      )}
-      entries={[
-        { label: allLabel, icon: active ? undefined : Check, onSelect: () => onChange('all') },
-        ...options.map((option) => ({
-          label: option.label,
-          icon: option.value === value ? Check : undefined,
-          onSelect: () => onChange(option.value),
-        })),
-      ]}
+    <MenuSelect<T | 'all'>
+      icon={icon}
+      label={active ? (current?.label ?? label) : label}
+      ariaLabel={label}
+      value={value}
+      options={[{ value: 'all', label: allLabel }, ...options]}
+      onChange={onChange}
     />
   );
 }

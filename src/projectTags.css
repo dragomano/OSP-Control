@@ -207,23 +207,12 @@
   border-top: 1px solid var(--line);
   font-size: 11px;
 }
-.project-tags-match select {
+.project-tags-match .row-menu {
   flex: 1;
   min-width: 0;
-  padding: 7px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
 }
-.project-sort {
-  min-width: 0;
-  max-width: 100%;
-  color: var(--text);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  font-family: inherit;
+.project-tags-match .filter-button {
+  width: 100%;
 }
 .project-tags-bulk {
   display: flex;
@@ -262,10 +251,11 @@
   border-color: var(--accent);
   outline-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.project-tags-bulk .project-tag-input {
+.project-tags-bulk .project-tag-suggest {
   flex: 1 1 170px;
   min-width: 0;
-  width: auto;
+}
+.project-tags-bulk .project-tag-input {
   font-size: 12px;
 }
 .project-tag-editor {
@@ -288,10 +278,18 @@
   gap: 8px;
   margin-top: 12px;
 }
-.project-tag-form .project-tag-input {
+.project-tag-form .project-tag-suggest {
   flex: 1 1 180px;
   min-width: 0;
-  width: auto;
+}
+/* The wrapper takes over the flex box of the former direct input child. */
+.project-tag-suggest .project-tag-input {
+  width: 100%;
+}
+/* Suggestions popover: matches the input width instead of the shared menu size. */
+.project-tag-suggest-popover {
+  min-width: 0;
+  max-width: none;
 }
 .project-tags-hint,
 .project-tags-empty {
@@ -300,6 +298,40 @@
 }
 .project-tags-hint {
   margin: 10px 0 0;
+}
+@media (max-width: 1399px) {
+  /* Between the desktop single row and the mobile 2-column grid the toolbar becomes
+     a 3-column grid: search + SSL + PHP on the first line, HTTP engine + tags + sort
+     on the second. Plain flex wrapping would strand the sort menu alone on a line. */
+  .projects-toolbar {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  /* The HTTP filter always opens the second line, with tags and sort after it. */
+  .projects-toolbar .project-http-filter {
+    grid-column-start: 1;
+  }
+  .projects-toolbar .reset {
+    grid-column: 1 / -1;
+  }
+  .projects-toolbar:not(:has(.project-php-filter)) .project-ssl-filter {
+    grid-column: span 2;
+  }
+  .projects-toolbar:not(:has(.project-http-filter)) .project-tags-filter {
+    grid-column: span 2;
+  }
+  .projects-toolbar .search-field {
+    min-width: 0;
+  }
+  .projects-toolbar .filter-button {
+    width: 100%;
+    /* The same box as the search field: its 35px height plus the 1px borders. */
+    height: 37px;
+    font-size: 12px;
+    gap: 8px;
+  }
 }
 @media (max-width: 1000px) {
   .project-selection,
@@ -312,15 +344,11 @@
   .project-tags-filter-option,
   .project-tags-bulk button,
   .project-tag-form button,
-  .project-tags-match select,
   .project-tags-table .row-actions button {
     min-height: 44px;
   }
   .projects-toolbar {
-    position: relative;
-    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
   }
   .projects-toolbar .search-field,
   .projects-toolbar .project-http-filter,
@@ -331,15 +359,6 @@
   }
   .projects-toolbar:not(:has(.project-php-filter)) .project-ssl-filter {
     grid-column: 1 / -1;
-  }
-  .projects-toolbar .search-field {
-    min-width: 0;
-  }
-  .projects-toolbar .filter-button {
-    width: 100%;
-    min-height: 44px;
-    font-size: 12px;
-    gap: 8px;
   }
   .projects-toolbar .project-tags-filter {
     position: static;
@@ -415,7 +434,7 @@
   .project-tag-form .project-tag-input {
     font-size: 16px;
   }
-  .project-tags-bulk .project-tag-input {
+  .project-tags-bulk .project-tag-suggest {
     flex-basis: 100%;
   }
 }

@@ -61,9 +61,11 @@ import { HostsEditor } from '../dialogs/HostsEditor';
 import { RenameProjectDialog } from '../dialogs/RenameProjectDialog';
 import { copyText, type Notify } from '../shared';
 import { FilterFacet, facetValues } from '../widgets/FilterFacet';
+import { MenuSelect } from '../widgets/MenuSelect';
 import { PageHeader } from '../widgets/PageHeader';
 import { ProjectSelection, ProjectTagEditor, ProjectTagFilter } from '../widgets/ProjectTags';
 import { RowMenu } from '../widgets/RowMenu';
+import { SuggestInput } from '../widgets/SuggestInput';
 import { activityDate, groupProjectActivity, useProjectActivity } from './projectActivity';
 
 const ProjectWorkspace = lazy(() =>
@@ -170,7 +172,6 @@ function ProjectsContent({
     setTagFilters([]);
   }, [tagStorageKey]);
   const activityId = useId();
-  const bulkTagsId = useId();
   const { activity, loading: activityLoading, error: activityError, now } = useProjectActivity(allProjects);
   const dateFormat = new Intl.DateTimeFormat(localeTag(lang), {
     day: 'numeric',
@@ -433,17 +434,20 @@ function ProjectsContent({
           onSelect={setTagFilters}
           onMatch={setTagMatch}
         />
-        <select
-          className="filter-button project-sort"
-          aria-label={t('projects.sortLabel')}
-          value={sort}
-          onChange={(event) => setSort(event.target.value as ProjectSort)}
-        >
-          <option value="recent">{t('projects.activitySortRecent')}</option>
-          <option value="domain">{t('projects.sortDomain')}</option>
-          <option value="tags">{t('projects.sortTags')}</option>
-          <option value="tags-desc">{t('projects.sortTagsDesc')}</option>
-        </select>
+        <div className="project-sort">
+          <MenuSelect<ProjectSort>
+            icon={ArrowDownWideNarrow}
+            ariaLabel={t('projects.sortLabel')}
+            value={sort}
+            options={[
+              { value: 'recent', label: t('projects.activitySortRecent') },
+              { value: 'domain', label: t('projects.sortDomain') },
+              { value: 'tags', label: t('projects.sortTags') },
+              { value: 'tags-desc', label: t('projects.sortTagsDesc') },
+            ]}
+            onChange={setSort}
+          />
+        </div>
         {filtersActive && (
           <button type="button" className="filter-button reset" onClick={resetFilters}>
             <X size={15} />
@@ -454,32 +458,28 @@ function ProjectsContent({
       {selectedDomains.length > 0 && (
         <fieldset className="project-tags-bulk" aria-label={t('projects.tagsBulk')}>
           <strong role="status">{t('projects.tagsSelected', { count: selectedDomains.length })}</strong>
-          <input
-            className="project-tag-input"
-            aria-label={t('projects.tagsBulkName')}
-            placeholder={t('projects.tagsPlaceholder')}
+          <SuggestInput
             value={bulkTag}
-            onChange={(event) => setBulkTag(event.target.value)}
-            list={bulkTagsId}
+            onValueChange={setBulkTag}
+            suggestions={tagCatalog}
+            ariaLabel={t('projects.tagsBulkName')}
+            placeholder={t('projects.tagsPlaceholder')}
           />
-          <datalist id={bulkTagsId}>
-            {tagCatalog.map((tag) => (
-              <option value={tag} key={tag} />
-            ))}
-          </datalist>
           <button
             type="button"
             className="secondary-button"
-            disabled={!bulkTag.trim()}
-            onClick={() => changeTags(selectedDomains, bulkTag, 'add')}
+            onClick={() => {
+              if (bulkTag.trim()) changeTags(selectedDomains, bulkTag, 'add');
+            }}
           >
             {t('projects.tagsAssign')}
           </button>
           <button
             type="button"
             className="secondary-button"
-            disabled={!bulkTag.trim()}
-            onClick={() => changeTags(selectedDomains, bulkTag, 'remove')}
+            onClick={() => {
+              if (bulkTag.trim()) changeTags(selectedDomains, bulkTag, 'remove');
+            }}
           >
             {t('projects.tagsUnassign')}
           </button>
