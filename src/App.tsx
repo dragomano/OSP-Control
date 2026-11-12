@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   ChevronRight,
+  CircleHelp,
   Copy,
   FolderOpen,
   Leaf,
@@ -174,6 +175,9 @@ function App() {
   const [font, setFont] = useState(() => settingsStorage.getItem('ospanel.font') ?? 'dm-sans');
   const [scale, setScale] = useState(() => Number(settingsStorage.getItem('ospanel.scale') ?? 100));
   const [lang, setLang] = useState(() => initialLang());
+  const documentationUrl = `https://github.com/OSPanel/OpenServerPanel/wiki${
+    ['ru', 'uk', 'be'].includes(lang.toLowerCase().split(/[-_]/)[0]) ? '/Документация' : ''
+  }`;
   // The current language code for async checks (refreshLocales) that need the
   // current selection without crossing callback dependencies.
   const langRef = useRef(lang);
@@ -1122,6 +1126,23 @@ function App() {
                   <b>{title}</b>
                 </div>
                 <div className="top-actions">
+                  <a
+                    className="icon-button"
+                    href={documentationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t('common.documentation')}
+                    title={t('common.documentation')}
+                    onClick={(event) => {
+                      if (!isDesktopApp()) return;
+                      event.preventDefault();
+                      void openInBrowser(documentationUrl).catch((error) =>
+                        notify(errorText(t, error, 'common.documentationOpenFailed')),
+                      );
+                    }}
+                  >
+                    <CircleHelp size={17} aria-hidden="true" />
+                  </a>
                   <button
                     type="button"
                     className="icon-button"

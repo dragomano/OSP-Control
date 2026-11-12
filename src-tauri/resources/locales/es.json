@@ -151,6 +151,8 @@
   "common.unknown": "Desconocido",
   "common.actions": "Acciones",
   "common.toggleTheme": "Cambiar el tema",
+  "common.documentation": "Documentación de OSPanel",
+  "common.documentationOpenFailed": "No se pudo abrir la documentación de OSPanel",
   "common.cancel": "Cancelar",
   "common.save": "Guardar",
   "common.close": "Cerrar",

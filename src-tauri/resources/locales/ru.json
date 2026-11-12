@@ -151,6 +151,8 @@
   "common.unknown": "Неизвестно",
   "common.actions": "Действия",
   "common.toggleTheme": "Переключить тему",
+  "common.documentation": "Документация OSPanel",
+  "common.documentationOpenFailed": "Не удалось открыть документацию OSPanel",
   "common.cancel": "Отмена",
   "common.save": "Сохранить",
   "common.close": "Закрыть",

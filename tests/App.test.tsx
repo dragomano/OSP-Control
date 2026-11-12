@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../src/App';
 import { APP_NAME } from '../src/brand';
+import { embeddedDict } from '../src/i18n';
 import type { OsPanelSnapshot } from '../src/ospanel';
 
 // discoverOsPanel is mocked file-wide but delegates to the real adapter: the browser
@@ -95,6 +96,40 @@ describe('App (browser mode: adapter serves mocks)', () => {
     expect(button).toBeVisible();
     fireEvent.click(button);
     expect(await screen.findByRole('dialog', { name: 'Обновление приложения' })).toBeVisible();
+  });
+
+  it.each([
+    ['ru', '/Документация'],
+    ['uk', '/Документация'],
+    ['be', '/Документация'],
+    ['en', ''],
+    ['es', ''],
+  ])('links to OSPanel documentation for %s', async (lang, suffix) => {
+    localStorage.setItem('ospanel.lang', lang);
+    render(<App />);
+    const label = embeddedDict(lang)['common.documentation'];
+    const link = await screen.findByRole('link', { name: label });
+    expect(link).toHaveAttribute('href', `https://github.com/OSPanel/OpenServerPanel/wiki${suffix}`);
+    expect(link).toHaveAttribute('title', label);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link.closest('.top-actions')).not.toBeNull();
+  });
+
+  it('updates the documentation link after changing the language', async () => {
+    render(<App />);
+    expect(screen.getByRole('link', { name: 'Документация OSPanel' })).toHaveAttribute(
+      'href',
+      'https://github.com/OSPanel/OpenServerPanel/wiki/Документация',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Русский' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
+    expect(await screen.findByRole('link', { name: 'OSPanel documentation' })).toHaveAttribute(
+      'href',
+      'https://github.com/OSPanel/OpenServerPanel/wiki',
+    );
   });
 
   it('switches pages via navigation', async () => {

@@ -522,7 +522,7 @@ button.menu-icon-choice:hover {
 }
 .menu-icon-search {
   margin: 19px 0 12px;
-  flex-shrink: 0;
+  flex: none;
 }
 .menu-icon-search input {
   width: 100%;
