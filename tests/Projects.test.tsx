@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   listEditors: vi.fn(),
   openInBrowser: vi.fn(),
   openProjectFolder: vi.fn(),
+  openProjectConsole: vi.fn(),
   openInEditor: vi.fn(),
   getProjectModuleOptions: vi.fn(),
   getProjectSettings: vi.fn(),
@@ -302,6 +303,29 @@ describe('Projects tag cleanup', () => {
 });
 
 describe('Projects row menu', () => {
+  it('opens the selected project console immediately after the browser entry', async () => {
+    const notify = vi.fn<Notify>();
+    mocks.openProjectConsole.mockResolvedValue(undefined);
+    const domain = 'xn--caf-dma.test';
+    renderProjects(notify, [shopProject, { ...landingProject, domain }]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Actions' })[1]);
+    const menu = screen.getByRole('menu');
+    const consoleItem = within(menu).getByRole('menuitem', { name: 'Open in console' });
+    expect(consoleItem.previousElementSibling).toHaveTextContent('Open in browser');
+    expect(consoleItem.nextElementSibling).toHaveTextContent('Open folder');
+    fireEvent.click(consoleItem);
+    await waitFor(() => expect(notify).toHaveBeenCalledWith('OSP console opened for café.test'));
+    expect(mocks.openProjectConsole).toHaveBeenCalledExactlyOnceWith(domain);
+  });
+
+  it('reports a console launch failure without a success notification', async () => {
+    const notify = vi.fn<Notify>();
+    mocks.openProjectConsole.mockRejectedValue(new Error('boom'));
+    renderProjects(notify);
+    fireEvent.click(within(openRowMenu()).getByRole('menuitem', { name: 'Open in console' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledExactlyOnceWith('Failed to open the project console'));
+  });
+
   it('separates domain renaming, copying and deletion into action groups', () => {
     renderProjects(vi.fn());
     const menu = openRowMenu();

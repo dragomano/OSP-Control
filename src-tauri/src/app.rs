@@ -5,9 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
 
-use tauri::{Emitter, Manager};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Emitter, Manager};
 
 use crate::error::{CommandError, spawn_failed};
 use crate::locales::locale_key_string;
@@ -120,9 +120,14 @@ fn ensure_tray(app: &tauri::AppHandle, lang: &str) -> Result<(), CommandError> {
     let icon = app.default_window_icon().cloned().ok_or_else(tray_failed)?;
     let show_item = MenuItem::with_id(app, "show", locale_key_string(lang, "tray.show"), true, None::<&str>)
         .map_err(|_| tray_failed())?;
-    let create_item =
-        MenuItem::with_id(app, "create_project", locale_key_string(lang, "tray.createProject"), true, None::<&str>)
-            .map_err(|_| tray_failed())?;
+    let create_item = MenuItem::with_id(
+        app,
+        "create_project",
+        locale_key_string(lang, "tray.createProject"),
+        true,
+        None::<&str>,
+    )
+    .map_err(|_| tray_failed())?;
     let quit_item = MenuItem::with_id(app, "quit", locale_key_string(lang, "tray.quit"), true, None::<&str>)
         .map_err(|_| tray_failed())?;
     // Native separator before the destructive "quit" entry so it does not sit

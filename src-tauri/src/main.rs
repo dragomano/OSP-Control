@@ -266,6 +266,7 @@ fn main() {
             services::overview_metrics,
             services::service_action,
             module_actions::open_module,
+            module_actions::open_project_console,
             module_profiles::list_module_profiles,
             module_profiles::read_module_profile,
             module_profiles::read_profile_file,

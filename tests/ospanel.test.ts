@@ -25,6 +25,7 @@ import {
   openInBrowser,
   openInEditor,
   openModule,
+  openProjectConsole,
   openProjectFolder,
   panelOnline,
   persistOsPanelPath,
@@ -210,6 +211,7 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
     const { startOsPanel } = await import('../src/ospanel');
     await expect(startOsPanel()).rejects.toThrow('err.desktopOnly');
     await expect(openProjectFolder('C:\\x')).rejects.toThrow('err.desktopOnly');
+    await expect(openProjectConsole('example.test')).rejects.toThrow('err.desktopOnly');
     await expect(openFileExternally('C:\\x.log')).rejects.toThrow('err.desktopOnly');
     await expect(restoreBackup('id')).rejects.toThrow('err.desktopOnly');
     await expect(restoreDbBackup('id')).rejects.toThrow('err.desktopOnly');
@@ -287,6 +289,16 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
       });
     },
   );
+
+  it('passes the canonical project domain and configured installation to the console command', async () => {
+    persistOsPanelPath('X:\\TestPanel');
+    invokeMock.mockResolvedValueOnce(undefined);
+    await openProjectConsole('xn--caf-dma.test');
+    expect(invokeMock).toHaveBeenLastCalledWith('open_project_console', {
+      domain: 'xn--caf-dma.test',
+      customPath: 'X:\\TestPanel',
+    });
+  });
 
   it.each(['Example User', 'Another User'])(
     'uses the desktop identity returned by the backend: %s',

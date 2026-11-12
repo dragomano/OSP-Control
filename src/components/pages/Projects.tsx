@@ -16,6 +16,7 @@ import {
   ShieldOff,
   SlidersHorizontal,
   Tags,
+  Terminal,
   Trash2,
   X,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ import {
   type OsPanelProject,
   openInBrowser,
   openInEditor,
+  openProjectConsole,
   openProjectFolder,
 } from '../../ospanel';
 import { displayProjectDomain } from '../../projectDomain';
@@ -292,6 +294,14 @@ function ProjectsContent({
       notify(t('projects.toastOpened', { domain: displayProjectDomain(project.domain) }));
     } catch (error) {
       notify(errorText(t, error, 'projects.toastOpenFailed'));
+    }
+  };
+  const openConsole = async (project: OsPanelProject) => {
+    try {
+      await openProjectConsole(project.domain);
+      notify(t('projects.toastConsoleOpened', { domain: displayProjectDomain(project.domain) }));
+    } catch (error) {
+      notify(errorText(t, error, 'projects.toastConsoleFailed'));
     }
   };
   const openProjectDir = async (project: OsPanelProject) => {
@@ -636,6 +646,11 @@ function ProjectsContent({
                             separatorBefore: true,
                             icon: Globe2,
                             onSelect: () => void openProject(project),
+                          },
+                          {
+                            label: t('projects.menuOpenConsole'),
+                            icon: Terminal,
+                            onSelect: () => void openConsole(project),
                           },
                           {
                             label: t('projects.menuOpenFolder'),

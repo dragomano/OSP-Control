@@ -479,6 +479,11 @@ export async function openProjectFolder(path: string): Promise<void> {
   throw new Error('err.desktopOnly');
 }
 
+export async function openProjectConsole(domain: string): Promise<void> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  await invoke('open_project_console', { domain, ...customPathArgs() });
+}
+
 export type ModuleOpenAction = 'console' | 'explorer' | 'browser' | 'shell';
 
 export async function openModule(name: string, action: ModuleOpenAction): Promise<void> {

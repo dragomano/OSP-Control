@@ -1,4 +1,4 @@
-//! Stock OSPanel module shortcuts. Only fixed CLI verbs are executed here.
+//! Stock OSPanel console and module shortcuts. Only fixed CLI verbs are executed here.
 
 use std::{
     fs,
@@ -12,8 +12,11 @@ use crate::{
     error::{CommandError, spawn_failed},
     panel_api::{
         active_profile_settings, api_json, dat_field, dat_string_value, module_actions, parse_osp_json,
+        projects_from_json,
     },
-    paths::{explorer_open, external_path, is_valid_module_name, resolve_installation},
+    paths::{
+        explorer_open, external_path, is_valid_module_name, normalize_project_domain, resolve_installation,
+    },
     shell::open_in_browser,
 };
 
@@ -58,15 +61,14 @@ fn windows_terminal(root: &Path) -> bool {
         .is_some_and(|value| value == "on" || value == "1")
 }
 
-fn terminal_script(name: &str, shell: bool) -> String {
-    let verb = if shell { "shell" } else { "use" };
+fn terminal_script(name: &str, verb: &str) -> String {
     // The path is expanded once by cmd from an environment variable, never interpolated
-    // as shell syntax. The module name has already passed the argument whitelist.
+    // as shell syntax. The module name or domain has already passed the argument whitelist.
     format!(r#""%OSP_CONTROL_CLI%" reset init noprint & "%OSP_CONTROL_CLI%" {verb} {name}"#)
 }
 
-fn terminal_command(root: &Path, cli: &Path, name: &str, shell: bool, use_wt: bool) -> Command {
-    let script = terminal_script(name, shell);
+fn terminal_command(root: &Path, cli: &Path, name: &str, verb: &str, use_wt: bool) -> Command {
+    let script = terminal_script(name, verb);
     let mut command = Command::new(if use_wt { "wt.exe" } else { "cmd.exe" });
     if use_wt {
         command.args(["nt", "-d"]).arg(external_path(root)).arg("cmd.exe");
@@ -132,7 +134,43 @@ pub fn open_module(
     if !cli.is_file() {
         return Err(CommandError::new("err.operationNotAllowed"));
     }
-    terminal_command(&root, &cli, &name, matches!(action, ModuleOpenAction::Shell), windows_terminal(&root))
+    terminal_command(
+        &root,
+        &cli,
+        &name,
+        if matches!(action, ModuleOpenAction::Shell) { "shell" } else { "use" },
+        windows_terminal(&root),
+    )
+    .spawn()
+    .map_err(spawn_failed)?;
+    Ok(())
+}
+
+fn project_directory(root: &Path, domain: &str, json: &serde_json::Value) -> Result<PathBuf, CommandError> {
+    let project = projects_from_json(json, root)
+        .into_iter()
+        .find(|project| project.domain == domain)
+        .ok_or_else(|| CommandError::new("err.operationNotAllowed"))?;
+    let directory = checked_path(root, Path::new(&project.path))?;
+    if !directory.is_dir() {
+        return Err(CommandError::new("err.operationNotAllowed"));
+    }
+    Ok(directory)
+}
+
+#[tauri::command]
+pub fn open_project_console(domain: String, custom_path: Option<String>) -> Result<(), CommandError> {
+    let _guard = crate::module_updates::mutation()?;
+    let domain = normalize_project_domain(&domain)?;
+    let root = fs::canonicalize(resolve_installation(custom_path.as_deref())?)?;
+    let json = api_json(&root, "/getprojects").ok_or_else(|| CommandError::new("err.panelNotReady"))?;
+    project_directory(&root, &domain, &json)?;
+    let cli = checked_path(&root, Path::new("bin/osp.bat"))?;
+    if !cli.is_file() {
+        return Err(CommandError::new("err.operationNotAllowed"));
+    }
+    // Let OSPanel select the project's engines, environment and working directory.
+    terminal_command(&root, &cli, &domain, "project", windows_terminal(&root))
         .spawn()
         .map_err(spawn_failed)?;
     Ok(())
@@ -237,6 +275,45 @@ mod tests {
     }
 
     #[test]
+    fn project_console_requires_a_live_project_and_contained_directory() {
+        let fixture = Fixture::new();
+        let root = fixture.root();
+        let directory = root.join("home/shared");
+        fs::create_dir_all(&directory).unwrap();
+        let project = |path: &Path| {
+            json!({"_children": [{
+                "key": "xn--caf-dma.test", "value": {"_children": [
+                    {"key": "base_dir", "value": {"_value": path.to_string_lossy()}}
+                ]}
+            }]})
+        };
+        assert_eq!(
+            project_directory(&root, "xn--caf-dma.test", &project(&directory)).unwrap(),
+            fs::canonicalize(&directory).unwrap()
+        );
+        assert!(project_directory(&root, "missing.test", &project(&directory)).is_err());
+        assert_eq!(
+            project_directory(&root, "xn--caf-dma.test", &project(&fixture.0)).unwrap_err().code,
+            "err.accessDenied"
+        );
+        for domain in ["example.test & calc", "../example.test", "example%PATH%.test", "example\".test"] {
+            assert_eq!(open_project_console(domain.into(), None).unwrap_err().code, "err.invalidDomain");
+        }
+        let domain = normalize_project_domain("CAFÉ.test").unwrap();
+        assert_eq!(domain, "xn--caf-dma.test");
+        for use_wt in [false, true] {
+            let command = terminal_command(&root, &root.join("bin/osp.bat"), &domain, "project", use_wt);
+            assert_eq!(command.get_program(), if use_wt { "wt.exe" } else { "cmd.exe" });
+            let args = command.get_args().map(|arg| arg.to_string_lossy()).collect::<Vec<_>>();
+            assert!(args.iter().any(|arg| arg == "/K"));
+            assert!(args.iter().any(|arg| arg.contains("project xn--caf-dma.test")));
+            if use_wt {
+                assert_eq!(&args[..2], ["nt", "-d"]);
+            }
+        }
+    }
+
+    #[test]
     fn reads_windows_terminal_preference_without_changing_program_dat() {
         let fixture = Fixture::new();
         assert!(!windows_terminal(&fixture.root()));
@@ -261,10 +338,12 @@ mod tests {
         fs::create_dir(&bin).unwrap();
         let cli = bin.join("osp.bat");
         fs::write(&cli, "@echo %*\r\n@set OSP_CONTROL_CLI=\r\n").unwrap();
-        for (shell, verb) in [(false, "use"), (true, "shell")] {
+        for (name, verb) in
+            [("Example-1.0", "use"), ("Example-1.0", "shell"), ("xn--caf-dma.test", "project")]
+        {
             let output = Command::new("cmd.exe")
                 .args(["/D", "/V:OFF", "/C"])
-                .raw_arg(format!("\"{}\"", terminal_script("Example-1.0", shell)))
+                .raw_arg(format!("\"{}\"", terminal_script(name, verb)))
                 .env("OSP_CONTROL_CLI", external_path(&cli))
                 .env("OSP_ACTION_TEST", "unexpected")
                 .creation_flags(0x0800_0000)
@@ -272,10 +351,7 @@ mod tests {
                 .unwrap();
             assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
             let stdout = String::from_utf8_lossy(&output.stdout);
-            assert_eq!(
-                stdout.lines().collect::<Vec<_>>(),
-                ["reset init noprint", &format!("{verb} Example-1.0")]
-            );
+            assert_eq!(stdout.lines().collect::<Vec<_>>(), ["reset init noprint", &format!("{verb} {name}")]);
         }
     }
 }
