@@ -121,7 +121,7 @@ describe('project workspace drafts', () => {
     fireEvent.change(await screen.findByRole('textbox', { name: 'Contents of api/.user.ini' }), {
       target: { value: 'memory_limit=128M\n' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '.user.ini', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: '.user.ini' }));
     expect(await screen.findByRole('textbox', { name: 'Contents of .user.ini' })).toHaveValue(
       'memory_limit=256M\n',
     );
@@ -139,7 +139,7 @@ describe('project workspace drafts', () => {
       .mockResolvedValue({ baseDir: project.path, content, files: ['new-api/.user.ini'] });
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
-    fireEvent.click(screen.getByRole('button', { name: 'PHP', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'PHP' }));
     fireEvent.change(await screen.findByRole('textbox', { name: 'Contents of api/.user.ini' }), {
       target: { value: 'memory_limit=256M\n' },
     });
@@ -169,7 +169,7 @@ describe('project workspace drafts', () => {
     mocks.saveProjectFile.mockRejectedValueOnce(new Error('err.projectWorkspaceConflict'));
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
-    fireEvent.click(screen.getByRole('button', { name: 'PHP', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'PHP' }));
     fireEvent.change(await screen.findByRole('textbox', { name: 'Contents of .user.ini' }), {
       target: { value: 'memory_limit=256M\n' },
     });
