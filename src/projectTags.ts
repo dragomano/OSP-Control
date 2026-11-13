@@ -6,11 +6,25 @@ export type ProjectTags = Record<string, string[]>;
 export type ProjectTagColor = `#${string}`;
 export const isProjectTagColor = (value: unknown): value is ProjectTagColor =>
   typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+// Relative luminance (WCAG 2.x) decides whether white or near-black text stays readable on the
+// exact color the user picked; the chip itself must not be tinted or mixed with the panel.
+function readableInk(color: ProjectTagColor): string {
+  const channel = (offset: number) => {
+    const value = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  const white = 1.05 / (luminance + 0.05);
+  const black = (luminance + 0.05) / 0.05;
+  return white > black ? '#ffffff' : '#101418';
+}
 export function projectTagAppearance(colors: ProjectTagColors, tag: string) {
   const color = colorForTag(colors, tag);
   return {
     className: color ? 'tag-color-custom' : '',
-    style: color ? ({ '--tag-custom': color } as import('react').CSSProperties) : undefined,
+    style: color
+      ? ({ '--tag-custom': color, '--tag-ink': readableInk(color) } as import('react').CSSProperties)
+      : undefined,
   };
 }
 export type ProjectTagColors = Record<string, ProjectTagColor>;

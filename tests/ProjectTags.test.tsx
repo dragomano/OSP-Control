@@ -235,7 +235,7 @@ describe('project tags UI', () => {
     fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     const editor = screen.getByRole('region', { name: 'Tags for shop.test' });
     fireEvent.change(within(editor).getByLabelText('Tag name'), { target: { value: 'Client' } });
-    fireEvent.submit(within(editor).getByLabelText('Tag name').closest('form') as HTMLFormElement);
+    fireEvent.click(screen.getByRole('option', { name: 'Create tag “Client”' }));
     expect(row('shop.test').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
     fireEvent.click(within(editor).getByRole('button', { name: 'Done' }));
     view.unmount();
@@ -351,6 +351,7 @@ describe('project tags UI', () => {
     );
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select api.test' }));
     fireEvent.change(screen.getByLabelText('Tag for selected projects'), { target: { value: 'Review' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Create tag “Review”' }));
     fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
     expect(tagsForProject(readProjectTags(key), 'shop.test')).toContain('Review');
     expect(tagsForProject(readProjectTags(key), 'api.test')).toContain('Review');
@@ -365,18 +366,23 @@ describe('project tags UI', () => {
     expect(screen.getByRole('checkbox', { name: 'Select api.test' })).not.toBeChecked();
   });
 
-  it('suggests catalog tags in the bulk bar and fills the input from a picked suggestion', () => {
+  it('selects multiple catalog tags in the bulk bar without closing the list', () => {
     writeProjectTags(key, initial);
     render(<Harness />);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select shop.test' }));
     const input = screen.getByLabelText('Tag for selected projects');
-    // Focusing opens the whole catalog as an app-styled menu.
     fireEvent.focus(input);
-    const menu = screen.getByRole('menu');
-    expect([...menu.children].map((item) => item.textContent)).toEqual(['API', 'Client', 'Laravel']);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Client' }));
-    expect(input).toHaveValue('Client');
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual([
+      'API',
+      'Client',
+      'Laravel',
+    ]);
+    fireEvent.click(screen.getByRole('option', { name: 'Client' }));
+    fireEvent.click(screen.getByRole('option', { name: 'API' }));
+    expect(input).toHaveValue('');
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove tag Client' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove tag API' })).toBeInTheDocument();
   });
 
   it('reports failed persistence and keeps the original labels', () => {
@@ -387,7 +393,7 @@ describe('project tags UI', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
       throw new Error('quota');
     });
-    fireEvent.submit(screen.getByLabelText('Tag name').closest('form') as HTMLFormElement);
+    fireEvent.click(screen.getByRole('option', { name: 'Create tag “Review”' }));
     expect(notify).toHaveBeenCalledWith('Failed to save project tags');
     expect(row('shop.test').queryByRole('button', { name: 'Filter by tag Review' })).not.toBeInTheDocument();
     expect(readProjectTags(key)).toEqual(initial);
@@ -401,34 +407,38 @@ describe('project tags UI', () => {
     const input = within(screen.getByRole('region', { name: 'Tags for shop.test' })).getByLabelText(
       'Tag name',
     );
-    const menu = screen.getByRole('menu');
-    expect([...menu.children].map((item) => item.textContent)).toEqual(['API']);
+    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual(['API']);
     fireEvent.change(input, { target: { value: 'cl' } });
-    // "Client" is already on the project, so nothing matches and the list hides.
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    // Selected catalog tags are hidden, so only the create action is left.
+    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual(['Create tag “cl”']);
   });
 
-  it('fills the name from a picked suggestion and adds the tag', () => {
+  it('adds catalog tags immediately and keeps the list open for more selections', () => {
     writeProjectTags(key, initial);
     render(<Harness />);
-    fireEvent.click(row('api.test').getByRole('button', { name: 'Tags for api.test' }));
-    const input = within(screen.getByRole('region', { name: 'Tags for api.test' })).getByLabelText(
-      'Tag name',
-    );
-    fireEvent.change(input, { target: { value: 'larav' } });
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Laravel' }));
-    expect(input).toHaveValue('Laravel');
-    fireEvent.submit(input.closest('form') as HTMLFormElement);
-    expect(row('api.test').getByRole('button', { name: 'Filter by tag Laravel' })).toBeInTheDocument();
+    fireEvent.click(row('empty.test').getByRole('button', { name: 'Tags for empty.test' }));
+    const editor = screen.getByRole('region', { name: 'Tags for empty.test' });
+    const input = within(editor).getByLabelText('Tag name');
+    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual([
+      'API',
+      'Client',
+      'Laravel',
+    ]);
+    fireEvent.click(screen.getByRole('option', { name: 'Client' }));
+    expect(input).toHaveValue('');
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'Laravel' }));
+    expect(tagsForProject(readProjectTags(key), 'empty.test')).toEqual(['Client', 'Laravel']);
+    expect(row('empty.test').getByRole('button', { name: 'Filter by tag Laravel' })).toBeInTheDocument();
   });
 
   it('closes the suggestions with Escape first and the editor only afterwards', async () => {
     writeProjectTags(key, initial);
     render(<Harness />);
     fireEvent.click(row('empty.test').getByRole('button', { name: 'Tags for empty.test' }));
-    expect(screen.getByRole('menu')).toBeInTheDocument();
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
     fireEvent.keyDown(screen.getByLabelText('Tag name'), { key: 'Escape' });
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Tags for empty.test' })).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() =>

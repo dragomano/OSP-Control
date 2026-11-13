@@ -63,9 +63,9 @@ import { copyText, type Notify } from '../shared';
 import { FilterFacet, facetValues } from '../widgets/FilterFacet';
 import { MenuSelect } from '../widgets/MenuSelect';
 import { PageHeader } from '../widgets/PageHeader';
+import { ProjectTagSelect } from '../widgets/ProjectTagSelect';
 import { ProjectSelection, ProjectTagEditor, ProjectTagFilter } from '../widgets/ProjectTags';
 import { RowMenu } from '../widgets/RowMenu';
-import { SuggestInput } from '../widgets/SuggestInput';
 import { activityDate, groupProjectActivity, useProjectActivity } from './projectActivity';
 
 const ProjectWorkspace = lazy(() =>
@@ -143,7 +143,7 @@ function ProjectsContent({
   const [sort, setSort] = useState<ProjectSort>('recent');
   const [editingTags, setEditingTags] = useState<string | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const [bulkTag, setBulkTag] = useState('');
+  const [bulkTags, setBulkTags] = useState<string[]>([]);
   // The tray "create project" entry switches to this page and bumps the signal;
   // open the dialog and clear whatever else might be in the way.
   useEffect(() => {
@@ -262,9 +262,19 @@ function ProjectsContent({
       else next.delete(domain);
       return next;
     });
-  const changeTags = (domains: string[], tag: string, action: 'add' | 'remove') => {
+  const changeTags = (domains: string[], tags: string[], action: 'add' | 'remove' | 'replace') => {
     try {
-      const next = editProjectTags(tagsRef.current, domains, tag, action);
+      let next = tagsRef.current;
+      if (action === 'replace') {
+        for (const domain of domains) {
+          for (const tag of tagsForProject(next, domain)) {
+            if (!tags.includes(tag)) next = editProjectTags(next, [domain], tag, 'remove');
+          }
+        }
+      }
+      for (const tag of tags) {
+        next = editProjectTags(next, domains, tag, action === 'remove' ? 'remove' : 'add');
+      }
       colorsRef.current = writeProjectTags(tagStorageKey, next, colorsRef.current);
       tagsRef.current = next;
       setTagState({ key: tagStorageKey, tags: next, colors: colorsRef.current });
@@ -458,28 +468,26 @@ function ProjectsContent({
       {selectedDomains.length > 0 && (
         <fieldset className="project-tags-bulk" aria-label={t('projects.tagsBulk')}>
           <strong role="status">{t('projects.tagsSelected', { count: selectedDomains.length })}</strong>
-          <SuggestInput
-            value={bulkTag}
-            onValueChange={setBulkTag}
-            suggestions={tagCatalog}
+          <ProjectTagSelect
+            value={bulkTags}
+            onChange={setBulkTags}
+            available={tagCatalog}
+            colors={tagColors}
             ariaLabel={t('projects.tagsBulkName')}
-            placeholder={t('projects.tagsPlaceholder')}
           />
           <button
             type="button"
             className="secondary-button"
-            onClick={() => {
-              if (bulkTag.trim()) changeTags(selectedDomains, bulkTag, 'add');
-            }}
+            disabled={!bulkTags.length}
+            onClick={() => changeTags(selectedDomains, bulkTags, 'add')}
           >
             {t('projects.tagsAssign')}
           </button>
           <button
             type="button"
             className="secondary-button"
-            onClick={() => {
-              if (bulkTag.trim()) changeTags(selectedDomains, bulkTag, 'remove');
-            }}
+            disabled={!bulkTags.length}
+            onClick={() => changeTags(selectedDomains, bulkTags, 'remove')}
           >
             {t('projects.tagsUnassign')}
           </button>
@@ -487,7 +495,10 @@ function ProjectsContent({
             type="button"
             className="icon-button"
             aria-label={t('projects.tagsClearSelection')}
-            onClick={() => setSelected(new Set())}
+            onClick={() => {
+              setSelected(new Set());
+              setBulkTags([]);
+            }}
           >
             <X size={16} />
           </button>
@@ -716,7 +727,7 @@ function ProjectsContent({
                       available={tagCatalog}
                       colors={tagColors}
                       onColorChange={changeTagColor}
-                      onChange={(tag, action) => changeTags([project.domain], tag, action)}
+                      onChange={(tags) => changeTags([project.domain], tags, 'replace')}
                       onClose={() => setEditingTags(null)}
                     />
                   )}

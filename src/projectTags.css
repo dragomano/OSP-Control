@@ -1,10 +1,7 @@
-/* Tag colors are independent of the application accent and remain legible in both themes. */
+/* Tag colors are shown exactly as picked; the readable ink is resolved per color in projectTags.ts. */
 .tag-color-custom {
-  --tag-ink: color-mix(in srgb, var(--tag-custom) 30%, white);
-  --tag-fill: color-mix(in srgb, var(--tag-custom) 18%, var(--panel));
-}
-.app-shell.light .tag-color-custom {
-  --tag-ink: color-mix(in srgb, var(--tag-custom) 40%, black);
+  --tag-ink: #ffffff;
+  --tag-fill: var(--tag-custom);
 }
 .project-tags-table {
   grid-template-columns: 28px minmax(0, 1.7fr) minmax(0, 1.3fr) minmax(65px, 0.8fr) minmax(60px, 0.6fr) auto;
@@ -74,26 +71,6 @@
 .project-tag-chip.active {
   border-color: currentColor;
 }
-.project-tag-edit-item {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 100%;
-  align-items: stretch;
-  gap: 3px;
-}
-.project-tag-remove {
-  display: inline-grid;
-  place-items: center;
-  min-width: 28px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  color: var(--muted);
-  background: var(--panel);
-}
-.project-tag-remove:hover {
-  color: var(--text);
-  border-color: var(--accent);
-}
 .project-tag-palette {
   display: flex;
   flex-wrap: wrap;
@@ -128,7 +105,8 @@
   background: var(--panel);
 }
 .project-tag-swatch {
-  color: var(--tag-ink, var(--accent));
+  /* The icon must stay readable regardless of the tag color shown by the palette. */
+  color: var(--text);
 }
 .project-tag-swatch[aria-pressed="true"],
 .project-tag-color-reset[aria-pressed="true"] {
@@ -152,7 +130,6 @@
   border-color: var(--accent);
 }
 .project-tag-chip:focus-visible,
-.project-tag-remove:focus-visible,
 .project-tag-swatch:focus-visible,
 .project-tag-color-reset:focus-visible {
   outline: 2px solid var(--accent);
@@ -228,8 +205,30 @@
   color: var(--text);
   font-size: 11px;
 }
+.project-tag-editor {
+  padding: 14px 15px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel2);
+}
+.project-tag-editor-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.project-tag-form {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
 .project-tag-input {
   box-sizing: border-box;
+  width: 100%;
   min-height: 36px;
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -251,48 +250,12 @@
   border-color: var(--accent);
   outline-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.project-tags-bulk .project-tag-suggest {
-  flex: 1 1 170px;
-  min-width: 0;
-}
-.project-tags-bulk .project-tag-input {
-  font-size: 12px;
-}
-.project-tag-editor {
-  padding: 14px 15px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel2);
-}
-.project-tag-editor-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-.project-tag-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.project-tag-form .project-tag-suggest {
-  flex: 1 1 180px;
-  min-width: 0;
-}
-/* The wrapper takes over the flex box of the former direct input child. */
-.project-tag-suggest .project-tag-input {
-  width: 100%;
-}
 /* Suggestions popover: matches the input width instead of the shared menu size. */
 .project-tag-suggest-popover {
   min-width: 0;
   max-width: none;
 }
-.project-tags-hint,
-.project-tags-empty {
+.project-tags-hint {
   font-size: 11px;
   color: var(--muted);
 }
@@ -335,10 +298,8 @@
 }
 @media (max-width: 1000px) {
   .project-selection,
-  .project-tag-input,
   .project-tag-chip,
   .project-tag-add,
-  .project-tag-remove,
   .project-tag-swatch,
   .project-tag-color-reset,
   .project-tags-filter-option,
@@ -430,11 +391,89 @@
     min-height: 36px;
   }
   .projects-toolbar input,
-  .project-tags-bulk .project-tag-input,
-  .project-tag-form .project-tag-input {
+  .project-tag-input,
+  .project-tag-select input {
     font-size: 16px;
   }
-  .project-tags-bulk .project-tag-suggest {
+  .project-tags-bulk .project-tag-select {
     flex-basis: 100%;
   }
+}
+
+.project-tag-select {
+  min-width: 0;
+  font-size: 12px;
+}
+.project-tags-bulk .project-tag-select {
+  flex: 1 1 240px;
+}
+.project-tag-select .tag-select__control {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+.project-tag-select .tag-select__control--is-focused {
+  border-color: var(--accent);
+}
+.project-tag-select .tag-select__value-container {
+  padding: 4px 6px;
+  gap: 4px;
+}
+.project-tag-select .tag-select__input-container {
+  color: var(--text);
+}
+.project-tag-select .tag-select__placeholder,
+.project-tag-select .tag-select__dropdown-indicator,
+.project-tag-select .tag-select__menu-notice {
+  color: var(--muted);
+  padding: 6px;
+}
+.project-tag-select .tag-select__multi-value {
+  border-radius: 4px;
+  background: var(--tag-fill, color-mix(in srgb, var(--accent) 15%, var(--panel)));
+  color: var(--tag-ink, var(--accent));
+}
+.project-tag-select .tag-select__multi-value__label {
+  padding: 4px 6px;
+}
+.project-tag-select .tag-select__multi-value__remove {
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 0 4px 4px 0;
+}
+.project-tag-select .tag-select__multi-value__remove:hover {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+.project-tag-select .tag-select__menu {
+  z-index: 25;
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 12%, transparent);
+}
+.project-tag-select .tag-select__menu-list {
+  max-height: 220px;
+  padding: 4px;
+}
+.project-tag-select .tag-select__option {
+  padding: 8px;
+  border-radius: 4px;
+  color: var(--tag-ink, var(--text));
+  background: var(--tag-fill, transparent);
+  cursor: pointer;
+}
+/* Colored rows touch each other otherwise, which makes them read as one block. */
+.project-tag-select .tag-select__option + .tag-select__option {
+  margin-top: 4px;
+}
+.project-tag-select .tag-select-color {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  cursor: pointer;
 }

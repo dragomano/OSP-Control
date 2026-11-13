@@ -1,9 +1,8 @@
-import { ChevronDown, Palette, Plus, RotateCcw, Tags, X } from 'lucide-react';
+import { ChevronDown, Palette, RotateCcw, Tags, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import {
   colorForTag,
-  MAX_PROJECT_TAG_LENGTH,
   type ProjectTagColor,
   type ProjectTagColors,
   projectTagAppearance,
@@ -11,7 +10,7 @@ import {
 } from '../../projectTags';
 import { useDismiss } from '../shared';
 import { MenuSelect } from './MenuSelect';
-import { SuggestInput } from './SuggestInput';
+import { ProjectTagSelect } from './ProjectTagSelect';
 
 export function ProjectSelection({
   checked,
@@ -135,24 +134,25 @@ export function ProjectTagEditor({
   available: string[];
   colors: ProjectTagColors;
   onColorChange: (tag: string, color: ProjectTagColor | null) => void;
-  onChange: (tag: string, action: 'add' | 'remove') => boolean;
+  onChange: (tags: string[]) => boolean;
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const [value, setValue] = useState('');
   const [colorFor, setColorFor] = useState<string | null>(null);
   const colorInput = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
+    // Escape closes the select's menu first: the capture listener sees the input still expanded.
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      const target = event.target instanceof Element ? event.target : null;
+      const combobox = target?.closest('.project-tag-select')?.querySelector('[role="combobox"]');
+      if (combobox?.getAttribute('aria-expanded') === 'true') return;
+      onClose();
     };
-    document.addEventListener('keydown', onEscape);
-    return () => document.removeEventListener('keydown', onEscape);
+    document.addEventListener('keydown', onEscape, true);
+    return () => document.removeEventListener('keydown', onEscape, true);
   }, [onClose]);
 
-  // Catalog tags that are not on the project yet; SuggestInput narrows them by the typed text.
-  const suggestions = available.filter((tag) => !tags.includes(tag));
   return (
     <section className="project-tag-editor" aria-label={t('projects.tagsEditFor', { domain })}>
       <div className="project-tag-editor-head">
@@ -161,37 +161,15 @@ export function ProjectTagEditor({
           <X size={16} />
         </button>
       </div>
-      <div className="project-tags-list">
-        {tags.length ? (
-          tags.map((tag) => (
-            <div className="project-tag-edit-item" key={tag}>
-              <button
-                type="button"
-                className={`project-tag-chip ${projectTagAppearance(colors, tag).className}`}
-                style={projectTagAppearance(colors, tag).style}
-                aria-label={t('projects.tagsColorFor', { tag })}
-                aria-expanded={colorFor === tag}
-                onClick={() => setColorFor(colorFor === tag ? null : tag)}
-              >
-                {tag}
-              </button>
-              <button
-                type="button"
-                className="project-tag-remove"
-                aria-label={t('projects.tagsRemove', { tag })}
-                onClick={() => {
-                  onChange(tag, 'remove');
-                  setColorFor(null);
-                }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))
-        ) : (
-          <span className="project-tags-empty">{t('projects.tagsWithout')}</span>
-        )}
-      </div>
+      <ProjectTagSelect
+        value={tags}
+        available={available}
+        colors={colors}
+        ariaLabel={t('projects.tagsName')}
+        autoFocus
+        onChange={onChange}
+        onColorSelect={(tag) => setColorFor(colorFor === tag ? null : tag)}
+      />
       {colorFor && tags.includes(colorFor) && (
         <fieldset className="project-tag-palette" aria-label={t('projects.tagsColorFor', { tag: colorFor })}>
           <div className="project-tag-picker-anchor">
@@ -240,34 +218,11 @@ export function ProjectTagEditor({
           </button>
         </fieldset>
       )}
-      <form
-        className="project-tag-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (onChange(value, 'add')) {
-            setValue('');
-            inputRef.current?.focus();
-          }
-        }}
-      >
-        <SuggestInput
-          value={value}
-          onValueChange={setValue}
-          suggestions={suggestions}
-          ariaLabel={t('projects.tagsName')}
-          placeholder={t('projects.tagsPlaceholder')}
-          maxLength={MAX_PROJECT_TAG_LENGTH * 2}
-          autoFocus
-          inputRef={inputRef}
-        />
-        <button type="submit" className="primary-button" disabled={!value.trim()}>
-          <Plus size={14} />
-          {t('projects.tagsAdd')}
-        </button>
+      <div className="project-tag-form">
         <button type="button" className="secondary-button" onClick={onClose}>
           {t('projects.tagsDone')}
         </button>
-      </form>
+      </div>
       <p className="project-tags-hint">{t('projects.tagsHint')}</p>
     </section>
   );
