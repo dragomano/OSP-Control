@@ -33,7 +33,8 @@
       "icons/128x128.png"
     ],
     "resources": {
-      "resources/locales/": "locales/"
+      "resources/locales/": "locales/",
+      "resources/starters/": "starters/"
     },
     "copyright": "Bugo 2026"
   }

@@ -247,6 +247,37 @@ fn payload(dir: &Path, ver: &str) -> Result<PathBuf, CommandError> {
             }
             continue;
         }
+        // Starter packages are plain text and JSON: no binaries may hide inside them.
+        if p.file_name().is_some_and(|n| n == "starters") && p.is_dir() {
+            fn walk(dir: &Path) -> Result<(), CommandError> {
+                if update_files::safe_tree(dir).is_err() {
+                    return Err(CommandError::new("err.appUpdateArchive"));
+                }
+                for entry in fs::read_dir(dir)? {
+                    let path = entry?.path();
+                    if path.is_dir() {
+                        walk(&path)?;
+                        continue;
+                    }
+                    // ".htaccess" has no extension in Path terms — match the file name.
+                    let allowed = path
+                        .file_name()
+                        .is_some_and(|n| n == ".htaccess")
+                        || path
+                            .extension()
+                            .is_some_and(|e| ["json", "conf", "md", "html", "css", "php", "mjs", "ini"].contains(&e.to_string_lossy().as_ref()));
+                    if !allowed {
+                        return Err(CommandError::new("err.appUpdateArchive"));
+                    }
+                    if fs::read(&path).map_err(|_| CommandError::new("err.appUpdateArchive"))?.contains(&0) {
+                        return Err(CommandError::new("err.appUpdateArchive"));
+                    }
+                }
+                Ok(())
+            }
+            walk(&p)?;
+            continue;
+        }
         return Err(CommandError::new("err.appUpdateArchive"));
     }
     let exe = root.join("osp-control.exe");

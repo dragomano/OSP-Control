@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   readMenu: vi.fn(),
   writeMenu: vi.fn(),
   diagnoseProject: vi.fn(),
-  installProjectLaravel: vi.fn(),
+  installProjectStarter: vi.fn(),
   openFileExternally: vi.fn(),
 }));
 vi.mock('../src/ospanel', async (original) => ({
@@ -296,10 +296,15 @@ describe('project workspace drafts', () => {
 
   it('keeps Laravel installation visible, blocks navigation while running and reloads its successful state', async () => {
     mocks.readProjectWorkspace
-      .mockResolvedValueOnce({ baseDir: project.path, content, files: [], laravel: 'pending' })
-      .mockResolvedValue({ baseDir: project.path, content, files: [], laravel: 'installed' });
+      .mockResolvedValueOnce({
+        baseDir: project.path,
+        content,
+        files: [],
+        installers: { laravel: 'pending' },
+      })
+      .mockResolvedValue({ baseDir: project.path, content, files: [], installers: { laravel: 'installed' } });
     let finish!: (result: { backupPath: string }) => void;
-    mocks.installProjectLaravel.mockImplementation((_project, progress) => {
+    mocks.installProjectStarter.mockImplementation((_project, _starterId, progress) => {
       progress({ phase: 'installing', output: 'Installing dependencies\n' });
       return new Promise((resolve) => {
         finish = resolve;
@@ -313,7 +318,7 @@ describe('project workspace drafts', () => {
     expect(screen.getByRole('tab', { name: 'Tasks' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
     expect(onClose).not.toHaveBeenCalled();
-    finish({ backupPath: 'C:/OSPanel/backups/project-starters/laravel-site.test' });
+    finish({ backupPath: 'C:/OSPanel/backups/starters/laravel-site.test' });
     await screen.findByText('Laravel installed in the project root. Restart OSPanel to apply the changes.');
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Install Laravel' })).not.toBeInTheDocument(),

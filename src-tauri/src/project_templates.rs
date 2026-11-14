@@ -21,6 +21,8 @@ pub(crate) struct Template {
     directories: Vec<String>,
     settings: BTreeMap<String, String>,
     files: Vec<TemplateFile>,
+    #[serde(skip)]
+    pub(crate) starter: Option<crate::project_starters::Document>,
 }
 #[derive(Debug, Deserialize)]
 struct TemplateFile {
@@ -28,6 +30,11 @@ struct TemplateFile {
     source: String,
 }
 pub(crate) fn template(id: &str) -> Result<Template, CommandError> {
+    if !matches!(id, "empty" | "static") {
+        let starter = crate::project_starters::load(id)?;
+        let m = &starter.manifest;
+        return Ok(Template { id: m.id.clone(), php: m.php, node: m.node, project_root: m.project_root.clone(), web_root: m.web_root.clone(), directories: m.directories.clone(), settings: m.settings.clone(), files: Vec::new(), starter: Some(starter) });
+    }
     let templates: Vec<Template> = serde_json::from_str(include_str!("../resources/project-templates.json"))
         .map_err(|_| CommandError::new("err.projectTemplateInvalid"))?;
     templates
@@ -52,11 +59,16 @@ pub(crate) fn preferred(options: &[String], global: &str) -> Option<String> {
         .cloned()
 }
 
-pub(crate) fn preferred_http(template: &str, options: &[String], global: &str) -> Option<String> {
-    if matches!(template, "wordpress" | "laravel") {
-        let apache: Vec<_> = options.iter().filter(|engine| engine.starts_with("Apache")).cloned().collect();
-        if !apache.is_empty() {
-            return preferred(&apache, global);
+// preference: "any" or a server family ("apache"/"nginx"/"caddy") from the starter manifest.
+pub(crate) fn preferred_http(preference: &str, options: &[String], global: &str) -> Option<String> {
+    if !matches!(preference, "any" | "") {
+        let matching: Vec<_> = options
+            .iter()
+            .filter(|engine| engine.to_ascii_lowercase().starts_with(preference))
+            .cloned()
+            .collect();
+        if !matching.is_empty() {
+            return preferred(&matching, global);
         }
     }
     preferred(options, global)
@@ -87,47 +99,9 @@ impl Template {
     ) -> Result<String, CommandError> {
         let text = match source {
             "ini" => return Ok(ini.into()),
-            "html" => include_str!("../resources/project-starters/index.html"),
-            "php" => include_str!("../resources/project-starters/index.php"),
-            "css" => include_str!("../resources/project-starters/styles.css"),
-            "node-server" => include_str!("../resources/project-starters/server.mjs"),
-            "node-package" => include_str!("../resources/project-starters/package.json"),
+            "html" => include_str!("../resources/builtin-starters/static/index.html"),
+            "css" => include_str!("../resources/builtin-starters/static/styles.css"),
             "static-readme" => locale.document("static")?,
-            "php-readme" => locale.document("php")?,
-            "laravel-readme" => locale.document("laravel")?,
-            "laravel-placeholder" => include_str!("../resources/project-starters/laravel-placeholder.php"),
-            "laravel-state" | "wordpress-state" => {
-                let placeholder = self.content(
-                    &format!("{}-placeholder", self.id),
-                    domain,
-                    php,
-                    port,
-                    php_port,
-                    ini,
-                    locale,
-                )?;
-                return Ok(locale.marker(&placeholder)?.replace('\n', "\r\n"));
-            }
-            "wordpress-placeholder" => {
-                include_str!("../resources/project-starters/wordpress-placeholder.php")
-            }
-            "wordpress-readme" => locale.document("wordpress")?,
-            "node-readme" => locale.document("node")?,
-            "laravel-nginx" => include_str!("../resources/project-starters/laravel/nginx.conf"),
-            "laravel-apache" => include_str!("../resources/project-starters/laravel/apache.conf"),
-            "laravel-caddy" => include_str!("../resources/project-starters/laravel/caddy.conf"),
-            "wordpress-nginx" => include_str!("../resources/project-starters/wordpress/nginx.conf"),
-            "wordpress-apache" => include_str!("../resources/project-starters/wordpress/apache.conf"),
-            "wordpress-caddy" => include_str!("../resources/project-starters/wordpress/caddy.conf"),
-            "wordpress-rewrite" => {
-                "# BEGIN WordPress\n<IfModule mod_rewrite.c>\nRewriteEngine On\nRewriteBase /\nRewriteRule ^index\\.php$ - [L]\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule . /index.php [L]\n</IfModule>\n# END WordPress\n"
-            }
-            "laravel-tasks" => {
-                "\u{feff}[__DOMAIN__]\n\n__LARAVEL_TASK__ = * * * * * * 0 cmd.exe /c \"osp project {host} & php artisan schedule:run\"\n"
-            }
-            "node-tasks" => {
-                "\u{feff}[__DOMAIN__]\n\n__NODE_TASK__ = * * * * * 1 0 cmd.exe /c \"osp project {host} start\"\n"
-            }
             _ => return Err(CommandError::new("err.projectTemplateInvalid")),
         };
         Ok(locale
@@ -162,6 +136,9 @@ impl Template {
                 ini.push_str(&format!("{key:<17} = {}\r\n", value.replace("{port}", &port.to_string())));
             }
         }
+        if let Some(starter) = &self.starter {
+            return starter_files(starter, domain, php, php_port, port, &ini, &locale);
+        }
         self.files
             .iter()
             .map(|file| {
@@ -180,6 +157,77 @@ impl Template {
     ) -> Result<PathBuf, CommandError> {
         publish(home, domain, &self.directories, files)
     }
+}
+
+// Renders the file set of an editable starter package. Package-owned texts
+// (manifest "messages") are substituted first: keys ending in _JSON become
+// JSON string literals, the rest are inserted as-is. What remains is resolved
+// by the shared locale renderer (application UI labels) and the direct
+// creation placeholders.
+fn starter_files(
+    starter: &crate::project_starters::Document,
+    domain: &str,
+    php: &str,
+    php_port: u16,
+    port: u16,
+    ini: &str,
+    locale: &StarterLocale,
+) -> Result<Vec<(String, String)>, CommandError> {
+    let mut files = vec![(".osp/project.ini".into(), ini.to_string())];
+    let render = |text: &str| -> Result<String, CommandError> {
+        let mut text = text.to_string();
+        for (key, value) in &starter.manifest.messages {
+            let token = format!("__{key}__");
+            if !text.contains(&token) {
+                continue;
+            }
+            let value = value.resolve(locale.language);
+            let value = if key.ends_with("_JSON") {
+                serde_json::to_string(&value).map_err(|_| CommandError::new("err.projectTemplateInvalid"))?
+            } else {
+                value
+            };
+            text = text.replace(&token, &value);
+        }
+        Ok(locale
+            .render(&text)?
+            .replace("__DOMAIN__", domain)
+            .replace("__PHP_ENGINE__", php)
+            .replace("__PHP_PORT__", &php_port.to_string())
+            .replace("__PORT__", &port.to_string())
+            .replace("\r\n", "\n")
+            .replace('\n', "\r\n"))
+    };
+    for (path, content) in &starter.assets {
+        if let Some(path) = path.strip_prefix("files/") {
+            let content = if starter.manifest.readme_path.as_deref() == Some(path) {
+                starter
+                    .assets
+                    .get(&format!("docs/{}.md", locale.language))
+                    .or_else(|| starter.assets.get("docs/en.md"))
+                    .unwrap_or(content)
+            } else {
+                content
+            };
+            files.push((path.replace("{domain}", domain), render(content)?));
+        }
+    }
+    for engine in ["nginx", "apache", "caddy"] {
+        if let Some(content) = starter.assets.get(&format!("{engine}.conf")) {
+            files.push((format!(".osp/{engine}/{domain}.conf"), render(content)?));
+        }
+    }
+    // Any installer (manifest-driven or the native WordPress download) records its
+    // readiness in .osp/<starter id>.json.
+    if starter.manifest.install.is_some() {
+        let placeholder = files
+            .iter()
+            .find(|(p, _)| p == "public/index.php")
+            .ok_or_else(|| CommandError::new("err.projectTemplateInvalid"))?;
+        let marker = locale.marker(&placeholder.1)?.replace('\n', "\r\n");
+        files.push((format!(".osp/{}.json", starter.manifest.id), marker));
+    }
+    Ok(files)
 }
 fn relative(path: &str) -> bool {
     !path.is_empty()
@@ -276,7 +324,7 @@ mod tests {
     #[test]
     fn renders_every_bundled_file_with_crlf_and_no_unresolved_markers() {
         for language in crate::project_starter_locale::LANGUAGES {
-            for id in ["empty", "static", "php", "laravel", "wordpress", "node"] {
+            for id in ["empty", "static", "php", "laravel", "wordpress", "symfony", "bitrix", "node"] {
                 let template = template(id).unwrap();
                 let files = template
                     .files("example.test", "Nginx", "PHP-8.3", "Node-24", 4321, 9123, language)
@@ -299,14 +347,14 @@ mod tests {
                     assert!(created.join("public/index.php").is_file());
                     assert!(ini.contains("project_root      = {base_dir}\r\n"));
                     assert!(ini.contains("web_root          = {base_dir}\\public\r\n"));
-                    assert_eq!(crate::laravel_installer::state(&created).as_deref(), Some("pending"));
+                    assert_eq!(crate::starter_install::state(&created, "laravel").as_deref(), Some("pending"));
                     assert!(
                         fs::read_to_string(created.join(".osp/laravel-readme.md"))
                             .unwrap()
                             .contains("PHP-8.3")
                     );
                 }
-                if matches!(id, "laravel" | "wordpress") {
+                if matches!(id, "laravel" | "wordpress" | "symfony") {
                     let placeholder = fs::read(created.join("public/index.php")).unwrap();
                     assert!(crate::project_starter_locale::matches_placeholder(&created, id, &placeholder));
                     assert!(!crate::project_starter_locale::matches_placeholder(
@@ -470,5 +518,55 @@ mod tests {
         assert_eq!(preferred(&versions, "PHP-8.3").as_deref(), Some("PHP-8.3"));
         assert_eq!(preferred(&versions, "PHP-9.0").as_deref(), Some("PHP-8.10"));
         assert_eq!(preferred(&[], "Node-24"), None);
+    }
+
+    #[test]
+    fn starter_messages_resolve_from_the_package_manifest() {
+        let starter = crate::project_starters::Document {
+            manifest: serde_json::from_value(serde_json::json!({
+                "schemaVersion": 1, "id": "msg", "name": "Msg", "httpPreference": "any",
+                "php": false, "node": false, "installer": null, "readmePath": null,
+                "database": {"enabled": false, "engines": [], "defaultEngine": "none"},
+                "projectRoot": "{base_dir}", "webRoot": null, "settings": {}, "directories": [],
+                "messages": {"HELLO": {"en": "Hello", "ru": "Привет"}, "DATA_JSON": {"en": "quote\"x"}}
+            }))
+            .unwrap(),
+            assets: [
+                ("files/index.html".to_string(), "<p>__HELLO__</p>".to_string()),
+                ("files/data.mjs".to_string(), "const v = __DATA_JSON__;".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+            revision: None,
+            builtin: false,
+        };
+        crate::project_starters::validate(&starter).unwrap();
+        fn find<'a>(files: &'a [(String, String)], path: &str) -> &'a str {
+            files.iter().find(|(p, _)| p == path).map(|(_, c)| c.as_str()).unwrap()
+        }
+        let ru = starter_files(
+            &starter,
+            "example.test",
+            "PHP-8.3",
+            0,
+            3000,
+            "\u{feff}[x]\r\n",
+            &StarterLocale::new("ru").unwrap(),
+        )
+        .unwrap();
+        assert!(find(&ru, "index.html").contains("Привет"));
+        assert_eq!(find(&ru, "data.mjs").trim(), "const v = \"quote\\\"x\";");
+        // A language missing from the package falls back to English.
+        let es = starter_files(
+            &starter,
+            "example.test",
+            "PHP-8.3",
+            0,
+            3000,
+            "\u{feff}[x]\r\n",
+            &StarterLocale::new("es").unwrap(),
+        )
+        .unwrap();
+        assert!(find(&es, "index.html").contains("Hello"));
     }
 }

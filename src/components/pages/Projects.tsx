@@ -8,6 +8,7 @@ import {
   Copy,
   FolderOpen,
   Globe2,
+  Layers,
   Network,
   Pencil,
   Plus,
@@ -72,6 +73,10 @@ const ProjectWorkspace = lazy(() =>
   import('./ProjectWorkspace').then((module) => ({ default: module.ProjectWorkspace })),
 );
 
+const ProjectStartersWorkspace = lazy(() =>
+  import('./ProjectStartersWorkspace').then((module) => ({ default: module.ProjectStartersWorkspace })),
+);
+
 type ProjectsProps = {
   projects: OsPanelProject[];
   allProjects: OsPanelProject[];
@@ -124,6 +129,7 @@ function ProjectsContent({
   const [phpFilter, setPhpFilter] = useState('all');
   const [httpEngineFilter, setHttpEngineFilter] = useState('all');
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
+  const [startersOpen, setStartersOpen] = useState(false);
   const [tagState, setTagState] = useState(() => ({
     key: tagStorageKey,
     tags: readProjectTags(tagStorageKey),
@@ -344,6 +350,22 @@ function ProjectsContent({
     }
   };
 
+  if (startersOpen)
+    return (
+      <Suspense fallback={<div className="empty-note">{t('common.loading')}</div>}>
+        <ProjectStartersWorkspace
+          notify={notify}
+          onClose={() => {
+            setStartersOpen(false);
+            requestAnimationFrame(() => {
+              const main = document.querySelector('.main-content');
+              if (main) main.scrollTop = listScroll.current;
+            });
+          }}
+        />
+      </Suspense>
+    );
+
   if (modulesFor)
     return (
       <Suspense fallback={<div className="empty-note">{t('common.loading')}</div>}>
@@ -375,6 +397,10 @@ function ProjectsContent({
             <button type="button" className="secondary-button" onClick={() => setHostsOpen(true)}>
               <Network size={15} />
               {t('hosts.open')}
+            </button>
+            <button type="button" className="secondary-button" onClick={() => setStartersOpen(true)}>
+              <Layers size={15} />
+              {t('starter.title')}
             </button>
             <button type="button" className="primary-button" onClick={() => setCreateDialogOpen(true)}>
               <span className="plus">+</span>
@@ -801,6 +827,10 @@ function ProjectsContent({
           onCreated={onProjectCreated}
           onConfigure={(created) => openSettings({ ...created, type: created.http })}
           onRestartPanel={onRestartPanel}
+          onManageTemplates={() => {
+            setCreateDialogOpen(false);
+            setStartersOpen(true);
+          }}
           onClose={() => setCreateDialogOpen(false)}
         />
       )}

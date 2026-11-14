@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "id": "symfony",
+  "order": 40,
+  "name": {
+    "en": "Symfony",
+    "ru": "Symfony",
+    "uk": "Symfony",
+    "be": "Symfony",
+    "es": "Symfony"
+  },
+  "description": {
+    "en": "PHP framework scaffold with a public/ front controller, web server routing and optional database creation. Symfony is installed in one click from the project overview.",
+    "ru": "Каркас для Symfony с точкой входа в public/, маршрутизацией веб-серверов и опциональным созданием базы данных. Symfony устанавливается в один клик из обзора проекта.",
+    "uk": "Каркас для Symfony з точкою входу в public/, маршрутизацією вебсерверів і опціональним створенням бази даних. Symfony встановлюється в один клік з огляду проєкту.",
+    "be": "Каркас для Symfony з пунктам уваходу ў public/, маршрутызацыяй вэб-сервераў і апцыянальным стварэннем базы даных. Symfony усталёўваецца адным клікам з агляду праекта.",
+    "es": "Estructura para Symfony con controlador frontal en public/, reglas de servidor web y base de datos opcional. Symfony se instala con un clic desde el resumen del proyecto."
+  },
+  "nextStep": {
+    "en": "After creating the scaffold, click Install Symfony in the project overview. Until installation the site displays a placeholder.",
+    "ru": "После создания заготовки нажмите «Установить Symfony» в обзоре проекта. До установки сайт показывает заглушку.",
+    "uk": "Після створення заготовки натисніть «Встановити Symfony» в огляді проєкту. До встановлення сайт показує заглушку.",
+    "be": "Пасля стварэння нарыхтоўкі націсніце «Усталяваць Symfony» у аглядзе праекта. Да ўсталявання сайт паказвае заглушку.",
+    "es": "Tras crear la estructura, pulsa Instalar Symfony en el resumen del proyecto. Hasta la instalación el sitio mostrará una página provisional."
+  },
+  "createdMessage": {
+    "en": "Scaffold for {domain} created. Install Symfony from the project overview.",
+    "ru": "Заготовка для {domain} создана. Установите Symfony из обзора проекта.",
+    "uk": "Заготовку для {domain} створено. Встановіть Symfony з огляду проєкту.",
+    "be": "Нарыхтоўка для {domain} створана. Усталюйце Symfony з агляду праекта.",
+    "es": "Estructura de {domain} creada. Instala Symfony desde el resumen del proyecto."
+  },
+  "messages": {
+    "SYMFONY_TITLE": {
+      "en": "Symfony project preparation",
+      "ru": "Заготовка проекта Symfony",
+      "uk": "Заготовка проєкту Symfony",
+      "be": "Загатоўка праекта Symfony",
+      "es": "Preparación del proyecto Symfony"
+    },
+    "SYMFONY_HEADING": {
+      "en": "Symfony is not installed yet",
+      "ru": "Symfony пока не установлен",
+      "uk": "Symfony ще не встановлено",
+      "be": "Symfony яшчэ не ўсталяваны",
+      "es": "Symfony aún no está instalado"
+    },
+    "SYMFONY_INSTRUCTIONS": {
+      "en": "The project directory is ready. Use the Install Symfony button in the project overview.",
+      "ru": "Каталог проекта готов. Используйте кнопку «Установить Symfony» в обзоре проекта.",
+      "uk": "Каталог проєкту готовий. Використайте кнопку «Встановити Symfony» в огляді проєкту.",
+      "be": "Каталог праекта гатовы. Выкарыстоўвайце кнопку «Усталяваць Symfony» у аглядзе праекта.",
+      "es": "El directorio del proyecto está listo. Use el botón Instalar Symfony en el resumen del proyecto."
+    },
+    "SYMFONY_DETAILS": {
+      "en": "Routing for Nginx, Apache and Caddy is already configured. Instructions are in README.md.",
+      "ru": "Маршрутизация для Nginx, Apache и Caddy уже настроена. Инструкция — в README.md.",
+      "uk": "Маршрутизацію для Nginx, Apache і Caddy вже налаштовано. Інструкція — у README.md.",
+      "be": "Маршрутызацыя для Nginx, Apache і Caddy ўжо наладжана. Інструкцыя — у README.md.",
+      "es": "El enrutamiento para Nginx, Apache y Caddy ya está configurado. Consulta README.md."
+    },
+    "INSTALL_BUTTON": {
+      "en": "Install Symfony",
+      "ru": "Установить Symfony",
+      "uk": "Встановити Symfony",
+      "be": "Усталяваць Symfony",
+      "es": "Instalar Symfony"
+    }
+  },
+  "httpPreference": "any",
+  "php": true,
+  "node": false,
+  "installer": null,
+  "readmePath": "README.md",
+  "database": {
+    "enabled": true,
+    "engines": [
+      "sqlite",
+      "mysql",
+      "mariadb",
+      "postgresql"
+    ],
+    "defaultEngine": "none",
+    "sqliteHint": {
+      "en": "The file {path} will be used by the application after installation; Doctrine creates it on the first connection. No database server is required.",
+      "ru": "Файл {path} будет использоваться приложением после установки; Doctrine создаст его при первом подключении. Отдельный сервер БД не нужен.",
+      "uk": "Файл {path} використовуватиметься застосунком після встановлення; Doctrine створить його під час першого підключення. Окремий сервер БД не потрібен.",
+      "be": "Файл {path} выкарыстоўвацца праграмай пасля ўсталявання; Doctrine створыць яго пры першым падключэнні. Асобны сервер БД не патрэбен.",
+      "es": "El archivo {path} lo usará la aplicación después de la instalación; Doctrine lo crea en la primera conexión. No se necesita un servidor de base de datos."
+    }
+  },
+  "install": {
+    "title": {
+      "en": "Symfony installation",
+      "ru": "Установка Symfony",
+      "uk": "Встановлення Symfony",
+      "be": "Усталяванне Symfony",
+      "es": "Instalación de Symfony"
+    },
+    "pending": {
+      "en": "The public directory and placeholder are ready. Symfony has not been installed yet.",
+      "ru": "Публичный каталог и заглушка готовы. Symfony пока не установлен.",
+      "uk": "Публічний каталог і заглушка готові. Symfony ще не встановлено.",
+      "be": "Публічны каталог і заглушка гатовыя. Symfony яшчэ не ўсталяваны.",
+      "es": "El directorio público y la página provisional están listos. Symfony aún no está instalado."
+    },
+    "button": {
+      "en": "Install Symfony",
+      "ru": "Установить Symfony",
+      "uk": "Встановити Symfony",
+      "be": "Усталяваць Symfony",
+      "es": "Instalar Symfony"
+    },
+    "hint": {
+      "en": "Composer will download the Symfony skeleton and then the webapp pack using the selected PHP module. The selected database is prepared before the connection is written to .env. Installation uses a temporary directory and preserves .osp. npm is not run.",
+      "ru": "Composer загрузит каркас Symfony, а затем пакет webapp с помощью выбранного модуля PHP. Перед записью подключения в .env будет подготовлена выбранная база данных. Установка выполняется во временном каталоге с сохранением .osp. npm не запускается.",
+      "uk": "Composer завантажить каркас Symfony, а потім пакет webapp за допомогою вибраного модуля PHP. Перед записом підключення до .env буде підготовлено вибрану базу даних. Встановлення виконується в тимчасовому каталозі зі збереженням .osp. npm не запускається.",
+      "be": "Composer спампуе каркас Symfony, а потым пакет webapp з дапамогай выбранага модуля PHP. Перад запісам злучэння ў .env будзе падрыхтавана выбраная база даных. Усталяванне выконваецца ў часовым каталогу са захаваннем .osp. npm не запускаецца.",
+      "es": "Composer descargará el esqueleto de Symfony y después el paquete webapp usando el módulo PHP seleccionado. La base de datos seleccionada se prepara antes de escribir la conexión en .env. La instalación usa un directorio temporal y conserva .osp. npm no se ejecuta."
+    },
+    "unsaved": {
+      "en": "Save or discard your project changes before installing Symfony.",
+      "ru": "Перед установкой Symfony сохраните или отмените изменения проекта.",
+      "uk": "Перед встановленням Symfony збережіть або скасуйте зміни проєкту.",
+      "be": "Перад усталяваннем Symfony захавайце або адмяніце змены праекта.",
+      "es": "Guarda o descarta los cambios del proyecto antes de instalar Symfony."
+    },
+    "done": {
+      "en": "Symfony installed in the project root. Restart OSPanel to apply the changes.",
+      "ru": "Symfony установлен в корень проекта. Перезапустите OSPanel для применения изменений.",
+      "uk": "Symfony встановлено в корінь проєкту. Перезапустіть OSPanel для застосування змін.",
+      "be": "Symfony усталяваны ў корань праекта. Перазапусціце OSPanel для ўжывання змен.",
+      "es": "Symfony instalado en la raíz del proyecto. Reinicia OSPanel para aplicar los cambios."
+    },
+    "log": {
+      "en": "Composer output",
+      "ru": "Вывод Composer",
+      "uk": "Вивід Composer",
+      "be": "Вывад Composer",
+      "es": "Salida de Composer"
+    },
+    "backup": {
+      "en": "Original scaffold backup: {path}",
+      "ru": "Резервная копия исходной заготовки: {path}",
+      "uk": "Резервная копия вихідної заготовки: {path}",
+      "be": "Рэзервовая копія зыходнай загатоўкі: {path}",
+      "es": "Copia de seguridad de la estructura original: {path}"
+    },
+    "phases": {
+      "preparing": {
+        "en": "Checking the scaffold and PHP environment…",
+        "ru": "Проверка заготовки и окружения PHP…",
+        "uk": "Перевірка заготовки та середовища PHP…",
+        "be": "Праверка загатоўкі і асяроддзя PHP…",
+        "es": "Comprobando la estructura y el entorno PHP…"
+      },
+      "installing": {
+        "en": "Installing Symfony with Composer…",
+        "ru": "Установка Symfony через Composer…",
+        "uk": "Встановлення Symfony через Composer…",
+        "be": "Усталяванне Symfony праз Composer…",
+        "es": "Instalando Symfony con Composer…"
+      },
+      "publishing": {
+        "en": "Checking files and transferring Symfony to the project root…",
+        "ru": "Проверка файлов и перенос Symfony в корень проекта…",
+        "uk": "Перевірка файлів і перенесення Symfony до кореня проєкту…",
+        "be": "Праверка файлаў і перанос Symfony у корань праекта…",
+        "es": "Comprobando archivos y transfiriendo Symfony a la raíz del proyecto…"
+      },
+      "database": {
+        "en": "Preparing the selected database…",
+        "ru": "Подготовка выбранной базы данных…",
+        "uk": "Підготовка вибраної бази даних…",
+        "be": "Падрыхтоўка выбранай базы даных…",
+        "es": "Preparando la base de datos seleccionada…"
+      }
+    },
+    "createProject": "symfony/skeleton",
+    "scripts": true,
+    "then": [
+      [
+        "require",
+        "webapp",
+        "--no-interaction",
+        "--no-progress"
+      ]
+    ],
+    "payload": {
+      "composerName": "symfony/skeleton",
+      "files": [
+        "public/index.php",
+        "src/Kernel.php",
+        "bin/console",
+        "vendor/autoload.php"
+      ]
+    },
+    "env": {
+      "DATABASE_URL": "{dbUrl}"
+    },
+    "sqliteDir": "var",
+    "keep": [
+      "public/.htaccess"
+    ]
+  },
+  "projectRoot": "{base_dir}",
+  "webRoot": "{base_dir}\\public",
+  "settings": {
+    "backend_enabled": "off"
+  },
+  "directories": [
+    "config",
+    "public",
+    "src",
+    "var"
+  ]
+}

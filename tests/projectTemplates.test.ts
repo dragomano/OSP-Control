@@ -12,13 +12,15 @@ describe('project template catalog', () => {
     expect(versions).toEqual(['PHP-8.9', 'PHP-8.10', 'PHP-8.3']);
   });
 
-  it('keeps template previews within the new project and lists no duplicate files', () => {
+  it('keeps built-in templates minimal and external starters complete', () => {
     expect(PROJECT_TEMPLATES.map((template) => template.id)).toEqual([
       'empty',
       'static',
       'php',
       'laravel',
       'wordpress',
+      'symfony',
+      'bitrix',
       'node',
     ]);
     for (const template of PROJECT_TEMPLATES) {
@@ -30,15 +32,14 @@ describe('project template catalog', () => {
     }
   });
 
-  it.each(['static', 'php', 'node', 'laravel', 'wordpress'])(
+  it.each(['php', 'node', 'laravel', 'wordpress'])(
     'keeps commands and substitutions consistent in every %s document translation',
     (kind) => {
-      const directory = 'src-tauri/resources/project-starters/docs';
-      const source = readFileSync(`${directory}/en/${kind}.md`, 'utf8');
+      const source = readFileSync(`src-tauri/resources/starters/${kind}/docs/en.md`, 'utf8');
       const tokens = (text: string, pattern: RegExp) =>
         [...text.matchAll(pattern)].map((match) => match[0]).sort();
       for (const language of ['ru', 'uk', 'be', 'es']) {
-        const translated = readFileSync(`${directory}/${language}/${kind}.md`, 'utf8');
+        const translated = readFileSync(`src-tauri/resources/starters/${kind}/docs/${language}.md`, 'utf8');
         expect(tokens(translated, /__[A-Z_]+__/g)).toEqual(tokens(source, /__[A-Z_]+__/g));
         expect(tokens(translated, /`[^`]+`/g)).toEqual(tokens(source, /`[^`]+`/g));
         expect(translated).not.toBe(source);
@@ -46,11 +47,26 @@ describe('project template catalog', () => {
     },
   );
 
+  it('keeps commands and substitutions consistent in the static document translations', () => {
+    const source = readFileSync('src-tauri/resources/builtin-starters/static/docs/en.md', 'utf8');
+    const tokens = (text: string, pattern: RegExp) =>
+      [...text.matchAll(pattern)].map((match) => match[0]).sort();
+    for (const language of ['ru', 'uk', 'be', 'es']) {
+      const translated = readFileSync(
+        `src-tauri/resources/builtin-starters/static/docs/${language}.md`,
+        'utf8',
+      );
+      expect(tokens(translated, /__[A-Z_]+__/g)).toEqual(tokens(source, /__[A-Z_]+__/g));
+      expect(tokens(translated, /`[^`]+`/g)).toEqual(tokens(source, /`[^`]+`/g));
+      expect(translated).not.toBe(source);
+    }
+  });
+
   it.each(['en', 'ru', 'uk', 'be', 'es'])(
     'generates syntactically valid Node.js in %s without installing dependencies',
     (language) => {
       const dictionary = JSON.parse(readFileSync(`src-tauri/resources/locales/${language}.json`, 'utf8'));
-      const source = readFileSync('src-tauri/resources/project-starters/server.mjs', 'utf8').replace(
+      const source = readFileSync('src-tauri/resources/starters/node/files/server.mjs', 'utf8').replace(
         /__PORT__/g,
         '4321',
       );
@@ -64,4 +80,15 @@ describe('project template catalog', () => {
       ).not.toThrow();
     },
   );
+
+  it('ships symfony and bitrix starters with all three web server configurations', () => {
+    for (const id of ['symfony', 'bitrix']) {
+      const files = readFileSync(`src-tauri/resources/starters/${id}/starter.json`, 'utf8');
+      const manifest = JSON.parse(files) as { php: boolean; httpPreference: string };
+      expect(manifest.php).toBe(true);
+      for (const engine of ['nginx', 'apache', 'caddy']) {
+        expect(readFileSync(`src-tauri/resources/starters/${id}/${engine}.conf`, 'utf8')).toBeTruthy();
+      }
+    }
+  });
 });

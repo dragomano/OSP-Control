@@ -11,12 +11,16 @@ import {
 } from '../../ospanel';
 import { projectDatabaseEngines, suggestedDatabaseName, validDatabaseName } from '../../projectDatabase';
 import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
+import { listProjectStarters } from '../../projectStarters';
 import {
+  BUILTIN_TEMPLATES,
   PROJECT_TEMPLATES,
   type ProjectTemplateId,
   preferredTemplateEngine,
   preferredTemplateHttpEngine,
   projectTemplate,
+  starterTemplate,
+  starterText,
 } from '../../projectTemplates';
 import { copyText, type Notify, useDismiss } from '../shared';
 import { MenuSelect } from '../widgets/MenuSelect';
@@ -50,12 +54,14 @@ export function CreateProjectDialog({
   onConfigure,
   onRestartPanel,
   onClose,
+  onManageTemplates,
 }: {
   notify: Notify;
   onCreated: (created: CreatedProject) => void;
   onConfigure?: (created: CreatedProject) => void;
   onRestartPanel: () => void;
   onClose: () => void;
+  onManageTemplates?: () => void;
 }) {
   const { t, lang } = useI18n();
   const [options, setOptions] = useState<ProjectModuleOptions | null>(null);
@@ -67,7 +73,18 @@ export function CreateProjectDialog({
   const [databaseName, setDatabaseName] = useState<string | null>(null);
   const [databaseUser, setDatabaseUser] = useState('root');
   const [databasePassword, setDatabasePassword] = useState('');
-  const template = projectTemplate(templateId);
+  const [templates, setTemplates] = useState(PROJECT_TEMPLATES);
+  const template = templates.find((item) => item.id === templateId) ?? projectTemplate('empty');
+  useEffect(() => {
+    void listProjectStarters()
+      .then((entries) =>
+        setTemplates([
+          ...BUILTIN_TEMPLATES,
+          ...entries.flatMap((entry) => (entry.document ? [starterTemplate(entry.document)] : [])),
+        ]),
+      )
+      .catch(() => {});
+  }, []);
   const [httpEngine, setHttpEngine] = useState('auto');
   const [phpEngine, setPhpEngine] = useState('auto');
   const [nodeEngine, setNodeEngine] = useState('auto');
@@ -76,19 +93,20 @@ export function CreateProjectDialog({
   const windowRef = useRef<HTMLDivElement>(null);
   const domainRef = useRef<HTMLInputElement>(null);
   const normalizedDomain = normalizeProjectDomain(domain);
-  const hasDatabase = templateId === 'laravel' || templateId === 'wordpress';
+  const hasDatabase = template.starter?.manifest.database.enabled ?? false;
   const dbName = databaseName ?? suggestedDatabaseName(normalizedDomain ?? '');
-  const dbEngines = projectDatabaseEngines(templateId, options?.databaseEngines ?? []);
+  const dbEngines = projectDatabaseEngines(template, options?.databaseEngines ?? []);
+  const supportsSqlite = template.starter?.manifest.database.engines.includes('sqlite') ?? false;
   const databaseOptions = useMemo(
     () => [
-      ...(templateId === 'laravel' ? [{ value: 'sqlite', label: t('projectDb.sqlite') }] : []),
-      ...projectDatabaseEngines(templateId, options?.databaseEngines ?? []).map((engine) => ({
+      ...(supportsSqlite ? [{ value: 'sqlite', label: t('projectDb.sqlite') }] : []),
+      ...dbEngines.map((engine) => ({
         value: engine,
         label: engine,
       })),
       { value: 'none', label: t('projectDb.later') },
     ],
-    [templateId, options, t],
+    [supportsSqlite, dbEngines, t],
   );
   const changeDatabaseEngine = useCallback((engine: string) => {
     setDatabaseEngine(engine);
@@ -163,21 +181,21 @@ export function CreateProjectDialog({
   useDismiss(windowRef, onClose, !busy);
   const selectTemplate = (id: ProjectTemplateId) => {
     setTemplateId(id);
-    const engines = projectDatabaseEngines(id, options?.databaseEngines ?? []);
+    const next = templates.find((item) => item.id === id) ?? projectTemplate(id);
+    const engines = projectDatabaseEngines(next, options?.databaseEngines ?? []);
     const engine =
-      id === 'laravel'
-        ? 'sqlite'
-        : id === 'wordpress'
-          ? preferredTemplateEngine(engines, '') || 'none'
-          : 'none';
+      id === 'empty'
+        ? 'none'
+        : next.starter?.manifest.database.defaultEngine === 'sqlite'
+          ? 'sqlite'
+          : preferredTemplateEngine(engines, '') || 'none';
     setDatabaseEngine(engine);
     setDatabaseUser(engine.startsWith('PostgreSQL-') ? 'postgres' : 'root');
     if (!options) return;
-    const next = projectTemplate(id);
     setHttpEngine(
       id === 'empty'
         ? 'auto'
-        : preferredTemplateHttpEngine(id, options.httpEngines, globalEngines?.httpEngine),
+        : preferredTemplateHttpEngine(next, options.httpEngines, globalEngines?.httpEngine),
     );
     setPhpEngine(
       id === 'empty'
@@ -228,22 +246,16 @@ export function CreateProjectDialog({
 
       onCreated(created);
       if (hasDatabase) onConfigure?.(created);
-      notify(
-        t(
-          templateId === 'empty'
-            ? 'projects.toastCreated'
-            : hasDatabase
-              ? `templates.${templateId}.created`
-              : 'templates.created',
-          {
-            domain: displayProjectDomain(created.domain),
-          },
-        ),
-        {
-          label: t('projects.restartPanel'),
-          run: onRestartPanel,
-        },
-      );
+      const domain = displayProjectDomain(created.domain);
+      // Starter packages carry their own created message; the generic fallback stays in the dictionary.
+      const message = template.starter
+        ? starterText(template.starter.manifest.createdMessage, lang).replace('{domain}', domain) ||
+          t('templates.created', { domain })
+        : t(templateId === 'empty' ? 'projects.toastCreated' : 'templates.created', { domain });
+      notify(message, {
+        label: t('projects.restartPanel'),
+        run: onRestartPanel,
+      });
       onClose();
     } catch (error) {
       notify(errorText(t, error, 'projects.toastCreateFailed'));
@@ -319,16 +331,24 @@ export function CreateProjectDialog({
                   ariaLabel={t('templates.label')}
                   value={templateId}
                   disabled={refreshing}
-                  options={PROJECT_TEMPLATES.map((template) => ({
+                  options={templates.map((template) => ({
                     value: template.id,
-                    label: t(`templates.${template.id}.name`),
+                    label: template.starter
+                      ? starterText(template.starter.manifest.name, lang)
+                      : t(`templates.${template.id}.name`),
                   }))}
                   onChange={selectTemplate}
                 />
               </div>
               <section className="project-template-preview" aria-label={t('templates.preview')}>
                 <p>
-                  <PathText text={t(`templates.${templateId}.description`)} />
+                  <PathText
+                    text={
+                      template.starter
+                        ? starterText(template.starter.manifest.description, lang)
+                        : t(`templates.${templateId}.description`)
+                    }
+                  />
                 </p>
                 {templateId !== 'empty' && (
                   <>
@@ -342,7 +362,11 @@ export function CreateProjectDialog({
                         <dd>{template.webRoot}</dd>
                       </div>
                     </dl>
-                    <p className="template-next-step">{t(`templates.${templateId}.next`)}</p>
+                    <p className="template-next-step">
+                      {template.starter
+                        ? starterText(template.starter.manifest.nextStep, lang)
+                        : t(`templates.${templateId}.next`)}
+                    </p>
                   </>
                 )}
                 <details>
@@ -464,7 +488,12 @@ export function CreateProjectDialog({
                       )}
                       {databaseEngine === 'sqlite' ? (
                         <p className="modal-hint">
-                          <PathText text={t('projectDb.sqliteHint', { path: `database/${dbName}.sqlite` })} />
+                          <PathText
+                            text={
+                              starterText(template.starter?.manifest.database.sqliteHint, lang) ||
+                              t('projectDb.sqliteHint', { path: `database/${dbName}.sqlite` })
+                            }
+                          />
                         </p>
                       ) : (
                         <>
@@ -496,8 +525,11 @@ export function CreateProjectDialog({
                       )}
                     </>
                   )}
-                  {templateId === 'wordpress' && dbEngines.length === 0 && (
-                    <p className="modal-hint">{t('projectDb.missing')}</p>
+                  {hasDatabase && dbEngines.length === 0 && (
+                    <p className="modal-hint">
+                      {starterText(template.starter?.manifest.database.missing, lang) ||
+                        t('projectDb.missing')}
+                    </p>
                   )}
                 </section>
               )}
@@ -531,6 +563,11 @@ export function CreateProjectDialog({
           <div className="empty-note">{t('common.loading')}</div>
         )}
         <div className="modal-foot">
+          {onManageTemplates && (
+            <button type="button" className="text-button" disabled={busy} onClick={onManageTemplates}>
+              {t('starter.manage')}
+            </button>
+          )}
           <span className="modal-path">
             {normalizedDomain ? `home/${normalizedDomain}/.osp/project.ini` : '\u00A0'}
           </span>

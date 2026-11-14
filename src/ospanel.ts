@@ -970,6 +970,8 @@ export async function saveProjectSettings(
   return { domain, ...override, fileExists: true };
 }
 
+import { DEFAULT_STARTERS } from './projectTemplates';
+
 const demoProjectFiles = new Map<string, string>();
 const demoProjectMenus = new Map<string, OsPanelMenuDocument>();
 const projectFileArgs = (project: OsPanelProject) => ({
@@ -1101,8 +1103,12 @@ export async function readProjectWorkspace(project: OsPanelProject): Promise<Pro
   return {
     baseDir: project.path,
     content: demoProjectFiles.get(key) ?? null,
-    laravel: demoProjectFiles.has(`${project.path}/laravel.json`) ? 'pending' : null,
-    wordpress: demoProjectFiles.has(`${project.path}/wordpress.json`) ? 'pending' : null,
+    installers: Object.fromEntries(
+      DEFAULT_STARTERS.filter((doc) => doc.manifest.install).map((doc) => [
+        doc.manifest.id,
+        demoProjectFiles.has(`${project.path}/${doc.manifest.id}.json`) ? 'pending' : null,
+      ]),
+    ),
     files: [
       'project.ini',
       'env.ini',
@@ -1200,7 +1206,7 @@ export async function createProject(params: CreateProjectParams): Promise<Create
   if (params.template && params.template !== 'empty') {
     const { projectTemplate } = await import('./projectTemplates');
     const template = projectTemplate(params.template);
-    if (template.id === 'laravel' || template.id === 'wordpress')
+    if (template.starter?.manifest.install)
       demoProjectFiles.set(
         `C:\\OSPanel\\home\\${domain}/${template.id}.json`,
         JSON.stringify({ version: 2, status: 'pending', language: params.language ?? 'en' }),
@@ -1253,26 +1259,18 @@ export type LaravelInstallProgress = {
   total?: number | null;
 };
 export type LaravelInstalled = { backupPath: string };
-export async function installProjectLaravel(
+// One-click install of a starter package; texts and commands live in the
+// starter manifest, the adapter only names the starter.
+export async function installProjectStarter(
   project: OsPanelProject,
+  starterId: string,
   onProgress: (progress: LaravelInstallProgress) => void,
 ): Promise<LaravelInstalled> {
   if (!isTauri()) throw new Error('err.desktopOnly');
   const { Channel } = await import('@tauri-apps/api/core');
   const channel = new Channel<LaravelInstallProgress>();
   channel.onmessage = onProgress;
-  return invoke('install_project_laravel', { ...projectFileArgs(project), onProgress: channel });
-}
-
-export async function installProjectWordPress(
-  project: OsPanelProject,
-  onProgress: (progress: LaravelInstallProgress) => void,
-): Promise<LaravelInstalled> {
-  if (!isTauri()) throw new Error('err.desktopOnly');
-  const { Channel } = await import('@tauri-apps/api/core');
-  const channel = new Channel<LaravelInstallProgress>();
-  channel.onmessage = onProgress;
-  return invoke('install_project_wordpress', { ...projectFileArgs(project), onProgress: channel });
+  return invoke('install_project_starter', { starterId, ...projectFileArgs(project), onProgress: channel });
 }
 
 export async function renameProject(project: OsPanelProject, newDomain: string): Promise<RenamedProject> {

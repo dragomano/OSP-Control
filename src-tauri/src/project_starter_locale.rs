@@ -38,15 +38,11 @@ impl StarterLocale {
             .ok_or_else(invalid)
     }
     pub(crate) fn document(&self, kind: &str) -> Result<&'static str, CommandError> {
+        // Only the built-in static template still reads its readme from the locale table;
+        // starter packages carry their own docs/<lang>.md files.
         macro_rules! documents {
             ($lang:literal) => {
-                [
-                    include_str!(concat!("../resources/project-starters/docs/", $lang, "/static.md")),
-                    include_str!(concat!("../resources/project-starters/docs/", $lang, "/php.md")),
-                    include_str!(concat!("../resources/project-starters/docs/", $lang, "/node.md")),
-                    include_str!(concat!("../resources/project-starters/docs/", $lang, "/laravel.md")),
-                    include_str!(concat!("../resources/project-starters/docs/", $lang, "/wordpress.md")),
-                ]
+                [include_str!(concat!("../resources/builtin-starters/static/docs/", $lang, ".md"))]
             };
         }
         let docs = match self.language {
@@ -56,69 +52,22 @@ impl StarterLocale {
             "es" => documents!("es"),
             _ => documents!("en"),
         };
-        let index = ["static", "php", "node", "laravel", "wordpress"]
-            .iter()
-            .position(|id| *id == kind)
-            .ok_or_else(invalid)?;
-        Ok(docs[index])
+        if kind == "static" {
+            return Ok(docs[0]);
+        }
+        Err(invalid())
     }
     pub(crate) fn render(&self, source: &str) -> Result<String, CommandError> {
+        // Only built-in and application-owned strings live in the dictionaries.
+        // Starter-specific page texts come from each package's starter.json
+        // (substituted before this renderer runs) — see starter_files().
         let mut values = vec![("__LANGUAGE__", self.language.to_string())];
-        for (token, key) in [
-            ("__STATIC_READY__", "starters.static.ready"),
-            ("__PHP_READY__", "starters.php.ready"),
-            ("__LARAVEL_TITLE__", "starters.laravel.title"),
-            ("__LARAVEL_HEADING__", "starters.laravel.heading"),
-            ("__LARAVEL_INSTRUCTIONS__", "starters.laravel.instructions"),
-            ("__LARAVEL_DETAILS__", "starters.laravel.details"),
-            ("__WORDPRESS_TITLE__", "starters.wordpress.title"),
-            ("__WORDPRESS_HEADING__", "starters.wordpress.heading"),
-            ("__WORDPRESS_INSTRUCTIONS__", "starters.wordpress.instructions"),
-            ("__WORDPRESS_DETAILS__", "starters.wordpress.details"),
-        ] {
-            if source.contains(token) {
-                let value = self.text(key)?;
-                let value = if value.contains("{install}") {
-                    value.replace(
-                        "{install}",
-                        self.text(if key.contains("laravel") {
-                            "laravel.install"
-                        } else {
-                            "wordpress.install"
-                        })?,
-                    )
-                } else {
-                    value.to_string()
-                };
-                values.push((token, html(&value)));
-            }
-        }
-        for (token, key) in [
-            ("__NODE_READY_JSON__", "starters.node.ready"),
-            ("__NODE_LISTENING_JSON__", "starters.node.listening"),
-        ] {
-            if source.contains(token) {
-                values.push((token, serde_json::to_string(self.text(key)?).map_err(|_| invalid())?));
-            }
-        }
-        for (token, key) in
-            [("__LARAVEL_TASK__", "starters.tasks.laravel"), ("__NODE_TASK__", "starters.tasks.node")]
-        {
-            if source.contains(token) {
-                let text = self.text(key)?;
-                if text.trim_start().starts_with([';', '#'])
-                    || text.chars().any(|c| c.is_control() || "=[]".contains(c))
-                {
-                    return Err(invalid());
-                }
-                values.push((token, text.to_string()));
-            }
+        if source.contains("__STATIC_READY__") {
+            values.push(("__STATIC_READY__", html(self.text("starters.static.ready")?)));
         }
         for (token, key) in [
             ("__OVERVIEW__", "workspace.tab.overview"),
             ("__TASKS__", "workspace.tab.tasks"),
-            ("__INSTALL_LARAVEL__", "laravel.install"),
-            ("__INSTALL_WORDPRESS__", "wordpress.install"),
             ("__CONFIGURE_LATER__", "projectDb.later"),
         ] {
             if source.contains(token) {
@@ -187,9 +136,8 @@ fn parse_marker(bytes: &[u8]) -> Option<Marker> {
     .then_some(marker)
 }
 fn marker_at(dir: &Path, kind: &str) -> Option<Marker> {
-    if !matches!(kind, "laravel" | "wordpress") {
-        return None;
-    }
+    // The kind is a starter id from the catalog; the marker file itself carries
+    // the validity checks (version, status, language, checksum).
     let file = child(&child(dir, ".osp").ok()?, &format!("{kind}.json")).ok()?;
     if fs::metadata(&file).ok()?.len() > 4096 {
         return None;
@@ -223,17 +171,16 @@ mod tests {
         assert!(StarterLocale::new("../ru").is_err());
     }
     #[test]
-    fn translated_text_cannot_inject_html_javascript_or_task_definitions() {
+    fn translated_text_is_html_escaped_and_unknown_tokens_stay_literal() {
         let mut locale = StarterLocale::new("ru").unwrap();
-        locale.primary = serde_json::json!({"starters.php.ready":"<?php echo 'unsafe'; ?> & <script>bad()</script>","starters.node.ready":"quote\"\\\ntext","starters.tasks.node":"bad = injected"});
-        assert!(!locale.render("__PHP_READY__").unwrap().contains('<'));
-        let json = locale.render("__NODE_READY_JSON__").unwrap();
-        assert_eq!(serde_json::from_str::<String>(&json).unwrap(), "quote\"\\\ntext");
-        assert!(locale.render("__NODE_TASK__").is_err());
-        assert!(!locale.render("__STATIC_READY__").unwrap().contains("starters."));
-        locale.primary["starters.php.ready"] = "__NODE_READY_JSON__".into();
-        locale.primary["starters.node.ready"] = "<?php echo 'unsafe'; ?>".into();
-        assert_eq!(locale.render("__PHP_READY__").unwrap(), "__NODE_READY_JSON__");
+        locale.primary =
+            serde_json::json!({"starters.static.ready":"<?php echo 'unsafe'; ?> & <script>bad()</script>"});
+        assert!(!locale.render("__STATIC_READY__").unwrap().contains('<'));
+        // Tokens inside translated text remain literal data instead of being re-resolved.
+        locale.primary["starters.static.ready"] = "__OVERVIEW__".into();
+        assert_eq!(locale.render("__STATIC_READY__").unwrap(), "__OVERVIEW__");
+        // Unknown tokens are left untouched for the caller's own substitution passes.
+        assert_eq!(locale.render("__NOT_A_KEY__").unwrap(), "__NOT_A_KEY__");
     }
     #[test]
     fn installed_marker_retains_language_fingerprint_and_unknown_fields() {

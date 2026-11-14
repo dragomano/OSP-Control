@@ -7,7 +7,8 @@ mod backups;
 mod db;
 mod error;
 mod hosts;
-mod laravel_installer;
+mod composer_installer;
+mod starter_install;
 mod locales;
 mod menu;
 mod module_actions;
@@ -23,6 +24,7 @@ mod project_database;
 mod project_diagnostics;
 mod project_editors;
 mod project_starter_locale;
+mod project_starters;
 mod project_templates;
 mod project_workspace;
 mod projects;
@@ -31,7 +33,6 @@ mod settings;
 mod shell;
 mod update_files;
 mod update_sources;
-mod wordpress_installer;
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -287,8 +288,13 @@ fn main() {
             projects::write_project_settings,
             projects::global_project_engines,
             projects::create_project,
-            laravel_installer::install_project_laravel,
-            wordpress_installer::install_project_wordpress,
+            project_starters::list_project_starters,
+            project_starters::read_project_starter,
+            project_starters::save_project_starter,
+            project_starters::delete_project_starter,
+            project_starters::restore_default_project_starters,
+            project_starters::open_project_starters_folder,
+            starter_install::install_project_starter,
             projects::delete_project,
             projects::rename_project,
             project_activity::project_activity,

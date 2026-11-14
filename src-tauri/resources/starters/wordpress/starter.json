@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 1,
+  "id": "wordpress",
+  "order": 30,
+  "name": {
+    "en": "WordPress — preparation",
+    "ru": "WordPress — подготовка",
+    "uk": "WordPress — підготовка",
+    "be": "WordPress — падрыхтоўка",
+    "es": "WordPress — preparación"
+  },
+  "description": {
+    "en": "OSPanel settings, routing rules and a public/ placeholder. WordPress can be downloaded from the project overview.",
+    "ru": "Настройки OSPanel, правила маршрутизации и заглушка в public/. WordPress можно загрузить со страницы проекта.",
+    "uk": "Налаштування OSPanel, правила маршрутизації та заглушка в public/. WordPress можна завантажити зі сторінки проєкту.",
+    "be": "Налады OSPanel, правілы маршрутызацыі і заглушка ў public/. WordPress можна спампаваць са старонкі праекта.",
+    "es": "Configuración de OSPanel, reglas de rutas y página provisional en public/. Puedes descargar WordPress desde la página del proyecto."
+  },
+  "nextStep": {
+    "en": "After creating the scaffold, click Install WordPress in the project overview. Finish the site and administrator setup in your browser.",
+    "ru": "После создания нажмите «Установить WordPress» на странице проекта. Название сайта и администратора настройте в браузере.",
+    "uk": "Після створення натисніть «Встановити WordPress» на старінці проєкту. Назву сайту й адміністратора налаштуйте в браузері.",
+    "be": "Пасля стварэння націсніце «Усталяваць WordPress» на старонцы праекта. Назву сайта і адміністратара наладзьце ў браўзеры.",
+    "es": "Tras crear la plantilla, pulsa Instalar WordPress en la página del proyecto. Configura el sitio y el administrador en el navegador."
+  },
+  "createdMessage": {
+    "en": "Scaffold for {domain} created. Install WordPress from the project overview.",
+    "ru": "Заготовка {domain} создана. Установите WordPress со страницы проекта.",
+    "uk": "Заготовку {domain} створено. Встановіть WordPress зі сторінки проєкту.",
+    "be": "Загатоўка {domain} створана. Усталюйце WordPress са старонкі праекта.",
+    "es": "Plantilla de {domain} creada. Instala WordPress desde la página del proyecto."
+  },
+  "messages": {
+    "WORDPRESS_TITLE": {
+      "en": "WordPress project preparation",
+      "ru": "Заготовка проекта WordPress",
+      "uk": "Заготовка проєкту WordPress",
+      "be": "Загатоўка праекта WordPress",
+      "es": "Plantilla inicial del proyecto WordPress"
+    },
+    "WORDPRESS_HEADING": {
+      "en": "WordPress is not installed yet",
+      "ru": "WordPress пока не установлен",
+      "uk": "WordPress ще не встановлено",
+      "be": "WordPress яшчэ не ўсталяваны",
+      "es": "WordPress aún no está instalado"
+    },
+    "WORDPRESS_INSTRUCTIONS": {
+      "en": "The project's public directory is ready. Open this project's overview in OSP Control and use the {install} button to install the application.",
+      "ru": "Публичный каталог проекта готов. Откройте обзор этого проекта в OSP Control и нажмите «{install}», чтобы установить приложение.",
+      "uk": "Публічний каталог проєкту готовий. Відкрийте огляд цього проєкту в OSP Control і натисніть «{install}», щоб установити застосунок.",
+      "be": "Публічны каталог праекта гатовы. Адкрыйце агляд гэтага праекта ў OSP Control і націсніце «{install}», каб усталяваць праграму.",
+      "es": "El directorio público del proyecto está listo. Abre el resumen de este proyecto en OSP Control y pulsa «{install}» para instalar la aplicación."
+    },
+    "WORDPRESS_DETAILS": {
+      "en": "Installation preserves .osp and replaces this placeholder. Instructions are in .osp/wordpress-readme.md.",
+      "ru": "При установке .osp сохранится, а эта заглушка будет заменена. Инструкции находятся в .osp/wordpress-readme.md.",
+      "uk": "Під час встановлення .osp збережеться, а цю заглушку буде замінено. Інструкції розташовані в .osp/wordpress-readme.md.",
+      "be": "Пры ўсталяванні .osp захаваецца, а гэтая заглушка будзе заменена. Інструкцыі знаходзяцца ў .osp/wordpress-readme.md.",
+      "es": "La instalación conserva .osp y reemplaza esta página provisional. Las instrucciones están en .osp/wordpress-readme.md."
+    },
+    "INSTALL_BUTTON": {
+      "en": "Install WordPress",
+      "ru": "Установить WordPress",
+      "uk": "Встановити WordPress",
+      "be": "Усталяваць WordPress",
+      "es": "Instalar WordPress"
+    }
+  },
+  "install": {
+    "title": {
+      "en": "WordPress installation",
+      "ru": "Установка WordPress",
+      "uk": "Встановлення WordPress",
+      "be": "Усталяванне WordPress",
+      "es": "Instalación de WordPress"
+    },
+    "pending": {
+      "en": "The public directory and placeholder are ready. WordPress has not been installed yet.",
+      "ru": "Каталог public и заглушка готовы. WordPress пока не установлен.",
+      "uk": "Каталог public і заглушка готові. WordPress ще не встановлено.",
+      "be": "Каталог public і заглушка гатовыя. WordPress яшчэ не ўсталяваны.",
+      "es": "El directorio public y la página provisional están listos. WordPress aún no está instalado."
+    },
+    "button": {
+      "en": "Install WordPress",
+      "ru": "Установить WordPress",
+      "uk": "Встановити WordPress",
+      "be": "Усталяваць WordPress",
+      "es": "Instalar WordPress"
+    },
+    "hint": {
+      "en": "Download the official WordPress archive, verify its checksum and extract into public/. OSPanel settings in .osp are preserved. After restarting OSPanel, open the site to finish the WordPress setup wizard.",
+      "ru": "Официальный архив WordPress будет загружен, проверен по контрольной сумме и распакован в public/. Настройки OSPanel в .osp сохранятся. После перезапуска OSPanel откройте сайт и завершите мастер установки WordPress.",
+      "uk": "Офіційний архів WordPress буде завантажено, перевірено за контрольною сумою й розпаковано в public/. Налаштування OSPanel у .osp збережуться. Після перезапуску OSPanel відкрийте сайт і завершіть майстер встановлення WordPress.",
+      "be": "Афіцыйны архіў WordPress будзе спампаваны, правераны паводле кантрольнай сумы і распакаваны ў public/. Налады OSPanel у .osp захаваюцца. Пасля перазапуску OSPanel адкрыйце сайт і завяршыце майстар усталявання WordPress.",
+      "es": "Se descargará el archivo oficial de WordPress, se verificará su suma de comprobación y se extraerá en public/. Se conserva la configuración de OSPanel en .osp. Reinicia OSPanel y abre el sitio para completar el asistente de WordPress."
+    },
+    "unsaved": {
+      "en": "Save or discard your project changes before installing WordPress.",
+      "ru": "Перед установкой WordPress сохраните или отмените изменения проекта.",
+      "uk": "Перед встановленням WordPress збережіть або скасуйте зміни проєкту.",
+      "be": "Перад усталяваннем WordPress захавайце або скасуйце змены праекта.",
+      "es": "Guarda o descarta los cambios del proyecto antes de instalar WordPress."
+    },
+    "done": {
+      "en": "WordPress files installed. Restart OSPanel and open the site to finish setup.",
+      "ru": "Файлы WordPress установлены. Перезапустите OSPanel и откройте сайт, чтобы завершить настройку.",
+      "uk": "Файли WordPress встановлено. Перезапустіть OSPanel і відкрийте сайт, щоб завершити налаштування.",
+      "be": "Файлы WordPress усталяваны. Перазапусціце OSPanel і адкрыйце сайт, каб завяршыць наладжванне.",
+      "es": "Archivos de WordPress instalados. Reinicia OSPanel y abre el sitio para completar la configuración."
+    },
+    "log": {
+      "en": "Installation output",
+      "ru": "Журнал установки",
+      "uk": "Журнал встановлення",
+      "be": "Журнал усталявання",
+      "es": "Registro de instalación"
+    },
+    "backup": {
+      "en": "Original scaffold backup: {path}",
+      "ru": "Резервная копия исходной заготовки: {path}",
+      "uk": "Резервна копія початкової заготовки: {path}",
+      "be": "Рэзервовая копія пачатковай загатоўкі: {path}",
+      "es": "Copia de seguridad de la plantilla original: {path}"
+    },
+    "phases": {
+      "preparing": {
+        "en": "Checking the WordPress scaffold…",
+        "ru": "Проверяем заготовку WordPress…",
+        "uk": "Перевіряємо заготовку WordPress…",
+        "be": "Правяраем загатоўку WordPress…",
+        "es": "Comprobando la plantilla de WordPress…"
+      },
+      "downloading": {
+        "en": "Downloading WordPress…",
+        "ru": "Загружаем WordPress…",
+        "uk": "Завантажуємо WordPress…",
+        "be": "Спампоўваем WordPress…",
+        "es": "Descargando WordPress…"
+      },
+      "extracting": {
+        "en": "Checking and extracting the archive…",
+        "ru": "Проверяем и распаковываем архив…",
+        "uk": "Перевіряємо й розпаковуємо архів…",
+        "be": "Правяраем і распакоўваем архіў…",
+        "es": "Comprobando y extrayendo el archivo…"
+      },
+      "database": {
+        "en": "Preparing the selected database…",
+        "ru": "Подготавливаем выбранную базу данных…",
+        "uk": "Готуємо вибрану базу даних…",
+        "be": "Рыхтуем выбраную базу даных…",
+        "es": "Preparando la base de datos seleccionada…"
+      },
+      "configuring": {
+        "en": "Writing the WordPress configuration…",
+        "ru": "Записываем конфигурацию WordPress…",
+        "uk": "Записуємо конфігурацію WordPress…",
+        "be": "Запісваем канфігурацыю WordPress…",
+        "es": "Escribiendo la configuración de WordPress…"
+      },
+      "installing": {
+        "en": "Installing WordPress…",
+        "ru": "Устанавливаем WordPress…",
+        "uk": "Встановлюємо WordPress…",
+        "be": "Усталёўваем WordPress…",
+        "es": "Instalando WordPress…"
+      },
+      "publishing": {
+        "en": "Transferring WordPress into public/…",
+        "ru": "Переносим WordPress в public/…",
+        "uk": "Переносимо WordPress у public/…",
+        "be": "Пераносім WordPress у public/…",
+        "es": "Transfiriendo WordPress a public/…"
+      }
+    },
+    "archive": {
+      "release": {
+        "url": "https://api.wordpress.org/core/version-check/1.7/",
+        "path": [
+          "offers",
+          "0",
+          "current"
+        ]
+      },
+      "url": "https://downloads.wordpress.org/release/wordpress-{version}.zip",
+      "checksumUrl": "https://downloads.wordpress.org/release/wordpress-{version}.zip.sha1",
+      "maxArchiveBytes": 104857600,
+      "extract": {
+        "fromDir": "wordpress",
+        "to": "public",
+        "requiredFiles": [
+          "index.php",
+          "wp-settings.php",
+          "wp-admin/install.php",
+          "wp-includes/version.php",
+          "wp-config-sample.php"
+        ]
+      }
+    },
+    "randomHex": {
+      "authKey": 32,
+      "secureAuthKey": 32,
+      "loggedInKey": 32,
+      "nonceKey": 32,
+      "authSalt": 32,
+      "secureAuthSalt": 32,
+      "loggedInSalt": 32,
+      "nonceSalt": 32
+    },
+    "configFiles": [
+      {
+        "template": "wp-config.php",
+        "to": "public/wp-config.php"
+      }
+    ],
+    "keep": [
+      ".gitignore",
+      "public/.htaccess"
+    ]
+  },
+  "httpPreference": "apache",
+  "php": true,
+  "node": false,
+  "readmePath": ".osp/wordpress-readme.md",
+  "database": {
+    "enabled": true,
+    "engines": [
+      "mysql",
+      "mariadb"
+    ],
+    "defaultEngine": "mysql",
+    "missing": {
+      "en": "Install a MySQL or MariaDB module to prepare a database automatically. You can also configure the connection in the WordPress setup wizard later.",
+      "ru": "Для автоматического создания базы установите модуль MySQL или MariaDB. Подключение также можно настроить позже в мастере WordPress.",
+      "uk": "Для автоматичного створення бази встановіть модуль MySQL або MariaDB. Підключення також можна налаштувати пізніше в майстрі WordPress.",
+      "be": "Для аўтаматычнага стварэння базы ўсталюйце модуль MySQL або MariaDB. Падключэнне таксама можна наладзіць пазней у майстры WordPress.",
+      "es": "Instala un módulo MySQL o MariaDB para preparar una base de datos automáticamente. También puedes configurar la conexión más tarde en el asistente de WordPress."
+    }
+  },
+  "projectRoot": "{base_dir}",
+  "webRoot": "{base_dir}\\public",
+  "settings": {
+    "backend_enabled": "off"
+  },
+  "directories": [
+    "public"
+  ]
+}

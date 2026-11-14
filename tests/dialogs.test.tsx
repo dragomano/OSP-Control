@@ -159,7 +159,7 @@ describe('CreateProjectDialog', () => {
     renderDialog();
     fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'SHOP.test' } });
     pickMenu('Project template', 'WordPress — preparation');
-    fireEvent.click(screen.getByText('Files to create: 10'));
+    fireEvent.click(screen.getByText('Files to create: 8'));
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       '.osp/.gitignore',
       '.osp/apache/shop.test.conf',
@@ -167,10 +167,8 @@ describe('CreateProjectDialog', () => {
       '.osp/database.json',
       '.osp/nginx/shop.test.conf',
       '.osp/project.ini',
-      '.osp/wordpress-readme.md',
       '.osp/wordpress.json',
       'public/',
-      'public/.htaccess',
       'public/index.php',
     ]);
     pickMenu('Project template', 'Static site');
@@ -378,12 +376,12 @@ describe('CreateProjectDialog', () => {
     const domain = await screen.findByLabelText('Domain name');
     fireEvent.change(domain, { target: { value: 'CAFÉ.test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Project template' }));
-    expect(screen.getAllByRole('menuitem')).toHaveLength(6);
+    expect(screen.getAllByRole('menuitem')).toHaveLength(8);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Laravel — preparation' }));
     expect(domain).toHaveValue('CAFÉ.test');
     expect(screen.getByText('{base_dir}\\public')).toBeInTheDocument();
     expect(screen.getByText(/click Install Laravel in the project overview/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Files to create: 10'));
+    fireEvent.click(screen.getByText('Files to create: 8'));
     expect(screen.getByText('.osp/nginx/xn--caf-dma.test.conf')).toBeVisible();
     expect(screen.getByRole('button', { name: 'HTTP engine' })).toHaveTextContent('Apache_2.4');
     expect(screen.getByRole('button', { name: 'PHP version' })).toHaveTextContent('PHP_8.2');

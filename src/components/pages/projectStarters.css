@@ -1,0 +1,250 @@
+/* The project template editor: a catalog of starter cards plus a full-width
+   editor that reuses the workspace classes (projectWorkspace.css). */
+
+.starter-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.starter-catalog h3 {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.starter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--panel2), var(--panel));
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+
+button.starter-card {
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+button.starter-card:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button.starter-card:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.starter-card-builtin {
+  opacity: 0.7;
+}
+
+.starter-card-missing {
+  border-style: dashed;
+}
+
+.starter-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--accent);
+}
+
+.starter-card-head b {
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.starter-card small {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.starter-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.starter-badge {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.starter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 17px;
+  min-width: 0;
+}
+
+.workspace-setting .starter-input {
+  width: min(100%, 380px);
+}
+
+.workspace-setting .starter-textarea {
+  width: min(100%, 640px);
+  min-height: 66px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.workspace-setting .starter-textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.starter-chips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.starter-chip {
+  padding: 5px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.starter-chip.selected {
+  border-color: var(--k-4d3b26);
+  background: var(--k-332a1e);
+  color: var(--accent);
+}
+
+.starter-chip:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.starter-chip:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.starter-empty-config {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+}
+
+.starter-empty-config p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.starter-file-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.starter-file-row input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-family: Consolas, monospace;
+}
+
+.starter-file-row input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.workspace-file-tabs button.starter-has-file {
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .workspace-setting .starter-input,
+  .workspace-setting .starter-textarea {
+    width: 100%;
+  }
+
+  .starter-chips {
+    justify-content: flex-start;
+  }
+}
+
+.starter-token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.starter-token-table th {
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.starter-token-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.starter-token-table td:first-child {
+  width: 220px;
+  padding-right: 16px;
+  white-space: nowrap;
+}
+
+.starter-token-table code {
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.starter-token-table tbody tr:last-child td {
+  border-bottom: 0;
+  padding-bottom: 0;
+}

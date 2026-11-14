@@ -16,8 +16,7 @@ import {
   filterProjects,
   getProjectSettings,
   getUserInfo,
-  installProjectLaravel,
-  installProjectWordPress,
+  installProjectStarter,
   isEngineUnset,
   listLogSources,
   openBackupsFolder,
@@ -160,10 +159,10 @@ describe('adapter in browser mode (mocks, no Tauri)', () => {
     });
     const project = { ...created, type: 'Nginx' };
     const doc = await readProjectWorkspace(project);
-    expect(doc.laravel).toBe('pending');
+    expect(doc.installers?.laravel).toBe('pending');
     expect(doc.content).toContain('project_root = {base_dir}');
     expect(doc.content).toContain('web_root = {base_dir}\\public');
-    await expect(installProjectLaravel(project, vi.fn())).rejects.toThrow('err.desktopOnly');
+    await expect(installProjectStarter(project, 'laravel', vi.fn())).rejects.toThrow('err.desktopOnly');
   });
 
   it('keeps template settings and disabled tasks in the browser workspace', async () => {
@@ -444,13 +443,15 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
       expect.objectContaining({ params: { domain: 'site.test', template: 'wordpress', database } }),
     );
     const progress = vi.fn();
-    await installProjectWordPress(
+    await installProjectStarter(
       { domain: 'site.test', path: 'C:/OSPanel/home/site.test', php: '8.3', type: 'Nginx', ssl: false },
+      'wordpress',
       progress,
     );
     expect(invokeMock).toHaveBeenLastCalledWith(
-      'install_project_wordpress',
+      'install_project_starter',
       expect.objectContaining({
+        starterId: 'wordpress',
         domain: 'site.test',
         baseDir: 'C:/OSPanel/home/site.test',
         onProgress: expect.any(Object),
@@ -461,9 +462,9 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
     expect(progress).toHaveBeenCalledWith({ phase: 'downloading', output: '', downloaded: 20, total: 100 });
   });
 
-  it('passes project identity and a progress channel to the native Laravel installer', async () => {
+  it('passes project identity and a progress channel to the starter installer', async () => {
     const progress = vi.fn();
-    invokeMock.mockResolvedValue({ backupPath: 'C:/OSPanel/backups/project-starters/laravel-site.test' });
+    invokeMock.mockResolvedValue({ backupPath: 'C:/OSPanel/backups/starters/laravel-site.test' });
     const project = {
       domain: 'site.test',
       path: 'C:/OSPanel/home/site.test',
@@ -471,10 +472,15 @@ describe('adapter in Tauri mode (invoke mocked)', () => {
       type: 'Nginx',
       ssl: false,
     };
-    await installProjectLaravel(project, progress);
+    await installProjectStarter(project, 'laravel', progress);
     expect(invokeMock).toHaveBeenLastCalledWith(
-      'install_project_laravel',
-      expect.objectContaining({ domain: 'site.test', baseDir: project.path, onProgress: expect.any(Object) }),
+      'install_project_starter',
+      expect.objectContaining({
+        starterId: 'laravel',
+        domain: 'site.test',
+        baseDir: project.path,
+        onProgress: expect.any(Object),
+      }),
     );
     const args = invokeMock.mock.lastCall?.[1] as { onProgress: { onmessage: (message: unknown) => void } };
     args.onProgress.onmessage({ phase: 'installing', output: 'Composer output' });

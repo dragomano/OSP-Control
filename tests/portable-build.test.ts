@@ -39,8 +39,11 @@ describe('portable-only distribution', () => {
     expect(tauriConfig.bundle.icon).toContain('icons/icon.ico');
   });
 
-  it('keeps the locales mapping: the editable dictionaries ship next to the exe', () => {
-    expect(tauriConfig.bundle.resources).toEqual({ 'resources/locales/': 'locales/' });
+  it('keeps the locales and starter mappings: editable resources ship next to the exe', () => {
+    expect(tauriConfig.bundle.resources).toEqual({
+      'resources/locales/': 'locales/',
+      'resources/starters/': 'starters/',
+    });
   });
 
   it('assembles the portable folder right after the build', () => {

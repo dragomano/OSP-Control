@@ -27,8 +27,7 @@ pub(crate) struct ProjectWorkspace {
     content: Option<String>,
     files: Vec<String>,
     readme: Option<String>,
-    laravel: Option<String>,
-    wordpress: Option<String>,
+    installers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -287,7 +286,18 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
             files.push(file);
         }
     }
-    let laravel = crate::laravel_installer::state(&dir);
+    // Installers are declared by starter packages; markers hold their readiness.
+    let installers = crate::project_starters::list()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|entry| {
+            let document = entry.document?;
+            (document.manifest.install.is_some())
+                .then(|| crate::starter_install::state(&dir, &document.manifest.id))
+                .flatten()
+                .map(|state| (document.manifest.id.clone(), state))
+        })
+        .collect();
     Ok(ProjectWorkspace {
         base_dir: external_path(&dir).to_string_lossy().into_owned(),
         content,
@@ -296,8 +306,7 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
             .into_iter()
             .find(|file| application_path(&dir, file).is_ok_and(|path| path.is_file()))
             .map(str::to_owned),
-        laravel,
-        wordpress: crate::wordpress_installer::state(&dir),
+        installers,
     })
 }
 

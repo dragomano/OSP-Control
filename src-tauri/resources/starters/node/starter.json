@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "node",
+  "order": 60,
+  "name": {
+    "en": "Node.js application",
+    "ru": "Node.js-приложение",
+    "uk": "Node.js-застосунок",
+    "be": "Node.js-праграма",
+    "es": "Aplicación Node.js"
+  },
+  "description": {
+    "en": "A server using Node.js built-ins, HTTP proxy settings and a disabled one-time startup task. No npm dependencies.",
+    "ru": "Сервер на встроенных модулях Node.js, настройки HTTP-прокси и отключённое задание однократного запуска. Без npm-зависимостей.",
+    "uk": "Сервер на вбудованих модулях Node.js, налаштування HTTP-проксі та вимкнене завдання одноразового запуску. Без npm-залежностей.",
+    "be": "Сервер на ўбудаваных модулях Node.js, налады HTTP-проксі і выключанае заданне аднаразовага запуску. Без npm-залежнасцей.",
+    "es": "Un servidor con módulos integrados de Node.js, configuración del proxy HTTP y una tarea de inicio único desactivada. Sin dependencias npm."
+  },
+  "nextStep": {
+    "en": "Choose a free port. After restarting OSPanel and enabling the HTTP module, start the app with osp project <domain> start. Instructions are in README.md.",
+    "ru": "Выберите свободный порт. После перезапуска OSPanel и включения HTTP-модуля запустите приложение: osp project <domain> start. Инструкция — в README.md.",
+    "uk": "Виберіть вільний порт. Після перезапуску OSPanel і ввімкнення HTTP-модуля запустіть застосунок: osp project <domain> start. Інструкція — у README.md.",
+    "be": "Выберыце свабодны порт. Пасля перазапуску OSPanel і ўключэння HTTP-модуля запусціце праграму: osp project <domain> start. Інструкцыя — у README.md.",
+    "es": "Elige un puerto libre. Tras reiniciar OSPanel y activar el módulo HTTP, inicia la aplicación: osp project <domain> start. Consulta README.md."
+  },
+  "messages": {
+    "NODE_READY_JSON": {
+      "en": "Local Node.js application is running.",
+      "ru": "Локальное Node.js-приложение работает.",
+      "uk": "Локальний Node.js-застосунок працює.",
+      "be": "Лакальная Node.js-праграма працуе.",
+      "es": "La aplicación Node.js local está funcionando."
+    },
+    "NODE_LISTENING_JSON": {
+      "en": "Listening on {url}",
+      "ru": "Сервер доступен по адресу {url}",
+      "uk": "Сервер доступний за адресою {url}",
+      "be": "Сервер даступны па адрасе {url}",
+      "es": "Servidor disponible en {url}"
+    },
+    "NODE_TASK": {
+      "en": "Start application",
+      "ru": "Запуск приложения",
+      "uk": "Запуск застосунку",
+      "be": "Запуск праграмы",
+      "es": "Iniciar aplicación"
+    }
+  },
+  "httpPreference": "any",
+  "php": false,
+  "node": true,
+  "installer": null,
+  "readmePath": "README.md",
+  "database": {
+    "enabled": false,
+    "engines": [],
+    "defaultEngine": "none"
+  },
+  "projectRoot": "{base_dir}",
+  "webRoot": "{base_dir}\\public",
+  "settings": {
+    "app_start_command": "node server.mjs",
+    "backend_enabled": "on",
+    "backend_ip": "127.0.0.1",
+    "backend_port": "{port}"
+  },
+  "directories": [
+    "public"
+  ]
+}

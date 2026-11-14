@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "id": "php",
+  "order": 10,
+  "name": {
+    "en": "PHP application",
+    "ru": "PHP-приложение",
+    "uk": "PHP-застосунок",
+    "be": "PHP-праграма",
+    "es": "Aplicación PHP"
+  },
+  "description": {
+    "en": "A minimal PHP page in public/. Dependencies and private files can stay outside the public directory.",
+    "ru": "Минимальная PHP-страница в public/. Зависимости и закрытые файлы можно хранить вне публичного каталога.",
+    "uk": "Мінімальна PHP-сторінка в public/. Залежності й приватні файли можна зберігати поза публічним каталогом.",
+    "be": "Мінімальная PHP-старонка ў public/. Залежнасці і прыватныя файлы можна захоўваць па-за публічным каталогам.",
+    "es": "Una página PHP mínima en public/. Las dependencias y los archivos privados pueden quedar fuera del directorio público."
+  },
+  "nextStep": {
+    "en": "Restart OSPanel and enable the selected HTTP and PHP modules. The start page will confirm that PHP is working.",
+    "ru": "Перезапустите OSPanel и включите выбранные HTTP- и PHP-модули. Стартовая страница подтвердит работу PHP.",
+    "uk": "Перезапустіть OSPanel і ввімкніть вибрані HTTP- та PHP-модулі. Початкова сторінка підтвердить роботу PHP.",
+    "be": "Перазапусціце OSPanel і ўключыце выбраныя HTTP- і PHP-модулі. Пачатковая старонка пацвердзіць працу PHP.",
+    "es": "Reinicia OSPanel y activa los módulos HTTP y PHP seleccionados. La página inicial confirmará que PHP funciona."
+  },
+  "messages": {
+    "PHP_READY": {
+      "en": "PHP is running. Replace this page with your application.",
+      "ru": "PHP работает. Замените эту страницу своим приложением.",
+      "uk": "PHP працює. Замініть цю сторінку своїм застосунком.",
+      "be": "PHP працуе. Замяніце гэтую старонку сваёй праграмай.",
+      "es": "PHP está funcionando. Sustituye esta página por tu aplicación."
+    }
+  },
+  "httpPreference": "any",
+  "php": true,
+  "node": false,
+  "installer": null,
+  "readmePath": "README.md",
+  "database": {
+    "enabled": false,
+    "engines": [],
+    "defaultEngine": "none"
+  },
+  "projectRoot": "{base_dir}",
+  "webRoot": "{base_dir}\\public",
+  "settings": {
+    "backend_enabled": "off"
+  },
+  "directories": [
+    "public"
+  ]
+}

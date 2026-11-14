@@ -850,7 +850,12 @@ fn create_project_with_modules(
             match input.as_deref() {
                 Some(value) if value != "auto" => value.into(),
                 _ if required => if key == "http_engine" {
-                    crate::project_templates::preferred_http(&template.id, available, global)
+                    let preference = template
+                        .starter
+                        .as_ref()
+                        .map(|starter| starter.manifest.http_preference.as_str())
+                        .unwrap_or("any");
+                    crate::project_templates::preferred_http(preference, available, global)
                 } else {
                     crate::project_templates::preferred(available, global)
                 }
@@ -897,7 +902,12 @@ fn create_project_with_modules(
     if template.node && port == 0 {
         return Err(CommandError::new("err.invalidSettingValue").with("value", "0"));
     }
-    let php_port = if matches!(template.id.as_str(), "laravel" | "wordpress") {
+    // Only starters whose configurations embed __PHP_PORT__ need the live module port.
+    let needs_php_port = template
+        .starter
+        .as_ref()
+        .is_some_and(|starter| starter.assets.values().any(|content| content.contains("__PHP_PORT__")));
+    let php_port = if template.php && needs_php_port {
         let snapshot = modules(&root).ok_or_else(|| CommandError::new("err.panelNotReady"))?;
         crate::project_templates::php_port(&snapshot, &php)?
     } else {
@@ -913,8 +923,29 @@ fn create_project_with_modules(
         params.language.as_deref().unwrap_or("en"),
     )?;
     if let Some(db) = &params.database {
-        crate::project_database::validate(db, &template.id, &options.database_engines)?;
-        files.extend(crate::project_database::files(db)?);
+        // Starters declare the database families they support; installers provision later.
+        let families: Vec<String> = template
+            .starter
+            .as_ref()
+            .map(|starter| starter.manifest.database.engines.clone())
+            .unwrap_or_default();
+        let references: Vec<&str> = families.iter().map(String::as_str).collect();
+        crate::project_database::validate(db, &references, &options.database_engines)?;
+        let mut db = db.clone();
+        // A scaffold without its own installer creates the database right away: the module
+        // must be running, otherwise creation fails before any project file is written.
+        let scaffold = template
+            .starter
+            .as_ref()
+            .is_none_or(|starter| starter.manifest.install.is_none());
+        if scaffold && db.engine != "none" {
+            if db.engine != "sqlite" {
+                crate::project_database::create_database(&root, &db)?;
+            }
+            // Nothing is provisioned later for scaffolds, so the choice is final.
+            db.set_created(true);
+        }
+        files.extend(crate::project_database::files(&db)?);
         if !matches!(db.engine.as_str(), "none" | "sqlite") {
             if let Some((_, ini)) = files.iter_mut().find(|(path, _)| path == ".osp/project.ini") {
                 ini.push_str(&format!("environment       = {}\r\n", db.engine));
@@ -1141,10 +1172,10 @@ mod tests {
         fs::write(fixture.0.join("addons/NVM/nvm.exe"), "").unwrap();
         fs::write(fixture.0.join("addons/NVM/v24.0.0/node.exe"), "").unwrap();
         assert_eq!(create("node", Some(0)).unwrap_err().code, "err.invalidSettingValue");
-        for id in ["static", "php", "laravel", "wordpress", "node"] {
+        for id in ["static", "php", "laravel", "wordpress", "symfony", "node"] {
             let created = create(id, Some(4321)).unwrap();
             assert_eq!(created.http, "Apache");
-            if matches!(id, "laravel" | "wordpress") {
+            if matches!(id, "laravel" | "wordpress" | "symfony") {
                 let config =
                     fs::read_to_string(Path::new(&created.path).join(format!(".osp/caddy/{id}.test.conf")))
                         .unwrap();
@@ -1156,13 +1187,13 @@ mod tests {
             assert_eq!(values["http_engine"], "Apache");
             assert_eq!(
                 values["php_engine"],
-                if matches!(id, "php" | "laravel" | "wordpress") { "PHP-8.10" } else { "" }
+                if matches!(id, "php" | "laravel" | "wordpress" | "symfony") { "PHP-8.10" } else { "" }
             );
             assert_eq!(values["node_engine"], if id == "node" { "Node-24.0.0" } else { "" });
             assert_eq!(values["backend_enabled"], if id == "node" { "on" } else { "off" });
             assert!(!values["web_root"].is_empty());
         }
-        assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 5);
+        assert_eq!(fs::read_dir(fixture.0.join("home")).unwrap().count(), 6);
     }
 
     #[test]

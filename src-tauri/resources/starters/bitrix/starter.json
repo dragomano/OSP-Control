@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "id": "bitrix",
+  "order": 50,
+  "name": {
+    "en": "1C-Bitrix",
+    "ru": "1С-Битрикс",
+    "uk": "1С-Бітрікс",
+    "be": "1С-Бітрыкс",
+    "es": "1C-Bitrix"
+  },
+  "description": {
+    "en": "Web root in public/, recommended PHP limits in .user.ini, URL rewrite rules for Nginx/Apache/Caddy and MySQL/MariaDB setup.",
+    "ru": "Публичный каталог public/, рекомендуемые лимиты PHP в .user.ini, правила ЧПУ для Nginx/Apache/Caddy и настройка MySQL/MariaDB.",
+    "uk": "Публічний каталог public/, рекомендовані ліміти PHP у .user.ini, правила ЧПУ для Nginx/Apache/Caddy та налаштування MySQL/MariaDB.",
+    "be": "Публічны каталог public/, рэкамендаваныя ліміты PHP у .user.ini, правілы ЧПУ для Nginx/Apache/Caddy і наладка MySQL/MariaDB.",
+    "es": "Directorio público en public/, límites de PHP recomendados en .user.ini, reglas de URL para Nginx/Apache/Caddy y base de datos MySQL/MariaDB."
+  },
+  "nextStep": {
+    "en": "Place bitrixsetup.php or restore.php into public/, restart OSPanel and open the site in your browser.",
+    "ru": "Поместите bitrixsetup.php или restore.php в public/, перезапустите OSPanel и откройте сайт в браузере.",
+    "uk": "Помістіть bitrixsetup.php або restore.php у public/, перезапустіть OSPanel і відкрийте сайт у браузері.",
+    "be": "Змясціце bitrixsetup.php або restore.php у public/, перазапусціце OSPanel і адкрыйце сайт у браўзеры.",
+    "es": "Coloca bitrixsetup.php o restore.php en public/, reinicia OSPanel y abre el sitio en el navegador."
+  },
+  "messages": {
+    "BITRIX_TITLE": {
+      "en": "1C-Bitrix project preparation",
+      "ru": "Заготовка проекта 1С-Битрикс",
+      "uk": "Заготовка проєкту 1С-Бітрікс",
+      "be": "Загатоўка праекта 1С-Бітрыкс",
+      "es": "Preparación del proyecto 1C-Bitrix"
+    },
+    "BITRIX_HEADING": {
+      "en": "1C-Bitrix is not installed yet",
+      "ru": "1С-Битрикс пока не установлен",
+      "uk": "1С-Бітрікс ще не встановлено",
+      "be": "1С-Бітрыкс яшчэ не ўсталяваны",
+      "es": "1C-Bitrix aún no está instalado"
+    },
+    "BITRIX_INSTRUCTIONS": {
+      "en": "Download bitrixsetup.php from the official 1C-Bitrix site into public/, then open it in the browser and follow the installation wizard.",
+      "ru": "Скачайте bitrixsetup.php с официального сайта 1С-Битрикс в public/, затем откройте его в браузере и следуйте мастеру установки.",
+      "uk": "Завантажте bitrixsetup.php з офіційного сайту 1С-Бітрікс до public/, потім відкрийте його в браузері та дотримуйтеся майстра встановлення.",
+      "be": "Спампуйце bitrixsetup.php з афіцыйнага сайта 1С-Бітрыкс у public/, затым адкрыйце яго ў браўзеры і ідзіце за майстрам усталявання.",
+      "es": "Descarga bitrixsetup.php del sitio oficial de 1C-Bitrix en public/, ábrelo en el navegador y sigue el asistente de instalación."
+    },
+    "BITRIX_DETAILS": {
+      "en": "PHP limits are set in public/.user.ini; enter the database settings during installation.",
+      "ru": "Лимиты PHP заданы в public/.user.ini; параметры базы данных укажите при установке.",
+      "uk": "Ліміти PHP задано в public/.user.ini; параметри бази даних укажіть під час встановлення.",
+      "be": "Ліміты PHP зададзеныя ў public/.user.ini; параметры базы даных укажыце пры ўсталяванні.",
+      "es": "Los límites de PHP están en public/.user.ini; introduce los datos de la base de datos durante la instalación."
+    }
+  },
+  "httpPreference": "apache",
+  "php": true,
+  "node": false,
+  "installer": null,
+  "readmePath": "README.md",
+  "database": {
+    "enabled": true,
+    "engines": [
+      "mysql",
+      "mariadb"
+    ],
+    "defaultEngine": "mysql",
+    "missing": {
+      "en": "Install a MySQL or MariaDB module to prepare a database automatically; 1C-Bitrix requires one of them. The connection can also be configured during the installation wizard.",
+      "ru": "Для автоматического создания базы установите модуль MySQL или MariaDB; для 1С-Битрикс один из них обязателен. Подключение также можно указать в мастере установки.",
+      "uk": "Для автоматичного створення бази встановіть модуль MySQL або MariaDB; для 1С-Бітрікс один із них обовʼязковий. Підключення також можна вказати в майстрі встановлення.",
+      "be": "Для аўтаматычнага стварэння базы ўсталюйце модуль MySQL або MariaDB; для 1С-Бітрыкс адзін з іх абавязковы. Падключэнне таксама можна ўказаць у майстры ўсталявання.",
+      "es": "Instala un módulo MySQL o MariaDB para preparar una base de datos automáticamente; 1C-Bitrix requiere uno de ellos. La conexión también puede indicarse en el asistente de instalación."
+    }
+  },
+  "projectRoot": "{base_dir}",
+  "webRoot": "{base_dir}\\public",
+  "settings": {
+    "backend_enabled": "off"
+  },
+  "directories": [
+    "public"
+  ]
+}

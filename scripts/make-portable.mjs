@@ -136,7 +136,9 @@ const publish = async (source, destination) => {
 };
 
 const localesSource = path.join(releaseDir, 'locales');
+const startersSource = path.join(releaseDir, 'starters');
 let dictionaries = [];
+let starters = true;
 try {
   await mkdir(outRoot, { recursive: true });
   canonicalOutRoot = await realpath(outRoot);
@@ -159,6 +161,12 @@ try {
     hasLocales = false;
   }
   if (hasLocales) await cp(localesSource, path.join(staging, 'locales'), { recursive: true });
+  try {
+    await cp(startersSource, path.join(staging, 'starters'), { recursive: true });
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    starters = false;
+  }
   await publish(staging, target);
   await removeOutput(staging);
   staging = undefined;
@@ -179,6 +187,11 @@ try {
 const { size } = await stat(path.join(target, exeName));
 const relative = (from) => path.relative(repoRoot, from).replaceAll('\\', '/');
 console.log(`portable: ${relative(path.join(target, exeName))} (${(size / 1024 / 1024).toFixed(1)} MB)`);
+if (starters) console.log(`portable: starters/ — editable starter packages shipped beside the exe`);
+else
+  console.warn(
+    `make-portable: no starters/ in ${releaseDir} — no external project templates will be offered`,
+  );
 if (dictionaries.length > 0) {
   console.log(`portable: locales/ — ${dictionaries.sort().join(', ')}`);
 } else {

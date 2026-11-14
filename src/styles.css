@@ -791,8 +791,12 @@ button {
   border: 1px dashed var(--dim);
   opacity: 0.65;
 }
-.mini-toggle:disabled {
+.mini-toggle:disabled,
+.large-toggle:disabled {
   cursor: default;
+}
+.large-toggle:disabled {
+  opacity: 0.4;
 }
 .lower-grid {
   display: grid;

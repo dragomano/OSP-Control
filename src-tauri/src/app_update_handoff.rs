@@ -110,7 +110,8 @@ impl<'a> Replacement<'a> {
         &mut self,
         mut move_file: impl FnMut(&Path, &Path) -> Result<(), CommandError>,
     ) -> Result<(), CommandError> {
-        let locales = self.target.parent().ok_or_else(invalid)?.join("locales");
+        let parent = self.target.parent().ok_or_else(invalid)?;
+        let locales = parent.join("locales");
         move_file(self.target, &self.stage.join("previous.exe"))?;
         self.old_exe = true;
         if locales.exists() {
@@ -121,6 +122,14 @@ impl<'a> Replacement<'a> {
         self.new_exe = true;
         move_file(&self.payload.join("locales"), &locales)?;
         self.new_locales = true;
+        // Starter folders belong to the user: deletions, edits and custom packages
+        // survive updates. A fresh installation without the folder gets the shipped
+        // set; new versions of shipped starters are applied per starter through
+        // "restore the bundled version".
+        let starters = parent.join("starters");
+        if !starters.exists() && self.payload.join("starters").exists() {
+            move_file(&self.payload.join("starters"), &starters)?;
+        }
         Ok(())
     }
 
@@ -132,8 +141,9 @@ impl<'a> Replacement<'a> {
         &self,
         mut move_file: impl FnMut(&Path, &Path) -> Result<(), CommandError>,
     ) -> Result<(), CommandError> {
-        let locales = self.target.parent().ok_or_else(invalid)?.join("locales");
-        let restore_locales = (|| {
+        let parent = self.target.parent().ok_or_else(invalid)?;
+        let locales = parent.join("locales");
+        let restore_resources = (|| {
             if self.new_locales {
                 move_file(&locales, &self.stage.join("failed-locales"))?;
             }
@@ -153,7 +163,7 @@ impl<'a> Replacement<'a> {
             }
             Ok(())
         })();
-        restore_locales.and(restore_exe)
+        restore_resources.and(restore_exe)
     }
 }
 
@@ -282,6 +292,8 @@ mod tests {
         }
         fs::write(payload.join("osp-control.exe"), b"new exe").unwrap();
         fs::write(payload.join("locales/ru.json"), b"new translation").unwrap();
+        fs::create_dir_all(payload.join("starters/wordpress")).unwrap();
+        fs::write(payload.join("starters/wordpress/starter.json"), b"shipped manifest").unwrap();
         (root, target, stage, payload)
     }
 
@@ -309,9 +321,44 @@ mod tests {
     }
 
     #[test]
+    fn updates_never_touch_existing_starter_folders_but_seed_fresh_installs() {
+        // An existing folder keeps user edits and custom packages; deleted shipped
+        // packages stay deleted (the payload copy is ignored on updates).
+        let (root, target, stage, payload) = fixture("starters-keep", true);
+        fs::create_dir_all(root.join("starters/wordpress")).unwrap();
+        fs::write(root.join("starters/wordpress/starter.json"), b"user-edited manifest").unwrap();
+        fs::create_dir_all(root.join("starters/my-app")).unwrap();
+        fs::write(root.join("starters/my-app/starter.json"), b"custom starter").unwrap();
+        let mut transaction = Replacement::new(&target, &stage, &payload);
+        transaction.install(|a, b| fs::rename(a, b).map_err(Into::into)).unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join("starters/wordpress/starter.json")).unwrap(),
+            "user-edited manifest"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("starters/my-app/starter.json")).unwrap(),
+            "custom starter"
+        );
+        assert!(!stage.join("previous-starters").exists());
+        fs::remove_dir_all(root).unwrap();
+
+        // A fresh installation without the folder receives the shipped set.
+        let (root, target, stage, payload) = fixture("starters-seed", true);
+        assert!(!root.join("starters").exists());
+        let mut transaction = Replacement::new(&target, &stage, &payload);
+        transaction.install(|a, b| fs::rename(a, b).map_err(Into::into)).unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join("starters/wordpress/starter.json")).unwrap(),
+            "shipped manifest"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn every_failed_move_and_failed_startup_restore_the_original_pair() {
         for had_locales in [false, true] {
-            let count = if had_locales { 4 } else { 3 };
+            // exe out, locales out (when present), exe in, locales in, starters seed.
+            let count = if had_locales { 5 } else { 4 };
             // The last iteration represents a fully installed release that failed startup.
             for fail_at in 0..=count {
                 let (root, target, stage, payload) = fixture("rollback", had_locales);

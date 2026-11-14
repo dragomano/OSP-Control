@@ -5,8 +5,8 @@ export type ProjectWorkspace = {
   content: string | null;
   files: string[];
   readme?: string | null;
-  laravel?: 'pending' | 'installed' | null;
-  wordpress?: 'pending' | 'installed' | null;
+  // Installer marker states by starter kind ("laravel", "wordpress", "symfony").
+  installers?: Record<string, 'pending' | 'installed' | null>;
 };
 export type ProjectFileSave = { content: string; backupPath: string | null };
 export type ProjectDomainSettings = { domain: string; values: Record<string, string> };

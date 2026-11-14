@@ -22,6 +22,12 @@ pub(crate) struct Database {
 fn error(code: &str) -> CommandError {
     CommandError::new(code)
 }
+impl Database {
+    // Only creation-time provisioning marks a database as ready; installers use provision().
+    pub(crate) fn set_created(&mut self, created: bool) {
+        self.created = created;
+    }
+}
 pub(crate) fn valid_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 63
@@ -49,13 +55,16 @@ pub(crate) fn engines(root: &Path) -> Vec<String> {
     result.sort();
     result
 }
-pub(crate) fn validate(db: &Database, template: &str, available: &[String]) -> Result<(), CommandError> {
-    if !matches!(template, "laravel" | "wordpress")
-        || db.created
+pub(crate) fn validate(db: &Database, families: &[&str], available: &[String]) -> Result<(), CommandError> {
+    let family_allowed = |engine: &str| {
+        engine.starts_with("MySQL-") && families.contains(&"mysql")
+            || engine.starts_with("MariaDB-") && families.contains(&"mariadb")
+            || engine.starts_with("PostgreSQL-") && families.contains(&"postgresql")
+    };
+    if db.created
         || !(db.engine == "none"
-            || (db.engine == "sqlite" && template == "laravel")
-            || (available.contains(&db.engine)
-                && (template == "laravel" || !db.engine.starts_with("PostgreSQL-"))))
+            || (db.engine == "sqlite" && families.contains(&"sqlite"))
+            || (available.contains(&db.engine) && family_allowed(&db.engine)))
         || (db.engine != "none" && !valid_name(&db.name))
         || db.username.len() > 128
         || db.password.len() > 1024
@@ -88,7 +97,7 @@ fn read(project: &Path) -> Result<Option<Database>, CommandError> {
         serde_json::from_slice(&fs::read(path)?).map_err(|_| error("err.projectDatabaseInvalid"))?;
     let mut input = db.clone();
     input.created = false;
-    validate(&input, "laravel", &[db.engine.clone()])?;
+    validate(&input, &["sqlite", "mysql", "mariadb", "postgresql"], &[db.engine.clone()])?;
     Ok(Some(db))
 }
 pub(crate) fn permitted_status_update(before: Option<&[u8]>, after: Option<&[u8]>) -> bool {
@@ -216,50 +225,20 @@ fn ensure_database(
     }
     Ok(())
 }
-pub(crate) fn provision(
-    root: &Path,
-    project: &Path,
-    stage: &Path,
-    wordpress: bool,
-) -> Result<Option<Connection>, CommandError> {
+pub(crate) fn provision(root: &Path, project: &Path, stage: &Path) -> Result<Option<Connection>, CommandError> {
     let Some(mut db) = read(project)? else { return Ok(None) };
     if db.engine == "none" {
         return Ok(None);
     }
     if db.engine == "sqlite" {
-        if wordpress {
-            return Err(error("err.projectDatabaseInvalid"));
-        }
         return Ok(Some(Connection { db, host: String::new(), port: 0 }));
-    }
-    if wordpress && db.engine.starts_with("PostgreSQL-") {
-        return Err(error("err.projectDatabaseInvalid"));
     }
     let (running, profile) = crate::db::db_module_state(root, &db.engine)
         .ok_or_else(|| error("err.projectDatabaseStopped").with("module", &db.engine))?;
     if !running {
         return Err(error("err.projectDatabaseStopped").with("module", &db.engine));
     }
-    let pg = db.engine.starts_with("PostgreSQL-");
-    let config = if pg {
-        let profile = if is_valid_module_name(&profile) { profile.as_str() } else { "default" };
-        child(&child(&child(&child(root, "data")?, &db.engine)?, profile)?, "postgresql.conf")?
-    } else {
-        child(&child(&child(root, "modules")?, &db.engine)?, "my.ini")?
-    };
-    let text = fs::read_to_string(config).map_err(|_| error("err.projectDatabaseModule"))?;
-    let host = crate::db::ini_first_value(&text, if pg { "listen_addresses" } else { "bind_address" })
-        .ok_or_else(|| error("err.projectDatabaseInvalid"))?;
-    let port = crate::db::ini_first_value(&text, "port")
-        .and_then(|s| s.parse::<u16>().ok())
-        .filter(|p| *p != 0)
-        .ok_or_else(|| error("err.projectDatabaseInvalid"))?;
-    let endpoint = crate::db::DbEndpoint { host: crate::db::normalize_bind_host(&host, pg), port };
-    if endpoint.host != "localhost"
-        && !endpoint.host.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback())
-    {
-        return Err(error("err.projectDatabaseInvalid"));
-    }
+    let endpoint = module_endpoint(root, &db, &profile)?;
     ensure_database(&db, |sql| query(root, stage, &db, &endpoint.host, endpoint.port, sql))?;
     if !db.created {
         if read(project)?.as_ref() != Some(&db) {
@@ -280,9 +259,52 @@ pub(crate) fn provision(
     }
     Ok(Some(Connection { db, host: endpoint.host, port: endpoint.port }))
 }
+// Resolves the listening endpoint of a running database module from its own config.
+fn module_endpoint(root: &Path, db: &Database, profile: &str) -> Result<crate::db::DbEndpoint, CommandError> {
+    let pg = db.engine.starts_with("PostgreSQL-");
+    let config = if pg {
+        let profile = if is_valid_module_name(profile) { profile } else { "default" };
+        child(&child(&child(&child(root, "data")?, &db.engine)?, profile)?, "postgresql.conf")?
+    } else {
+        child(&child(&child(root, "modules")?, &db.engine)?, "my.ini")?
+    };
+    let text = fs::read_to_string(config).map_err(|_| error("err.projectDatabaseModule"))?;
+    let host = crate::db::ini_first_value(&text, if pg { "listen_addresses" } else { "bind_address" })
+        .ok_or_else(|| error("err.projectDatabaseInvalid"))?;
+    let port = crate::db::ini_first_value(&text, "port")
+        .and_then(|s| s.parse::<u16>().ok())
+        .filter(|p| *p != 0)
+        .ok_or_else(|| error("err.projectDatabaseInvalid"))?;
+    let endpoint = crate::db::DbEndpoint { host: crate::db::normalize_bind_host(&host, pg), port };
+    if endpoint.host != "localhost"
+        && !endpoint.host.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback())
+    {
+        return Err(error("err.projectDatabaseInvalid"));
+    }
+    Ok(endpoint)
+}
+
+// Creates the database of a scaffold project during creation (no installer follows).
+// Fails before any project file is written when the module is stopped or unreachable.
+pub(crate) fn create_database(root: &Path, db: &Database) -> Result<(), CommandError> {
+    let (running, profile) = crate::db::db_module_state(root, &db.engine)
+        .ok_or_else(|| error("err.projectDatabaseStopped").with("module", &db.engine))?;
+    if !running {
+        return Err(error("err.projectDatabaseStopped").with("module", &db.engine));
+    }
+    let endpoint = module_endpoint(root, db, &profile)?;
+    // Client credentials never stay on disk: the stage is removed right after the run.
+    let stage = std::env::temp_dir().join(format!("osp-db-create-{}-{}", std::process::id(), crate::paths::unix_now()));
+    fs::create_dir(&stage)?;
+    let result = ensure_database(db, |sql| query(root, &stage, db, &endpoint.host, endpoint.port, sql));
+    let _ = fs::remove_dir_all(&stage);
+    result
+}
+
 fn env_value(value: &str) -> String {
     format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\"").replace('$', "\\$"))
 }
+
 pub(crate) fn env_set(content: &str, key: &str, value: &str) -> String {
     let mut found = false;
     let mut lines: Vec<String> = content
@@ -300,37 +322,6 @@ pub(crate) fn env_set(content: &str, key: &str, value: &str) -> String {
         lines.push(format!("{key}={}", env_value(value)));
     }
     lines.join("\n") + "\n"
-}
-pub(crate) fn laravel_env(content: &str, connection: Option<&Connection>, sqlite_path: &str) -> String {
-    let mut result = content.to_string();
-    if let Some(c) = connection {
-        for (key, value) in [
-            (
-                "DB_CONNECTION",
-                if c.db.engine == "sqlite" {
-                    "sqlite"
-                } else if c.db.engine.starts_with("PostgreSQL-") {
-                    "pgsql"
-                } else {
-                    "mysql"
-                },
-            ),
-            ("DB_HOST", &c.host),
-            ("DB_PORT", &c.port.to_string()),
-            ("DB_DATABASE", if c.db.engine == "sqlite" { sqlite_path } else { &c.db.name }),
-            ("DB_USERNAME", &c.db.username),
-            ("DB_PASSWORD", &c.db.password),
-        ] {
-            result = env_set(&result, key, value);
-        }
-    } else {
-        for (key, value) in
-            [("SESSION_DRIVER", "file"), ("CACHE_STORE", "file"), ("QUEUE_CONNECTION", "sync")]
-        {
-            result = env_set(&result, key, value);
-        }
-    }
-    result
 }
 pub(crate) fn php_string(value: &str) -> String {
     format!("'{}'", value.replace('\\', "\\\\").replace('\'', "\\'"))
@@ -351,14 +342,14 @@ mod tests {
             password: "".into(),
             created: false,
         };
-        assert!(validate(&db, "laravel", &[]).is_ok());
-        assert!(validate(&db, "wordpress", &[]).is_err());
+        assert!(validate(&db, &["sqlite", "mysql"], &[]).is_ok());
+        assert!(validate(&db, &["mysql"], &[]).is_err());
         db.engine = "PostgreSQL-17".into();
         db.username = "postgres".into();
-        assert!(validate(&db, "wordpress", &[db.engine.clone()]).is_err());
-        assert!(validate(&db, "laravel", &[db.engine.clone()]).is_ok());
+        assert!(validate(&db, &["mysql"], &[db.engine.clone()]).is_err());
+        assert!(validate(&db, &["sqlite", "mysql", "mariadb", "postgresql"], &[db.engine.clone()]).is_ok());
         db.created = true;
-        assert!(validate(&db, "laravel", &[db.engine.clone()]).is_err());
+        assert!(validate(&db, &["sqlite", "mysql", "mariadb", "postgresql"], &[db.engine.clone()]).is_err());
     }
     #[test]
     fn credentials_are_escaped_in_configuration_files() {

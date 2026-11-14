@@ -34,7 +34,9 @@ import {
   saveProjectFile,
 } from '../../ospanel';
 import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
+import { listProjectStarters } from '../../projectStarters';
 import { type ProjectTask, parseProjectTasks, renderProjectTasks, taskErrors } from '../../projectTasks';
+import { type StarterInstall, starterText } from '../../projectTemplates';
 import {
   appendProjectDomain,
   isApplicationFile,
@@ -93,7 +95,7 @@ export function ProjectWorkspace({
   onRestartPanel: () => void;
   onStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const id = useId();
   const [tab, setTab] = useState<Tab>('overview');
   const [doc, setDoc] = useState<WorkspaceDocument | null>(null);
@@ -119,6 +121,21 @@ export function ProjectWorkspace({
   const [diagnosticsRevision, setDiagnosticsRevision] = useState(0);
   const [menuState, setMenuState] = useState({ dirty: false, busy: false });
   const [menuReloadVersion, setMenuReloadVersion] = useState(0);
+  // Install texts come from the starter catalog; the workspace only tracks statuses.
+  const [installConfigs, setInstallConfigs] = useState<Record<string, StarterInstall>>({});
+  useEffect(() => {
+    void listProjectStarters()
+      .then((entries) =>
+        setInstallConfigs(
+          Object.fromEntries(
+            entries.flatMap((entry) =>
+              entry.document?.manifest.install ? [[entry.id, entry.document.manifest.install]] : [],
+            ),
+          ),
+        ),
+      )
+      .catch(() => {});
+  }, []);
   const menuEditor = useRef<MenuEditorHandle>(null);
   const pending = useRef(false);
   const request = useRef(0);
@@ -614,19 +631,24 @@ export function ProjectWorkspace({
                   </div>
                   {tab === 'overview' && (
                     <>
-                      {(['laravel', 'wordpress'] as const).map((kind) => (
+                      {Object.keys(doc?.installers ?? {}).map((starterId) => (
                         <ApplicationSetup
-                          key={kind}
-                          kind={kind}
+                          key={starterId}
+                          starterId={starterId}
+                          install={installConfigs[starterId]}
                           project={project}
-                          state={doc?.[kind]}
+                          status={doc?.installers?.[starterId] ?? null}
                           disabled={locked || dirty || fileBusy}
                           dirty={dirty}
                           onBusyChange={setInstallingApplication}
                           onInstalled={async () => {
                             await load();
                             setRestartNeeded(true);
-                            notify(t(`${kind}.done`), {
+                            const config = installConfigs[starterId];
+                            const done = config
+                              ? starterText(config.done, lang) || t('wordpress.done')
+                              : t('wordpress.done');
+                            notify(done, {
                               label: t('projects.restartPanel'),
                               run: onRestartPanel,
                             });

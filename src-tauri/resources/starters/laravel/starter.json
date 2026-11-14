@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "id": "laravel",
+  "order": 20,
+  "name": {
+    "en": "Laravel — preparation",
+    "ru": "Laravel — подготовка",
+    "uk": "Laravel — підготовка",
+    "be": "Laravel — падрыхтоўка",
+    "es": "Laravel — preparación"
+  },
+  "description": {
+    "en": "OSPanel settings, routing rules, a public/ placeholder and a disabled scheduler task. Laravel will be installed in the project root.",
+    "ru": "Настройки OSPanel, правила маршрутизации, заглушка в public/ и отключённое задание планировщика. Laravel будет установлен в корень проекта.",
+    "uk": "Налаштування OSPanel, правила маршрутизації, заглушка в public/ та вимкнене завдання планувальника. Laravel буде встановлено в корінь проєкту.",
+    "be": "Налады OSPanel, правілы маршрутызацыі, заглушка ў public/ і выключанае заданне планавальніка. Laravel будзе ўсталяваны ў корань праекта.",
+    "es": "Configuración de OSPanel, reglas de enrutamiento, una página provisional en public/ y una tarea desactivada. Laravel se instalará en la raíz del proyecto."
+  },
+  "nextStep": {
+    "en": "After creating the scaffold, click Install Laravel in the project overview. Until installation the site displays a placeholder.",
+    "ru": "После создания заготовки нажмите «Установить Laravel» в обзоре проекта. До установки сайт показывает заглушку.",
+    "uk": "Після створення заготовки натисніть «Установити Laravel» в огляді проєкту. До встановлення сайт показує заглушку.",
+    "be": "Пасля стварэння нарыхтоўкі націсніце «Усталяваць Laravel» у аглядзе праекта. Да ўсталявання сайт паказвае заглушку.",
+    "es": "Tras crear la estructura, pulsa Instalar Laravel en el resumen del proyecto. Hasta la instalación el sitio mostrará una página provisional."
+  },
+  "createdMessage": {
+    "en": "Scaffold for {domain} created. Install Laravel from the project overview.",
+    "ru": "Заготовка для {domain} создана. Установите Laravel из обзора проекта.",
+    "uk": "Заготовку для {domain} створено. Установіть Laravel з огляду проєкту.",
+    "be": "Нарыхтоўка для {domain} створана. Усталюйце Laravel з агляду праекта.",
+    "es": "Estructura inicial de {domain} creada. Instala Laravel desde el resumen del proyecto."
+  },
+  "messages": {
+    "LARAVEL_TITLE": {
+      "en": "Laravel project preparation",
+      "ru": "Заготовка проекта Laravel",
+      "uk": "Заготовка проєкту Laravel",
+      "be": "Загатоўка праекта Laravel",
+      "es": "Plantilla inicial del proyecto Laravel"
+    },
+    "LARAVEL_HEADING": {
+      "en": "Laravel is not installed yet",
+      "ru": "Laravel пока не установлен",
+      "uk": "Laravel ще не встановлено",
+      "be": "Laravel яшчэ не ўсталяваны",
+      "es": "Laravel aún no está instalado"
+    },
+    "LARAVEL_INSTRUCTIONS": {
+      "en": "The project's public directory is ready. Open this project's overview in OSP Control and use the Install Laravel button to install the application.",
+      "ru": "Публичный каталог проекта готов. Откройте обзор этого проекта в OSP Control и нажмите «Установить Laravel», чтобы установить приложение.",
+      "uk": "Публічний каталог проєкту готовий. Відкрийте огляд цього проєкту в OSP Control і натисніть «Установити Laravel», щоб установити застосунок.",
+      "be": "Публічны каталог праекта гатовы. Адкрыйце агляд гэтага праекта ў OSP Control і націсніце «Усталяваць Laravel», каб усталяваць праграму.",
+      "es": "El directorio público del proyecto está listo. Abre el resumen de este proyecto en OSP Control y pulsa Instalar Laravel para instalar la aplicación."
+    },
+    "LARAVEL_DETAILS": {
+      "en": "Installation preserves .osp and replaces this placeholder. Instructions are in .osp/laravel-readme.md.",
+      "ru": "При установке .osp сохранится, а эта заглушка будет заменена. Инструкции находятся в .osp/laravel-readme.md.",
+      "uk": "Під час встановлення .osp збережеться, а цю заглушку буде замінено. Інструкції розташовані в .osp/laravel-readme.md.",
+      "be": "Пры ўсталяванні .osp захаваецца, а гэтая заглушка будзе заменена. Інструкцыі знаходзяцца ў .osp/laravel-readme.md.",
+      "es": "La instalación conserva .osp y reemplaza esta página provisional. Las instrucciones están en .osp/laravel-readme.md."
+    },
+    "LARAVEL_TASK": {
+      "en": "Laravel scheduler",
+      "ru": "Планировщик Laravel",
+      "uk": "Планувальник Laravel",
+      "be": "Планавальнік Laravel",
+      "es": "Planificador de Laravel"
+    },
+    "INSTALL_BUTTON": {
+      "en": "Install Laravel",
+      "ru": "Установить Laravel",
+      "uk": "Установити Laravel",
+      "be": "Усталяваць Laravel",
+      "es": "Instalar Laravel"
+    }
+  },
+  "httpPreference": "apache",
+  "php": true,
+  "node": false,
+  "installer": null,
+  "readmePath": ".osp/laravel-readme.md",
+  "database": {
+    "enabled": true,
+    "engines": [
+      "sqlite",
+      "mysql",
+      "mariadb",
+      "postgresql"
+    ],
+    "defaultEngine": "sqlite",
+    "sqliteHint": {
+      "en": "The file {path} will be created and migrated when Laravel is installed. No database server is required.",
+      "ru": "При установке Laravel будет создан файл {path} и выполнены миграции. Отдельный сервер БД не нужен.",
+      "uk": "Під час встановлення Laravel буде створено файл {path} і виконано міграції. Окремий сервер БД не потрібен.",
+      "be": "Пры ўсталяванні Laravel будзе створаны файл {path} і выкананы міграцыі. Асобны сервер БД не патрэбен.",
+      "es": "El archivo {path} se creará y migrará cuando se instale Laravel. No se necesita un servidor de base de datos."
+    }
+  },
+  "install": {
+    "title": {
+      "en": "Laravel installation",
+      "ru": "Установка Laravel",
+      "uk": "Встановлення Laravel",
+      "be": "Усталяванне Laravel",
+      "es": "Instalación de Laravel"
+    },
+    "pending": {
+      "en": "The public directory and placeholder are ready. Laravel has not been installed yet.",
+      "ru": "Публичный каталог и заглушка готовы. Laravel пока не установлен.",
+      "uk": "Публічний каталог і заглушка готові. Laravel ще не встановлено.",
+      "be": "Публічны каталог і заглушка гатовыя. Laravel яшчэ не ўсталяваны.",
+      "es": "El directorio público y la página provisional están listos. Laravel aún no está instalado."
+    },
+    "button": {
+      "en": "Install Laravel",
+      "ru": "Установить Laravel",
+      "uk": "Установити Laravel",
+      "be": "Усталяваць Laravel",
+      "es": "Instalar Laravel"
+    },
+    "hint": {
+      "en": "Composer will download Laravel and its dependencies using the selected PHP module. The selected database is prepared before migrations run. Installation uses a temporary directory and preserves .osp. npm is not run.",
+      "ru": "Composer загрузит Laravel и зависимости с помощью выбранного PHP. Перед миграциями будет подготовлена выбранная база данных. Установка выполняется во временном каталоге с сохранением .osp. npm не запускается.",
+      "uk": "Composer завантажить Laravel і залежності за допомогою вибраного PHP. Перед міграціями буде підготовлено вибрану базу даних. Встановлення виконується в тимчасовому каталозі зі збереженням .osp. npm не запускається.",
+      "be": "Composer спампуе Laravel і залежнасці з дапамогай выбранага PHP. Перад міграцыямі будзе падрыхтавана выбраная база даных. Усталяванне выконваецца ў часовым каталогу са захаваннем .osp. npm не запускаецца.",
+      "es": "Composer descargará Laravel y sus dependencias usando el PHP seleccionado. Antes de las migraciones se prepara la base de datos seleccionada. La instalación usa un directorio temporal y conserva .osp. npm no se ejecuta."
+    },
+    "unsaved": {
+      "en": "Save or discard your project changes before installing Laravel.",
+      "ru": "Перед установкой Laravel сохраните или отмените изменения проекта.",
+      "uk": "Перед встановленням Laravel збережіть або скасуйте зміни проєкту.",
+      "be": "Перад усталяваннем Laravel захавайце або адмяніце змены праекта.",
+      "es": "Guarda o descarta los cambios del proyecto antes de instalar Laravel."
+    },
+    "done": {
+      "en": "Laravel installed in the project root. Restart OSPanel to apply the changes.",
+      "ru": "Laravel установлен в корень проекта. Перезапустите OSPanel для применения изменений.",
+      "uk": "Laravel встановлено в корінь проєкту. Перезапустіть OSPanel для застосування змін.",
+      "be": "Laravel усталяваны ў корань праекта. Перазапусціце OSPanel для ўжывання змен.",
+      "es": "Laravel instalado en la raíz del proyecto. Reinicia OSPanel para aplicar los cambios."
+    },
+    "log": {
+      "en": "Composer output",
+      "ru": "Вывод Composer",
+      "uk": "Вивід Composer",
+      "be": "Вывад Composer",
+      "es": "Salida de Composer"
+    },
+    "backup": {
+      "en": "Original scaffold backup: {path}",
+      "ru": "Резервная копия исходной заготовки: {path}",
+      "uk": "Резервна копія вихідної заготовки: {path}",
+      "be": "Рэзервовая копія зыходнай загатоўкі: {path}",
+      "es": "Copia de seguridad de la estructura original: {path}"
+    },
+    "phases": {
+      "preparing": {
+        "en": "Checking the scaffold and PHP environment…",
+        "ru": "Проверка заготовки и окружения PHP…",
+        "uk": "Перевірка заготовки та середовища PHP…",
+        "be": "Праверка загатоўкі і асяроддзя PHP…",
+        "es": "Comprobando la estructura y el entorno PHP…"
+      },
+      "installing": {
+        "en": "Installing Laravel with Composer…",
+        "ru": "Установка Laravel через Composer…",
+        "uk": "Встановлення Laravel через Composer…",
+        "be": "Усталяванне Laravel праз Composer…",
+        "es": "Instalando Laravel con Composer…"
+      },
+      "publishing": {
+        "en": "Checking files and transferring Laravel to the project root…",
+        "ru": "Проверка файлов и перенос Laravel в корень проекта…",
+        "uk": "Перевірка файлів і перенесення Laravel до кореня проєкту…",
+        "be": "Праверка файлаў і перанос Laravel у корань праекта…",
+        "es": "Comprobando archivos y transfiriendo Laravel a la raíz del proyecto…"
+      },
+      "database": {
+        "en": "Preparing the selected database…",
+        "ru": "Подготовка выбранной базы данных…",
+        "uk": "Підготовка вибраної бази даних…",
+        "be": "Падрыхтоўка выбранай базы даных…",
+        "es": "Preparando la base de datos seleccionada…"
+      },
+      "configuring": {
+        "en": "Generating the application key and running migrations…",
+        "ru": "Генерация ключа приложения и запуск миграций…",
+        "uk": "Генерація ключа застосунку та запуск міграцій…",
+        "be": "Генерацыя ключа праграмы і запуск міграцый…",
+        "es": "Generando la clave de la aplicación y ejecutando migraciones…"
+      }
+    },
+    "createProject": "laravel/laravel",
+    "scripts": false,
+    "payload": {
+      "composerName": "laravel/laravel",
+      "files": [
+        "artisan",
+        "public/index.php",
+        "vendor/autoload.php"
+      ]
+    },
+    "envSource": ".env.example",
+    "env": {
+      "APP_URL": "{url}"
+    },
+    "envSqlite": {
+      "DB_CONNECTION": "sqlite",
+      "DB_DATABASE": "{sqliteFile}"
+    },
+    "envServer": {
+      "DB_CONNECTION": "{dbConnection}",
+      "DB_HOST": "{dbHost}",
+      "DB_PORT": "{dbPort}",
+      "DB_DATABASE": "{dbName}",
+      "DB_USERNAME": "{dbUsername}",
+      "DB_PASSWORD": "{dbPassword}"
+    },
+    "sqliteDir": "database",
+    "sqliteFallback": true,
+    "console": [
+      [
+        "artisan",
+        "package:discover",
+        "--ansi"
+      ],
+      [
+        "artisan",
+        "key:generate",
+        "--force",
+        "--no-interaction"
+      ]
+    ],
+    "consoleWithDb": [
+      [
+        "artisan",
+        "migrate",
+        "--force",
+        "--no-interaction"
+      ]
+    ]
+  },
+  "projectRoot": "{base_dir}",
+  "webRoot": "{base_dir}\\public",
+  "settings": {
+    "backend_enabled": "off"
+  },
+  "directories": [
+    "public"
+  ]
+}
