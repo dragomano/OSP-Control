@@ -4,6 +4,9 @@ export type ProjectWorkspace = {
   baseDir: string;
   content: string | null;
   files: string[];
+  // Editable application configuration files (from the starter manifest), e.g.
+  // ["public/wp-config.php"] — shown in the "Application files" tab.
+  applicationFiles?: string[];
   readme?: string | null;
   // Installer marker states by starter kind ("laravel", "wordpress", "symfony").
   installers?: Record<string, 'pending' | 'installed' | null>;
@@ -101,10 +104,6 @@ export function projectFileLanguage(file: string): string {
   if (path.startsWith('caddy/')) return 'Caddyfile';
   if (path.endsWith('.php')) return 'PHP';
   return 'INI';
-}
-
-export function isApplicationFile(file: string): boolean {
-  return /^(?:.*\/)?(?:\.env|wp-config\.php)$/.test(file);
 }
 
 export function projectOpeningUrl(

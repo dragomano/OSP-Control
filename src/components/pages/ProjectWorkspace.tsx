@@ -39,7 +39,6 @@ import { type ProjectTask, parseProjectTasks, renderProjectTasks, taskErrors } f
 import { type StarterInstall, starterText } from '../../projectTemplates';
 import {
   appendProjectDomain,
-  isApplicationFile,
   patchProjectIni,
   projectDomains,
   projectFileLanguage,
@@ -154,7 +153,7 @@ export function ProjectWorkspace({
     tasksDirty ||
     Object.values(files).some((file) => file.draft !== (file.original ?? ''));
   const locked = busy || installingApplication || blocked || menuState.busy;
-  const applicationFiles = doc?.files.filter(isApplicationFile) ?? [];
+  const applicationFiles = doc?.applicationFiles ?? [];
   const phpFiles = doc?.files.filter((path) => /(?:^|\/)\.user\.ini$/.test(path)) ?? [];
   const selectedPhpFile = phpFiles.includes(phpFile) ? phpFile : (phpFiles[0] ?? '.user.ini');
   const tabs = TABS.filter(([key]) => key !== 'application' || applicationFiles.length > 0);
@@ -316,7 +315,7 @@ export function ProjectWorkspace({
         setFiles((current) => ({ ...current, [name]: { original: result.content, draft: result.content } }));
         if (name === 'tasks.ini') setTasks(parseProjectTasks(result.content).tasks);
         setDiagnosticsRevision((value) => value + 1);
-        if (!isApplicationFile(name) && !name.endsWith('.user.ini')) setRestartNeeded(true);
+        if (!applicationFiles.includes(name) && !name.endsWith('.user.ini')) setRestartNeeded(true);
       }
       const panelChanged =
         iniDirty ||
@@ -324,7 +323,9 @@ export function ProjectWorkspace({
         tasksDirty ||
         Object.entries(files).some(
           ([name, draft]) =>
-            !isApplicationFile(name) && !name.endsWith('.user.ini') && draft.draft !== (draft.original ?? ''),
+            !applicationFiles.includes(name) &&
+            !name.endsWith('.user.ini') &&
+            draft.draft !== (draft.original ?? ''),
         );
       notify(
         t('workspace.saved'),
@@ -413,7 +414,7 @@ export function ProjectWorkspace({
           <b>
             {isPhpFile
               ? `${doc?.baseDir}\\${file.replace(/\//g, '\\')}`
-              : isApplicationFile(file)
+              : applicationFiles.includes(file)
                 ? file
                 : `.osp/${file}`}
           </b>

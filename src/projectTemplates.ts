@@ -25,6 +25,10 @@ export type StarterManifest = {
   webRoot: string | null;
   settings: Record<string, string>;
   directories: string[];
+  // Editable application configuration files of the created project (basenames,
+  // probed in the project root and configured roots). New starters declare their
+  // own config files here instead of requiring engine changes.
+  applicationFiles?: string[];
   // Starter-owned texts for __KEY__ tokens in the package files (JSON-suffixed keys become JSON string literals).
   messages: Record<string, StarterText>;
   // Optional toast after a project is created from this starter; {domain} is substituted.

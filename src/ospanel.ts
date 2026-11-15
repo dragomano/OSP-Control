@@ -1109,6 +1109,7 @@ export async function readProjectWorkspace(project: OsPanelProject): Promise<Pro
         demoProjectFiles.has(`${project.path}/${doc.manifest.id}.json`) ? 'pending' : null,
       ]),
     ),
+    applicationFiles: ['.env'],
     files: [
       'project.ini',
       'env.ini',

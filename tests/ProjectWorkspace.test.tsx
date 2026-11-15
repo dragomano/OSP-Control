@@ -213,7 +213,12 @@ describe('project workspace drafts', () => {
     ['Configurations', 'nginx/shop.test.conf'],
     ['Application files', '.env'],
   ])('does not add footer actions after saving an existing file on %s', async (tab, file) => {
-    mocks.readProjectWorkspace.mockResolvedValue({ baseDir: project.path, content, files: ['.env'] });
+    mocks.readProjectWorkspace.mockResolvedValue({
+      baseDir: project.path,
+      content,
+      files: ['.env'],
+      applicationFiles: ['.env'],
+    });
     mocks.readProjectFile.mockResolvedValue('original content\n');
     mocks.saveProjectFile.mockResolvedValue({
       content: 'updated content\n',
@@ -252,6 +257,7 @@ describe('project workspace drafts', () => {
       baseDir: project.path,
       content,
       files: ['.env', 'public/wp-config.php'],
+      applicationFiles: ['.env', 'public/wp-config.php'],
     });
     mocks.readProjectFile.mockImplementation(async (_project, file) =>
       file === '.env' ? 'APP_ENV=local\n' : '<?php\n',
@@ -292,6 +298,30 @@ describe('project workspace drafts', () => {
     );
     await waitFor(() => expect(notify).toHaveBeenCalledWith(t('workspace.saved'), undefined));
     expect(screen.queryByText(t('workspace.restartNeeded'))).not.toBeInTheDocument();
+  });
+
+  it('edits SMF Settings.php as an application configuration file', async () => {
+    mocks.readProjectWorkspace.mockResolvedValue({
+      baseDir: project.path,
+      content,
+      files: ['public/Settings.php'],
+      applicationFiles: ['public/Settings.php'],
+    });
+    mocks.readProjectFile.mockResolvedValue("<?php\n$db_server = 'localhost';\n");
+    mocks.saveProjectFile.mockResolvedValue({ content: '<?php\n', backupPath: null });
+    const { notify } = setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Application files' }));
+    const box = await screen.findByRole('textbox', { name: 'Contents of public/Settings.php' });
+    expect(box).toHaveValue("<?php\n$db_server = 'localhost';\n");
+    fireEvent.change(box, { target: { value: "<?php\n$db_server = '127.0.0.1';\n" } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith(t('workspace.saved'), undefined));
+    expect(mocks.saveProjectFile).toHaveBeenCalledWith(
+      project,
+      'public/Settings.php',
+      "<?php\n$db_server = 'localhost';\n",
+      "<?php\n$db_server = '127.0.0.1';\n",
+    );
   });
 
   it('keeps Laravel installation visible, blocks navigation while running and reloads its successful state', async () => {

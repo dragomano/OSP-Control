@@ -144,6 +144,9 @@ pub(crate) struct Manifest {
     pub web_root: Option<String>,
     #[serde(default)] pub settings: BTreeMap<String, String>,
     #[serde(default)] pub directories: Vec<String>,
+    // Editable application-level configuration files of the created project
+    // (basenames probed in the project root and configured roots, e.g. "Settings.php").
+    #[serde(default)] pub application_files: Vec<String>,
     // Starter-owned page texts: __KEY__ tokens in the package files resolve here first,
     // so no starter-specific strings live in the application locale dictionaries.
     #[serde(default)] pub messages: BTreeMap<String, Text>,
@@ -217,7 +220,7 @@ pub(crate) fn validate(doc: &Document) -> Result<(), CommandError> {
                 url_valid(&a.url)
                     && a.checksum_url.as_deref().is_none_or(url_valid)
                     && (1_000..=1_000_000_000).contains(&a.max_archive_bytes)
-                    && relative(&a.extract.from_dir)
+                    && (a.extract.from_dir.is_empty() || relative(&a.extract.from_dir))
                     && relative(&a.extract.to)
                     && a.extract.required_files.len() <= MAX_FILES
                     && a.extract.required_files.iter().all(|f| relative(f))
@@ -245,6 +248,8 @@ pub(crate) fn validate(doc: &Document) -> Result<(), CommandError> {
     let group_c = m.install.as_ref().is_some_and(|install| !install_valid(install, m.install.as_ref().is_some_and(|a| a.archive.is_some())));
     let group_d = m.directories.len() > MAX_FILES
         || m.directories.iter().any(|s| !relative(s))
+        || m.application_files.len() > MAX_FILES
+        || m.application_files.iter().any(|s| !relative(s))
         || m.readme_path.as_deref().is_some_and(|s| !relative(s))
         || m.messages.len() > MAX_FILES
         || m.messages.keys().any(|k| !message_key_valid(k))

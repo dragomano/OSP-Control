@@ -26,6 +26,7 @@ pub(crate) struct ProjectWorkspace {
     base_dir: String,
     content: Option<String>,
     files: Vec<String>,
+    application_files: Vec<String>,
     readme: Option<String>,
     installers: BTreeMap<String, String>,
 }
@@ -206,12 +207,42 @@ fn php_files(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
         .collect())
 }
 
+// App-level configuration basenames: the conventional .env plus the names each
+// starter declares in its manifest, so new starters need no engine changes.
+fn application_basenames() -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    names.insert(".env".into());
+    for entry in crate::project_starters::list().unwrap_or_default() {
+        if let Some(doc) = entry.document {
+            names.extend(doc.manifest.application_files.iter().cloned());
+        }
+    }
+    names
+}
+
+// Candidate project readme paths: the conventional README.md plus each starter's
+// declared readmePath, so a new starter's readme needs no engine changes either.
+fn readme_candidates() -> BTreeSet<String> {
+    let mut candidates = BTreeSet::new();
+    candidates.insert("README.md".into());
+    for entry in crate::project_starters::list().unwrap_or_default() {
+        if let Some(doc) = entry.document {
+            if let Some(readme) = doc.manifest.readme_path {
+                candidates.insert(readme);
+            }
+        }
+    }
+    candidates
+}
+
 fn application_files(dir: &Path) -> Result<BTreeSet<String>, CommandError> {
+    let names = application_basenames();
     Ok(configuration_directories(dir)?
         .into_iter()
         .flat_map(|directory| {
-            [".env", "wp-config.php"]
-                .map(|file| if directory.is_empty() { file.into() } else { format!("{directory}/{file}") })
+            names.iter().map(move |file| {
+                if directory.is_empty() { file.clone() } else { format!("{directory}/{file}") }
+            })
         })
         .collect())
 }
@@ -231,9 +262,7 @@ fn file_path(dir: &Path, domain: &str, file: &str, create: bool) -> Result<PathB
         }
         return application_path(dir, file);
     }
-    if matches!(file.rsplit('/').next(), Some(".env" | "wp-config.php"))
-        && application_files(dir)?.contains(file)
-    {
+    if application_files(dir)?.contains(file) {
         let path = application_path(dir, file)?;
         // Application configuration is editable only when it already exists.
         if create && !path.is_file() {
@@ -281,9 +310,11 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
             files.push(format!("{engine}/{domain}.conf"));
         }
     }
+    let mut application = Vec::new();
     for file in application_files(&dir)? {
         if application_path(&dir, &file).is_ok_and(|path| path.is_file()) {
-            files.push(file);
+            files.push(file.clone());
+            application.push(file);
         }
     }
     // Installers are declared by starter packages; markers hold their readiness.
@@ -302,10 +333,10 @@ fn workspace(root: &Path, domain: &str, base_dir: &str) -> Result<ProjectWorkspa
         base_dir: external_path(&dir).to_string_lossy().into_owned(),
         content,
         files,
-        readme: [".osp/laravel-readme.md", ".osp/wordpress-readme.md", "README.md"]
+        application_files: application,
+        readme: readme_candidates()
             .into_iter()
-            .find(|file| application_path(&dir, file).is_ok_and(|path| path.is_file()))
-            .map(str::to_owned),
+            .find(|file| application_path(&dir, file).is_ok_and(|path| path.is_file())),
         installers,
     })
 }
@@ -704,11 +735,11 @@ mod tests {
         let dir = PathBuf::from(f.dir());
         fs::create_dir_all(dir.join("public")).unwrap();
         fs::create_dir_all(dir.join("api")).unwrap();
-        for file in [".env", "public/wp-config.php", "api/.env"] {
+        for file in [".env", "public/wp-config.php", "api/.env", "public/Settings.php"] {
             fs::write(dir.join(file), "original\r\n").unwrap();
         }
         let doc = workspace(&f.0, "shop.test", &f.dir()).unwrap();
-        for file in [".env", "public/wp-config.php", "api/.env"] {
+        for file in [".env", "public/wp-config.php", "api/.env", "public/Settings.php"] {
             assert!(doc.files.contains(&file.into()));
             let result = save(&f.0, "shop.test", &f.dir(), file, Some("original\r\n"), "updated\n").unwrap();
             assert_eq!(fs::read_to_string(dir.join(file)).unwrap(), "updated\r\n");

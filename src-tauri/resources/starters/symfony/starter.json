@@ -80,7 +80,7 @@
       "mariadb",
       "postgresql"
     ],
-    "defaultEngine": "none",
+    "defaultEngine": "sqlite",
     "sqliteHint": {
       "en": "The file {path} will be used by the application after installation; Doctrine creates it on the first connection. No database server is required.",
       "ru": "Файл {path} будет использоваться приложением после установки; Doctrine создаст его при первом подключении. Отдельный сервер БД не нужен.",

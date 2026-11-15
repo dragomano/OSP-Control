@@ -15,6 +15,7 @@ import { listProjectStarters } from '../../projectStarters';
 import {
   BUILTIN_TEMPLATES,
   PROJECT_TEMPLATES,
+  type ProjectTemplate,
   type ProjectTemplateId,
   preferredTemplateEngine,
   preferredTemplateHttpEngine,
@@ -46,6 +47,22 @@ function DatabaseEngineSelect({
       <MenuSelect align="start" ariaLabel={label} value={value} options={options} onChange={onChange} />
     </div>
   );
+}
+
+// Prefers the starter's declared default database family (for example "mysql" for
+// SMF) when one of its installed modules is available; otherwise returns "" so the
+// caller falls back to the best-installed engine across all allowed families.
+function preferredDatabaseEngine(template: ProjectTemplate, engines: string[]): string {
+  const family = template.starter?.manifest.database.defaultEngine;
+  const prefix: Record<string, string> = {
+    mysql: 'MySQL-',
+    mariadb: 'MariaDB-',
+    postgresql: 'PostgreSQL-',
+  };
+  const start = family ? prefix[family] : '';
+  if (!start) return '';
+  const match = engines.filter((engine) => engine.startsWith(start));
+  return match.length ? preferredTemplateEngine(match, '') : '';
 }
 
 export function CreateProjectDialog({
@@ -188,7 +205,7 @@ export function CreateProjectDialog({
         ? 'none'
         : next.starter?.manifest.database.defaultEngine === 'sqlite'
           ? 'sqlite'
-          : preferredTemplateEngine(engines, '') || 'none';
+          : preferredDatabaseEngine(next, engines) || preferredTemplateEngine(engines, '') || 'none';
     setDatabaseEngine(engine);
     setDatabaseUser(engine.startsWith('PostgreSQL-') ? 'postgres' : 'root');
     if (!options) return;
