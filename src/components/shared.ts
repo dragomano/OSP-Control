@@ -182,25 +182,29 @@ export const serviceMenuEntries = (
   t: Translator,
   notify: Notify,
   blocked = false,
+  // Disables only the start/stop/restart entries (e.g. when the panel is stopped),
+  // leaving the open/console/explorer actions usable.
+  startBlocked = false,
 ): MenuEntry[] => {
   const toggle = stopStartAction(service, t);
   const actions: MenuEntry[] = [];
+  const startDisabled = blocked || startBlocked;
 
   if (toggle.action) {
     actions.push({
       label: toggle.label,
       icon: toggle.icon,
-      disabled: blocked,
+      disabled: startDisabled,
       onSelect: () => {
-        if (!blocked) onAction(service, toggle.action as 'start' | 'stop');
+        if (!startDisabled) onAction(service, toggle.action as 'start' | 'stop');
       },
     });
     actions.push({
       label: t('common.restart'),
       icon: RefreshCw,
-      disabled: blocked,
+      disabled: startDisabled,
       onSelect: () => {
-        if (!blocked) onAction(service, 'restart');
+        if (!startDisabled) onAction(service, 'restart');
       },
     });
   }

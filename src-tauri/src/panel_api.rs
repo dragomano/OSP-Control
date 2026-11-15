@@ -53,6 +53,9 @@ pub(crate) struct Project {
     pub(crate) php: String,
     pub(crate) r#type: String,
     pub(crate) ssl: bool,
+    // Raw per-project TLS state: "on" | "off" | "auto". The API reports the
+    // effective (auto-resolved) value, so discovery refines this from disk.
+    pub(crate) tls: String,
 }
 
 // --- Panel state via its local HTTP API ---
@@ -168,8 +171,11 @@ fn api_get(address: &str, path: &str) -> Option<String> {
     use std::time::Duration;
 
     let addr = address.to_socket_addrs().ok()?.next()?;
-    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).ok()?;
-    stream.set_read_timeout(Some(Duration::from_secs(10))).ok()?;
+    // The panel's API is a local control plane: when it is alive it answers in
+    // milliseconds, and when it is not, the connect is refused immediately. Short
+    // timeouts keep a silent or foreign listener on the port from stalling startup.
+    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_millis(500)).ok()?;
+    stream.set_read_timeout(Some(Duration::from_secs(1))).ok()?;
     let request = format!(
         "GET {path} HTTP/1.0\r\nHost: {address}\r\nAccept: application/json\r\nConnection: close\r\n\r\n"
     );
@@ -262,16 +268,19 @@ pub(crate) fn projects_from_json(json: &serde_json::Value, root: &Path) -> Vec<P
             let php_engine = text("php_engine");
             let php = php_engine.strip_prefix("PHP-").unwrap_or(&php_engine);
             let http_engine = text("http_engine");
+            let ssl = fields
+                .get("tls_enabled")
+                .and_then(|field| field.get("_value"))
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
             Some(Project {
                 domain,
                 path,
                 php: if php.is_empty() { "-".into() } else { php.into() },
                 r#type: if http_engine.is_empty() { "-".into() } else { http_engine },
-                ssl: fields
-                    .get("tls_enabled")
-                    .and_then(|field| field.get("_value"))
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
+                ssl,
+                // The API value is effective; the raw tri-state is refined from disk.
+                tls: if ssl { "on".into() } else { "off".into() },
             })
         })
         .collect();

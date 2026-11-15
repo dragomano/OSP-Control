@@ -314,6 +314,7 @@ mod tests {
             php: "-".into(),
             r#type: "-".into(),
             ssl: false,
+            tls: "off".into(),
         };
         assert_eq!(project_directory(&fixture.0, "external.test", &[registered]).unwrap(), external.0);
     }

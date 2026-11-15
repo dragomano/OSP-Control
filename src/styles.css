@@ -2648,6 +2648,22 @@ button {
     0 0 45px var(--lt-accent-glow),
     inset 0 0 14px var(--lt-accent-glow);
 }
+.hero-orb.offline .orb-ring {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--dim) 40%, transparent);
+}
+.hero-orb.offline .orb-center {
+  background: radial-gradient(
+    circle at 38% 30%,
+    color-mix(in srgb, var(--muted) 65%, var(--panel2)),
+    color-mix(in srgb, var(--dim) 40%, var(--panel2)) 55%,
+    color-mix(in srgb, var(--dim) 18%, var(--panel))
+  );
+  color: var(--muted);
+  box-shadow:
+    0 0 35px color-mix(in srgb, var(--dim) 12%, transparent),
+    inset 0 0 14px color-mix(in srgb, var(--muted) 12%, transparent);
+}
 .light .metric-icon.blue {
   background: var(--lt-info-soft);
   color: var(--lt-info-text);
@@ -3392,6 +3408,14 @@ button {
   }
   .orb-center {
     box-shadow: 0 0 35px color-mix(in srgb, var(--k-eda75f) 12%, transparent);
+  }
+  .hero-orb.offline .orb-ring {
+    border-color: color-mix(in srgb, var(--dim) 40%, transparent);
+  }
+  .hero-orb.offline .orb-center {
+    box-shadow:
+      0 0 35px color-mix(in srgb, var(--dim) 12%, transparent),
+      inset 0 0 14px color-mix(in srgb, var(--muted) 12%, transparent);
   }
   .tip-panel {
     background: var(--dark-grain), linear-gradient(135deg, var(--dark-soft), var(--panel));

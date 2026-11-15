@@ -125,7 +125,7 @@ function ProjectsContent({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [hostsOpen, setHostsOpen] = useState(false);
   const [renameFor, setRenameFor] = useState<OsPanelProject | null>(null);
-  const [sslFilter, setSslFilter] = useState<'all' | 'on' | 'off'>('all');
+  const [sslFilter, setSslFilter] = useState<'all' | 'on' | 'off' | 'auto'>('all');
   const [phpFilter, setPhpFilter] = useState('all');
   const [httpEngineFilter, setHttpEngineFilter] = useState('all');
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
@@ -222,7 +222,12 @@ function ProjectsContent({
     () =>
       matchingProjects.filter(
         (project) =>
-          (sslFilter === 'all' || (sslFilter === 'on' ? project.ssl : !project.ssl)) &&
+          (sslFilter === 'all' ||
+            (sslFilter === 'on'
+              ? project.ssl
+              : sslFilter === 'off'
+                ? !project.ssl
+                : project.tls === 'auto')) &&
           (phpFilter === 'all' || project.php === phpFilter) &&
           (httpEngineFilter === 'all' || project.type === httpEngineFilter) &&
           matchesProjectTags(tagsForProject(projectTags, project.domain), tagFilters, tagMatch),
@@ -420,12 +425,13 @@ function ProjectsContent({
         <div className="project-ssl-filter">
           <FilterFacet
             icon={ShieldCheck}
-            label={t('projects.filterSsl')}
+            label={t('projects.colTls')}
             allLabel={t('projects.filterAll')}
             value={sslFilter}
             options={[
-              { value: 'on', label: t('projects.filterSslOn') },
-              { value: 'off', label: t('projects.filterSslOff') },
+              { value: 'on', label: t('projects.sslOn') },
+              { value: 'off', label: t('projects.sslOff') },
+              { value: 'auto', label: t('projects.sslAuto') },
             ]}
             onChange={(value) => setSslFilter(value)}
           />
@@ -540,7 +546,7 @@ function ProjectsContent({
           <span>{t('projects.colName')}</span>
           <span>{t('projects.tagsColumn')}</span>
           <span>{t('projects.colEnv')}</span>
-          <span>{t('projects.colSsl')}</span>
+          <span>{t('projects.colTls')}</span>
           <span>{t('projects.colActions')}</span>
         </div>
         {visibleProjects.length === 0 ? (
@@ -662,7 +668,17 @@ function ProjectsContent({
                         })}
                       >
                         {project.ssl ? <ShieldCheck size={13} /> : <ShieldOff size={13} />}
-                        {t(project.ssl ? 'projects.sslOn' : 'projects.sslOff')}
+                        {t(
+                          project.tls === 'on'
+                            ? 'projects.sslOn'
+                            : project.tls === 'auto'
+                              ? 'projects.sslAuto'
+                              : project.tls === 'off'
+                                ? 'projects.sslOff'
+                                : project.ssl
+                                  ? 'projects.sslOn'
+                                  : 'projects.sslOff',
+                        )}
                       </button>
                     </div>
                     <div className="row-actions">

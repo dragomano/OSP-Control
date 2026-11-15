@@ -11,6 +11,7 @@ const keys = new Set([
   'ospanel.sidebar',
   'ospanel.notify',
   'ospanel.autostartProjects',
+  'ospanel.autostartPanel',
   'ospanel.path',
   'ospanel.checkAppUpdates',
   'ospanel.checkServiceUpdates',

@@ -30,6 +30,8 @@ const snapshot = {
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('ospanel.lang', 'en');
+  // The panel auto-launch defaults to off; most startup tests exercise it explicitly.
+  localStorage.setItem('ospanel.autostartPanel', '1');
   mocks.startOsPanel.mockReset().mockResolvedValue(undefined);
   mocks.waitForPanelReady.mockReset().mockResolvedValue(true);
   mocks.discoverOsPanel.mockReset().mockResolvedValue(snapshot);

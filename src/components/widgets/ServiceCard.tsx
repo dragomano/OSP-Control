@@ -11,6 +11,7 @@ export function ServiceCard({
   notify,
   busy = false,
   busyLabel,
+  controlsDisabled = false,
 }: {
   service: Service;
   onToggle: () => void;
@@ -18,6 +19,8 @@ export function ServiceCard({
   notify: Notify;
   busy?: boolean;
   busyLabel?: string;
+  // Disables start/stop (e.g. while the panel is stopped); other actions remain usable.
+  controlsDisabled?: boolean;
 }) {
   const { t } = useI18n();
   const updates = useModuleUpdates();
@@ -25,7 +28,7 @@ export function ServiceCard({
   busy = busy || Boolean(updates.active[service.name]);
   const Icon = service.icon;
   const toggle = stopStartAction(service, t);
-  const toggleDisabled = toggle.disabled || busy || updates.busy;
+  const toggleDisabled = toggle.disabled || busy || updates.busy || controlsDisabled;
 
   return (
     <div className={`service-card ${busy ? 'busy' : ''}`} aria-busy={busy}>
@@ -33,7 +36,9 @@ export function ServiceCard({
         <div className="service-icon">
           <Icon size={18} />
         </div>
-        <RowMenu entries={serviceMenuEntries(service, onAction, t, notify, busy || updates.busy)} />
+        <RowMenu
+          entries={serviceMenuEntries(service, onAction, t, notify, busy || updates.busy, controlsDisabled)}
+        />
       </div>
       <div className="service-title">
         <h4>{service.name}</h4>

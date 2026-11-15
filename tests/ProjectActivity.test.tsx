@@ -196,8 +196,8 @@ describe('project activity UI', () => {
     expect(screen.getByText('recent.test/index.php')).not.toBeVisible();
     expect(screen.getByText('older.test/index.php')).toBeVisible();
     expect(screen.getByText('Scan incomplete; the modification date may be inaccurate')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'SSL' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Without certificate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'TLS' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'TLS off' }));
     expect(screen.getByText('No projects match the selected filters')).toBeVisible();
     expect(mocks.getProjectActivity).toHaveBeenCalledTimes(1);
   });

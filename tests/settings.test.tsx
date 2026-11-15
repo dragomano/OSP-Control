@@ -207,6 +207,15 @@ describe('Settings autostart tab', () => {
     expect(props.notify).toHaveBeenCalledWith('Project module autostart enabled');
   });
 
+  it('persists the panel auto-launch locally', () => {
+    const { props } = openTab();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Launch OSPanel on app start' }));
+
+    expect(localStorage.getItem('ospanel.autostartPanel')).toBe('1');
+    expect(props.notify).toHaveBeenCalledWith('OSPanel auto-launch enabled');
+  });
+
   it('keeps update checks on their own tab', () => {
     const connection = renderSettings();
     expect(screen.queryByRole('button', { name: 'Check for module updates at startup' })).toBeNull();

@@ -16,6 +16,7 @@ mod module_health;
 mod module_profiles;
 mod module_releases;
 mod module_updates;
+mod offline;
 mod panel_api;
 mod paths;
 mod php_releases;

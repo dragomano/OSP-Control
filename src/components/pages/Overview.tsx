@@ -9,6 +9,7 @@ import {
   Power,
   RefreshCw,
   Sparkles,
+  Unplug,
   Wifi,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -35,6 +36,7 @@ export function Overview({
   onSync,
   panelRestarting = false,
   pendingServices,
+  panelOnline = true,
 }: {
   runningCount: number;
   services: Service[];
@@ -48,6 +50,8 @@ export function Overview({
   onSync: () => Promise<boolean>;
   panelRestarting?: boolean;
   pendingServices?: ReadonlySet<string>;
+  // When the panel is stopped, module start/stop is disabled.
+  panelOnline?: boolean;
 }) {
   const { lang, t } = useI18n();
   const logAliases = logAliasesFromTranslator(t);
@@ -120,9 +124,9 @@ export function Overview({
           <h2>
             {t('overview.heroTitle')}
             <br />
-            <span>{t('overview.heroTitleAccent')}</span>
+            <span>{t(panelOnline ? 'overview.heroTitleAccent' : 'overview.heroTitleAccentOffline')}</span>
           </h2>
-          <p>{t('overview.heroText')}</p>
+          <p>{t(panelOnline ? 'overview.heroText' : 'overview.heroTextOffline')}</p>
           <div className="hero-actions">
             <button type="button" className="hero-button" onClick={() => onNavigate('services')}>
               <Power size={16} />
@@ -133,12 +137,10 @@ export function Overview({
             </button>
           </div>
         </div>
-        <div className="hero-orb">
+        <div className={`hero-orb${panelOnline ? '' : ' offline'}`}>
           <div className="orb-ring ring-one" />
           <div className="orb-ring ring-two" />
-          <div className="orb-center">
-            <Leaf size={30} />
-          </div>
+          <div className="orb-center">{panelOnline ? <Leaf size={30} /> : <Unplug size={30} />}</div>
         </div>
       </section>
       <div className="metrics-grid">
@@ -210,6 +212,7 @@ export function Overview({
               notify={notify}
               busy={busy}
               busyLabel={busyLabel}
+              controlsDisabled={!panelOnline}
             />
           );
         })}

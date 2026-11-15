@@ -338,7 +338,10 @@ function App() {
           const pending = localSslRef.current.get(key);
           if (pending === undefined) continue;
           if (project.ssl === pending) localSslRef.current.delete(key);
-          else project.ssl = pending;
+          else {
+            project.ssl = pending;
+            project.tls = pending ? 'on' : 'off';
+          }
         }
         mergedProjects.sort((a, b) => a.domain.toLowerCase().localeCompare(b.domain.toLowerCase()));
       }
@@ -397,6 +400,7 @@ function App() {
       php: created.php,
       type: created.http,
       ssl: created.ssl,
+      tls: created.ssl ? 'on' : 'off',
     };
     localAddedRef.current.set(created.domain.toLowerCase(), project);
     setProjects((current) => [
@@ -460,9 +464,11 @@ function App() {
       );
       localSslRef.current.set(key, next);
       const local = localAddedRef.current.get(key);
-      if (local) localAddedRef.current.set(key, { ...local, ssl: next });
+      if (local) localAddedRef.current.set(key, { ...local, ssl: next, tls: next ? 'on' : 'off' });
       setProjects((list) =>
-        list.map((item) => (item.domain.toLowerCase() === key ? { ...item, ssl: next } : item)),
+        list.map((item) =>
+          item.domain.toLowerCase() === key ? { ...item, ssl: next, tls: next ? 'on' : 'off' } : item,
+        ),
       );
       notify(
         t(next ? 'projects.toastSslOn' : 'projects.toastSslOff', { domain: displayProjectDomain(domain) }),
@@ -870,7 +876,11 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     const pathMissing = isDesktopApp() && !settingsStorage.getItem('ospanel.path')?.trim();
-    if (isDesktopApp() && !pathMissing) {
+    // Launching the panel is opt-in: when disabled (the default) the app works with the
+    // installation files directly, and the panel API is only used if the panel is
+    // already running.
+    const autostartPanel = settingsStorage.getItem('ospanel.autostartPanel') === '1';
+    if (isDesktopApp() && !pathMissing && autostartPanel) {
       // StrictMode replays effects: both passes share the same native launch and readiness wait.
       panelStartupRef.current ??= startOsPanel().then(() => waitForPanelReady());
     }
@@ -1201,6 +1211,7 @@ function App() {
                     onSync={loadSnapshot}
                     panelRestarting={panelRestarting || autostartBusy}
                     pendingServices={pendingServices}
+                    panelOnline={!!snapshot?.panelRunning}
                   />
                 )}
                 {page === 'services' && (
@@ -1214,6 +1225,7 @@ function App() {
                     onProfiles={setProfileService}
                     panelRestarting={panelRestarting}
                     pendingServices={pendingServices}
+                    panelOnline={!!snapshot?.panelRunning}
                   />
                 )}
                 {(page === 'projects' || projectsVisited) && (

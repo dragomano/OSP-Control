@@ -81,6 +81,9 @@ export function Settings({
   const [projectAutostart, setProjectAutostartState] = useState(
     () => settingsStorage.getItem('ospanel.autostartProjects') === '1',
   );
+  const [panelAutostart, setPanelAutostartState] = useState(
+    () => settingsStorage.getItem('ospanel.autostartPanel') === '1',
+  );
   // The language the tray icon was last built with — a change of language rebuilds it below.
   const trayLangRef = useRef('');
 
@@ -179,6 +182,12 @@ export function Settings({
     settingsStorage.setItem('ospanel.autostartProjects', next ? '1' : '0');
     notify(t(next ? 'settings.projectAutostartOn' : 'settings.projectAutostartOff'));
     onProjectAutostartChange(next);
+  };
+  const togglePanelAutostart = () => {
+    const next = !panelAutostart;
+    setPanelAutostartState(next);
+    settingsStorage.setItem('ospanel.autostartPanel', next ? '1' : '0');
+    notify(t(next ? 'settings.panelAutostartOn' : 'settings.panelAutostartOff'));
   };
   const toggleNotifications = () => {
     const next = !notifications;
@@ -300,6 +309,20 @@ export function Settings({
                       {t('settings.chooseFolder')}
                     </button>
                   </div>
+                </div>
+                <div className="setting-block">
+                  <div>
+                    <h3>{t('settings.panelAutostartTitle')}</h3>
+                    <p>{t('settings.panelAutostartText')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`large-toggle ${panelAutostart ? 'on' : ''}`}
+                    onClick={togglePanelAutostart}
+                    aria-label={t('settings.panelAutostartTitle')}
+                  >
+                    <span />
+                  </button>
                 </div>
                 <div className="setting-block">
                   <div>

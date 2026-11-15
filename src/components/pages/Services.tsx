@@ -27,6 +27,7 @@ export function Services({
   panelRestarting = false,
   pendingServices,
   onProfiles,
+  panelOnline = true,
 }: {
   services: Service[];
   onToggle: (index: number) => void;
@@ -39,6 +40,8 @@ export function Services({
   panelRestarting?: boolean;
   pendingServices?: ReadonlySet<string>;
   onProfiles?: (service: Service) => void;
+  // When the panel is stopped, module start/stop is disabled.
+  panelOnline?: boolean;
 }) {
   const { t } = useI18n();
   const updates = useModuleUpdates();
@@ -49,6 +52,8 @@ export function Services({
   // A service is busy either because its own command is running or because the panel restarts.
   const isBusy = (name: string) =>
     panelRestarting || Boolean(updates.active[name]) || Boolean(pendingServices?.has(name));
+  // With the panel stopped, module start/stop is unavailable.
+  const controlsDisabled = !panelOnline;
   // Indices are positions in the overall services array: onToggle/onAction work with them.
   const items = services.map((service, index) => ({ service, index }));
   // Groups with at least one service: the declared sections plus the leftovers in "other".
@@ -82,7 +87,7 @@ export function Services({
           <button
             type="button"
             className="primary-button"
-            disabled={restartingAll || panelRestarting || updates.busy}
+            disabled={restartingAll || panelRestarting || updates.busy || controlsDisabled}
             onClick={() => {
               setRestartingAll(true);
               void onRestartAll().finally(() => setRestartingAll(false));
@@ -162,7 +167,7 @@ export function Services({
                   {group.items.map(({ service, index }) => {
                     const toggle = stopStartAction(service, t);
                     const busy = isBusy(service.name);
-                    const toggleDisabled = toggle.disabled || busy || updates.busy;
+                    const toggleDisabled = toggle.disabled || busy || updates.busy || controlsDisabled;
                     const profileName = service.profile || t('common.unknown');
                     const profilesLabel = t('profiles.open', { name: service.name, profile: profileName });
 
@@ -225,7 +230,14 @@ export function Services({
                               {busy && !panelRestarting ? t('services.pendingAction') : toggle.label}
                             </button>
                             <RowMenu
-                              entries={serviceMenuEntries(service, onAction, t, notify, busy || updates.busy)}
+                              entries={serviceMenuEntries(
+                                service,
+                                onAction,
+                                t,
+                                notify,
+                                busy || updates.busy,
+                                controlsDisabled,
+                              )}
                             />
                           </div>
                         </div>

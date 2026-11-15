@@ -47,16 +47,30 @@ pub(crate) struct OverviewMetrics {
 pub fn overview_metrics(custom_path: Option<String>) -> Result<OverviewMetrics, CommandError> {
     let root = resolve_installation(custom_path.as_deref())?;
 
-    // While the panel API is silent (panel off) the aggregates stay at their defaults — zeros.
-    let agg = api_json(&root, "/getmodules")
-        .map(|json| aggregate_module_metrics(&json, endpoint_is_reachable))
-        .unwrap_or_default();
+    // While the panel API is silent (panel off) the aggregates are rebuilt from the
+    // disk scan instead of staying at their default zeros.
+    let (agg, projects_total, ram_bytes) = match api_json(&root, "/getmodules") {
+        Some(json) => (
+            aggregate_module_metrics(&json, endpoint_is_reachable),
+            projects_from_api(&root).len(),
+            module_processes_ram(&root),
+        ),
+        None => {
+            // Offline: cheap disk aggregates, no process-table walk for the RAM sum.
+            let services = crate::offline::scan_services(&root);
+            (
+                aggregate_scan_metrics(&services),
+                crate::offline::scan_projects(&root).len(),
+                0,
+            )
+        }
+    };
 
     Ok(OverviewMetrics {
         services_running: agg.running,
         services_total: agg.total,
-        projects_total: projects_from_api(&root).len() as u32,
-        ram_bytes: module_processes_ram(&root),
+        projects_total: projects_total as u32,
+        ram_bytes,
         ports_open: agg.ports_open,
         ports_total: agg.ports_total,
         port_problems: agg.problems,
@@ -119,6 +133,25 @@ fn aggregate_module_metrics(
     }
 
     agg.problems = agg.ports_total - agg.ports_open;
+    agg
+}
+
+// Aggregate counters over scanned services — the offline fallback of
+// aggregate_module_metrics, fed from disk data instead of /getmodules JSON.
+fn aggregate_scan_metrics(services: &[crate::offline::ScanService]) -> ModuleAggregates {
+    let mut agg = ModuleAggregates::default();
+    for service in services {
+        agg.total += 1;
+        if !service.enabled {
+            continue;
+        }
+        agg.running += 1;
+        if service.listen_port.is_some() {
+            agg.ports_total += 1;
+        }
+    }
+    // Port reachability is not probed offline: no TCP connections on the cold
+    // startup path. The open/problem counters stay at zero (unknown).
     agg
 }
 
@@ -223,46 +256,27 @@ pub fn discover_ospanel(custom_path: Option<String>) -> Snapshot {
         if let Some(json) = api_json(path, "/getmodules") {
             services = services_from_json(&json);
             panel_running = true;
+            projects = projects_from_api(path);
+            // Trust the per-project disk config over the panel's effective TLS flag:
+            // the API resolves `auto` against the global default and reports it as
+            // enabled for every project, hiding which projects configure TLS.
+            for project in &mut projects {
+                let tls = crate::offline::project_tls_state(path, &project.domain);
+                project.tls = tls.to_string();
+                project.ssl = tls == "on";
+            }
+        } else {
+            // The panel is stopped: rebuild services and projects from the installation
+            // directory, so the app stays useful without a running ospanel.exe.
+            services = crate::offline::scan_services(path)
+                .into_iter()
+                .map(crate::offline::ScanService::into_service)
+                .collect();
+            projects = crate::offline::scan_projects(path);
         }
-        projects = projects_from_api(path);
         if let Some(v) = read_osp_version(path) {
             version = Some(v);
         }
-    }
-
-    if services.is_empty() {
-        services = vec![
-            Service {
-                name: "Apache".into(),
-                version: "2.4".into(),
-                port: ":80".into(),
-                profile: None,
-                status: "stopped".into(),
-                detail: "svc.detail.web".into(),
-                kind: "web".into(),
-                module_actions: Default::default(),
-            },
-            Service {
-                name: "PHP".into(),
-                version: "8.3".into(),
-                port: ":9000".into(),
-                profile: None,
-                status: "stopped".into(),
-                detail: "svc.detail.runtime".into(),
-                kind: "runtime".into(),
-                module_actions: Default::default(),
-            },
-            Service {
-                name: "MySQL".into(),
-                version: "8.0".into(),
-                port: ":3306".into(),
-                profile: None,
-                status: "stopped".into(),
-                detail: "svc.detail.database".into(),
-                kind: "database".into(),
-                module_actions: Default::default(),
-            },
-        ];
     }
 
     Snapshot {
@@ -308,8 +322,19 @@ pub fn service_action(
     let root = resolve_installation(custom_path.as_deref())?;
     let osp_bat = root.join("bin").join("osp.bat");
 
+    // Module start/stop is orchestrated by the running panel; without it osp.bat
+    // cannot manage modules. Report this clearly instead of a cryptic command error.
+    if api_json(&root, "/getmodules").is_none() {
+        return Err(CommandError::new("err.panelRequired"));
+    }
+
     if osp_bat.exists() {
-        let status = hidden_command(&osp_bat).args([cmd, &name]).status().map_err(spawn_failed)?;
+        // osp.bat resolves modules relative to its own directory — run it from bin.
+        let status = hidden_command(&osp_bat)
+            .current_dir(root.join("bin"))
+            .args([cmd, &name])
+            .status()
+            .map_err(spawn_failed)?;
 
         if !status.success() {
             return Err(CommandError::new("err.ospCommandFailed")
@@ -320,6 +345,14 @@ pub fn service_action(
         // Reread the state via the API to return up-to-date module data.
         let services = modules_from_api(&root);
         if let Some(service) = services.into_iter().find(|s| s.name == name) {
+            return Ok(service);
+        }
+        // The panel's API is silent (panel stopped): re-read the module from disk.
+        if let Some(service) = crate::offline::scan_services(&root)
+            .into_iter()
+            .find(|s| s.name == name)
+            .map(crate::offline::ScanService::into_service)
+        {
             return Ok(service);
         }
     }

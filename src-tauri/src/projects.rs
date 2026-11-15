@@ -782,13 +782,19 @@ pub fn autostart_from_projects(custom_path: Option<String>) -> Result<AutostartR
             already_running.push(service.name.clone());
             continue;
         }
-        let status = hidden_command(&osp_bat).args(["on", &service.name]).status().map_err(spawn_failed)?;
+        let status = hidden_command(&osp_bat)
+            .current_dir(root.join("bin"))
+            .args(["on", &service.name])
+            .status()
+            .map_err(spawn_failed)?;
         if status.success() {
             started.push(service.name.clone());
         }
     }
     Ok(AutostartReport { required, started, already_running, unmatched })
 }
+
+
 
 // --- Creating a new project ---
 // Publishes a complete bundled scaffold under home/<domain>. The default template
@@ -1586,6 +1592,7 @@ mod tests {
             php: "8.2".into(),
             r#type: "Apache".into(),
             ssl: true,
+            tls: "on".into(),
         };
         assert_eq!(
             rename_project_directory(

@@ -333,13 +333,13 @@ describe('App (browser mode: adapter serves mocks)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Проекты' }));
 
       const row = await projectRow('my-shop.test');
-      fireEvent.click(within(row).getByRole('button', { name: 'Активен' }));
+      fireEvent.click(within(row).getByRole('button', { name: 'TLS включён' }));
 
       expect(
         await screen.findByText('TLS отключён для my-shop.test — перезапустите панель, чтобы применить'),
       ).toBeInTheDocument();
       await waitFor(() =>
-        expect(within(row).getByRole('button', { name: 'Не настроен' })).toBeInTheDocument(),
+        expect(within(row).getByRole('button', { name: 'TLS выключен' })).toBeInTheDocument(),
       );
     });
 

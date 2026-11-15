@@ -129,6 +129,23 @@ describe('Overview header', () => {
     expect(screen.getByText('Monday, October 26, 2026', { selector: '.eyebrow' })).toBeInTheDocument();
   });
 
+  it('shows the offline hero content when the panel is unavailable', () => {
+    const { view } = renderOverview({ panelOnline: false });
+
+    expect(screen.getByText('is available in basic mode.')).toBeInTheDocument();
+    expect(view.container.querySelector('.hero-orb')).toHaveClass('offline');
+    expect(view.container.querySelector('.lucide-unplug')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'OSPanel was not detected or is not running. Start the panel or check its path in Settings.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('runs without a hitch.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('OSPanel detected and synchronized. All core modules are available.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('syncs once at a time and notifies on success only', async () => {
     let resolveSync: ((value: boolean) => void) | undefined;
     const onSync = vi.fn(

@@ -216,8 +216,8 @@ describe('Projects filtering', () => {
     expect(screen.getByText('my-shop.test')).toBeInTheDocument();
     expect(screen.getByText('landing.test')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'SSL' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Without certificate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'TLS' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'TLS off' }));
     expect(screen.queryByText('my-shop.test')).not.toBeInTheDocument();
     expect(screen.getByText('landing.test')).toBeInTheDocument();
 
@@ -234,8 +234,8 @@ describe('Projects filtering', () => {
   it('shows the filtered-empty note when no project matches', () => {
     renderProjects(vi.fn(), [shopProject]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'SSL' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Without certificate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'TLS' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'TLS off' }));
 
     expect(screen.getByText('No projects match the selected filters')).toBeInTheDocument();
   });
@@ -282,7 +282,7 @@ describe('Projects filtering', () => {
       </I18nContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+    fireEvent.click(screen.getByRole('button', { name: 'TLS on' }));
     expect(onToggleSsl).toHaveBeenCalledWith('my-shop.test', false);
   });
 });

@@ -34,6 +34,7 @@ const FIELDS: &[(&str, &str, &str, &str)] = &[
     ("ospanel.sidebar", "interface", "sidebar_collapsed", "bool"),
     ("ospanel.notify", "behavior", "notifications", "bool"),
     ("ospanel.autostartProjects", "behavior", "autostart_projects", "bool"),
+    ("ospanel.autostartPanel", "behavior", "autostart_panel", "bool"),
     ("ospanel.closeToTray", "behavior", "close_to_tray", "bool"),
     ("ospanel.checkAppUpdates", "updates", "application", "bool"),
     ("ospanel.checkServiceUpdates", "updates", "modules", "bool"),
@@ -785,6 +786,15 @@ mod tests {
         assert_eq!(snapshot.values["ospanel.path"], r"E:\MovedPanel");
         assert!(snapshot.values["ospanel.projectTags"].contains("Клиент"));
     }
+    #[test]
+    fn panel_autostart_persists_as_bool() {
+        let f = Fixture::new();
+        f.save("ospanel.autostartPanel", "1");
+        let snapshot = f.store.load().unwrap();
+        assert_eq!(snapshot.values["ospanel.autostartPanel"], "1");
+        assert!(f.text().contains("autostart_panel = true"));
+    }
+
     #[test]
     fn menu_preferences_and_panel_path_use_their_own_sections() {
         let f = Fixture::new();

@@ -36,6 +36,9 @@ export type OsPanelProject = {
   php: string;
   type: string;
   ssl: boolean;
+  // Raw per-project TLS state: 'on' | 'off' | 'auto'. 'auto' follows the panel's
+  // global default, so the site may still be reachable over https.
+  tls?: 'on' | 'off' | 'auto';
 };
 
 export type ProjectActivity = {
