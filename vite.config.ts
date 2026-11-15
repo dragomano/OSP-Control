@@ -13,6 +13,10 @@ export default defineConfig({
   plugins: [preact()],
   define: { 'import.meta.env.VITE_APP_NAME': JSON.stringify(productName) },
   build: {
+    // The locales chunk carries all five embedded fallback dictionaries (~100 kB each).
+    // They stay one cacheable chunk: the desktop build loads assets from disk, so the
+    // 500 kB default limit tuned for network delivery does not apply here.
+    chunkSizeWarningLimit: 600,
     rolldownOptions: {
       output: {
         codeSplitting: {
