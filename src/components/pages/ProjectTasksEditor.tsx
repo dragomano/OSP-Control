@@ -1,4 +1,4 @@
-import { Check, Clock3, Copy, Plus, Search, Terminal, Trash2, TriangleAlert } from 'lucide-react';
+import { Check, Clock3, Copy, Plus, Terminal, Trash2, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { askConfirm } from '../../ospanel';
@@ -12,6 +12,7 @@ import {
   taskPreset,
   uniqueTaskName,
 } from '../../projectTasks';
+import { SearchField } from '../widgets/SearchField';
 import '../widgets/formControls.css';
 import './projectTasksEditor.css';
 
@@ -81,15 +82,12 @@ export function ProjectTasksEditor({
         </div>
       )}
       <div className="tasks-toolbar">
-        <label className="search-field">
-          <Search size={15} />
-          <input
-            aria-label={t('tasks.search')}
-            placeholder={t('tasks.search')}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          ariaLabel={t('tasks.search')}
+          placeholder={t('tasks.search')}
+        />
         <button type="button" className="secondary-button" onClick={() => add()}>
           <Plus size={15} />
           {t('tasks.add')}

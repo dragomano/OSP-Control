@@ -250,6 +250,7 @@
   "common.cancel": "Cancelar",
   "common.save": "Guardar",
   "common.close": "Cerrar",
+  "common.clearSearch": "Limpiar búsqueda",
   "common.confirmTitle": "Confirmación",
   "common.ok": "Aceptar",
   "common.snapshotFailed": "No se pudo comprobar OSPanel",

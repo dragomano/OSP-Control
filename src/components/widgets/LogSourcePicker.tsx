@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Globe2, Search, Terminal } from 'lucide-react';
+import { Check, ChevronDown, Globe2, Search, Terminal, X } from 'lucide-react';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import type { LogSource } from '../../ospanel';
@@ -189,6 +189,20 @@ export function LogSourcePicker({
                 } else if (event.key === 'Tab') close();
               }}
             />
+            {query ? (
+              <button
+                type="button"
+                className="search-clear"
+                aria-label={t('common.clearSearch')}
+                onClick={() => {
+                  setQuery('');
+                  setActive(value);
+                  inputRef.current?.focus();
+                }}
+              >
+                <X size={13} />
+              </button>
+            ) : null}
           </div>
           <div
             className="log-source-list"

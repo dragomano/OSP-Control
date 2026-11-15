@@ -1,4 +1,4 @@
-import { Copy, Eraser, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { Copy, Eraser, RefreshCw, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useI18n } from '../../i18n';
 import type { LogSource } from '../../ospanel';
@@ -6,6 +6,7 @@ import { ClearLogsDialog } from '../dialogs/ClearLogsDialog';
 import { type ActivityEntry, copyText, type Notify } from '../shared';
 import { LogSourcePicker } from '../widgets/LogSourcePicker';
 import { PageHeader } from '../widgets/PageHeader';
+import { SearchField } from '../widgets/SearchField';
 
 type LogLevel = 'error' | 'warning' | 'info';
 export type LogAliases = Record<LogLevel, string[]>;
@@ -266,14 +267,12 @@ export function Logs({
         }
       />
       <div className="toolbar">
-        <div className="search-field">
-          <Search size={16} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('logs.searchPlaceholder')}
-          />
-        </div>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder={t('logs.searchPlaceholder')}
+          iconSize={16}
+        />
         <LogSourcePicker sources={sources} value={source} onChange={onSourceChange} disabled={clearing} />
       </div>
       <div className="log-panel">

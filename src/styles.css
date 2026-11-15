@@ -419,6 +419,34 @@ button {
   background: #1b1f26;
   color: #e6e9ee;
 }
+.search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.search-clear:hover {
+  background: #1b1f26;
+  color: #e6e9ee;
+}
+.search-clear:focus-visible {
+  outline: 2px solid var(--k-b0762a);
+  outline-offset: 1px;
+}
+.search-clear svg {
+  display: block;
+}
+.light .search-clear:hover {
+  background: var(--lt-hover);
+}
 .content-wrap {
   max-width: 1190px;
   padding: 36px 40px 48px;

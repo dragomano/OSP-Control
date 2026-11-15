@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronRight, Copy, FileCode2, FolderOpen, Search } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, Copy, FileCode2, FolderOpen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { highlightConfig } from '../../highlight';
 import { errorText, useI18n } from '../../i18n';
@@ -13,6 +13,7 @@ import {
 import { copyText, formatSize, type Notify } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
 import { RowMenu } from '../widgets/RowMenu';
+import { SearchField } from '../widgets/SearchField';
 
 export function Configs({ notify }: { notify: Notify }) {
   const { t, plural } = useI18n();
@@ -95,14 +96,7 @@ export function Configs({ notify }: { notify: Notify }) {
       <div className="configs-layout">
         <aside className="configs-list">
           <div className="configs-filters">
-            <div className="search-field">
-              <Search size={15} />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t('configs.searchPlaceholder')}
-              />
-            </div>
+            <SearchField value={query} onChange={setQuery} placeholder={t('configs.searchPlaceholder')} />
             <RowMenu
               trigger={({ onToggle, open }) => (
                 <button

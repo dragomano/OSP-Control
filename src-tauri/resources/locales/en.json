@@ -250,6 +250,7 @@
   "common.cancel": "Cancel",
   "common.save": "Save",
   "common.close": "Close",
+  "common.clearSearch": "Clear search",
   "common.confirmTitle": "Confirmation",
   "common.ok": "OK",
   "common.snapshotFailed": "Failed to check OSPanel",

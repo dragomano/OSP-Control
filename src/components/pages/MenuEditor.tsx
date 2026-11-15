@@ -17,7 +17,6 @@ import {
   Plus,
   Redo2,
   RefreshCw,
-  Search,
   Trash2,
   Undo2,
   X,
@@ -69,6 +68,7 @@ import { MenuIconPicker } from '../dialogs/MenuIconPicker';
 import { type Notify, useDismiss } from '../shared';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
+import { SearchField } from '../widgets/SearchField';
 import '../widgets/formControls.css';
 import './menuEditor.css';
 
@@ -627,15 +627,12 @@ export function MenuEditor({
       ) : (
         <fieldset className="menu-editor-fields" disabled={disabled}>
           <div className="menu-toolbar">
-            <label className="search-field">
-              <Search size={15} />
-              <input
-                aria-label={t('menu.search')}
-                placeholder={t('menu.search')}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </label>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              ariaLabel={t('menu.search')}
+              placeholder={t('menu.search')}
+            />
             <div className="menu-history">
               <button
                 type="button"

@@ -250,6 +250,7 @@
   "common.cancel": "Отмена",
   "common.save": "Сохранить",
   "common.close": "Закрыть",
+  "common.clearSearch": "Очистить поиск",
   "common.confirmTitle": "Подтверждение",
   "common.ok": "OK",
   "common.snapshotFailed": "Не удалось проверить OSPanel",

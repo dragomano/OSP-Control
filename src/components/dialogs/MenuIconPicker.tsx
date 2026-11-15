@@ -1,8 +1,9 @@
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { MenuIcon, menuIcons } from '../../menuIcons';
 import { useDismiss } from '../shared';
+import { SearchField } from '../widgets/SearchField';
 
 const PAGE_SIZE = 60;
 
@@ -67,19 +68,17 @@ export function MenuIconPicker({
             <X size={17} />
           </button>
         </div>
-        <div className="search-field menu-icon-search">
-          <Search size={15} />
-          <input
-            ref={searchRef}
-            value={query}
-            aria-label={t('menu.iconSearch')}
-            placeholder={t('menu.iconSearch')}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(0);
-            }}
-          />
-        </div>
+        <SearchField
+          className="search-field menu-icon-search"
+          value={query}
+          onChange={(next) => {
+            setQuery(next);
+            setPage(0);
+          }}
+          ariaLabel={t('menu.iconSearch')}
+          placeholder={t('menu.iconSearch')}
+          inputRef={searchRef}
+        />
         <div className="menu-icon-filters">
           {['all', 'solid', 'regular', 'brands'].map((filter) => (
             <button

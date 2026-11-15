@@ -12,7 +12,6 @@ import {
   Network,
   Pencil,
   Plus,
-  Search,
   ShieldCheck,
   ShieldOff,
   SlidersHorizontal,
@@ -67,6 +66,7 @@ import { PageHeader } from '../widgets/PageHeader';
 import { ProjectTagSelect } from '../widgets/ProjectTagSelect';
 import { ProjectSelection, ProjectTagEditor, ProjectTagFilter } from '../widgets/ProjectTags';
 import { RowMenu } from '../widgets/RowMenu';
+import { SearchField } from '../widgets/SearchField';
 import { activityDate, groupProjectActivity, useProjectActivity } from './projectActivity';
 
 const ProjectWorkspace = lazy(() =>
@@ -410,15 +410,13 @@ function ProjectsContent({
         }
       />
       <div className="toolbar projects-toolbar">
-        <div className="search-field">
-          <Search size={16} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('projects.searchPlaceholder')}
-            title={t('projects.tagsSearchHint')}
-          />
-        </div>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder={t('projects.searchPlaceholder')}
+          title={t('projects.tagsSearchHint')}
+          iconSize={16}
+        />
         <div className="project-ssl-filter">
           <FilterFacet
             icon={ShieldCheck}

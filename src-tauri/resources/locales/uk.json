@@ -250,6 +250,7 @@
   "common.cancel": "Скасувати",
   "common.save": "Зберегти",
   "common.close": "Закрити",
+  "common.clearSearch": "Очистити пошук",
   "common.confirmTitle": "Підтвердження",
   "common.ok": "Гаразд",
   "common.snapshotFailed": "Не вдалося перевірити OSPanel",
