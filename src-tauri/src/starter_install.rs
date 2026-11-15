@@ -264,7 +264,9 @@ fn connection_values(
 
 fn chain_dir(base: &Path, relative: &str) -> Result<PathBuf, CommandError> {
     let mut current = base.to_path_buf();
-    for part in relative.split('/') {
+    // Empty segments arise from an empty relative path or double slashes;
+    // child(parent, "") would validate parent against itself and fail.
+    for part in relative.split('/').filter(|part| !part.is_empty()) {
         current = child(&current, part)?;
     }
     Ok(current)
@@ -329,8 +331,15 @@ fn setup_with_console(
         values.extend(connection_values(connection, application, project, install)?);
     }
     let source = install.env_source.as_deref().unwrap_or(".env");
-    let mut env =
-        fs::read_to_string(child(application, source).map_err(|_| error("err.installPayload"))?).unwrap_or_default();
+    let source_path = child(application, source).map_err(|_| error("err.installPayload"))?;
+    // Keep an existing environment file (for example .env.example renamed by the
+    // starter), but do not create an empty .env for starters with no env config.
+    let had_env_source = fs::read_to_string(&source_path).is_ok();
+    let mut env = if had_env_source {
+        fs::read_to_string(&source_path).unwrap_or_default()
+    } else {
+        String::new()
+    };
     let apply = |env: &mut String, map: &BTreeMap<String, String>, values: &[(&'static str, String)]| {
         for (key, template) in map {
             if let Some(value) = expand(template, values) {
@@ -365,7 +374,12 @@ fn setup_with_console(
             apply(&mut console_env, &install.env_sqlite, &staged_values);
         }
     }
-    fs::write(child(application, ".env")?, &console_env)?;
+    // Write .env only when the starter actually configures environment variables
+    // or an environment file already existed; otherwise no .env is created.
+    let write_env = had_env_source || !console_env.trim().is_empty();
+    if write_env {
+        fs::write(child(application, ".env")?, &console_env)?;
+    }
     // Configuration files render from package templates with PHP-escaped values;
     // the randomHex placeholders are pure hex and stay raw. Written only when a
     // database is configured (credentials must not point to a placeholder server).
@@ -423,12 +437,14 @@ fn setup_with_console(
     }
     // Preserve changes made by console commands (for example Laravel's APP_KEY),
     // replacing only manifest-managed values that contained staged SQLite paths.
-    if let Some(connection) = &connection {
-        if connection.db.engine == "sqlite" {
-            let mut published_env = fs::read_to_string(child(application, ".env")?)?;
-            apply(&mut published_env, &install.env, &values);
-            apply(&mut published_env, &install.env_sqlite, &values);
-            fs::write(child(application, ".env")?, published_env)?;
+    if write_env {
+        if let Some(connection) = &connection {
+            if connection.db.engine == "sqlite" {
+                let mut published_env = fs::read_to_string(child(application, ".env")?)?;
+                apply(&mut published_env, &install.env, &values);
+                apply(&mut published_env, &install.env_sqlite, &values);
+                fs::write(child(application, ".env")?, published_env)?;
+            }
         }
     }
     // Keep-files carry scaffold routing and similar assets into the application.
@@ -490,7 +506,9 @@ fn validate_zip(archive: &Path, from_dir: &str, max_bytes: u64) -> Result<(), Co
     let mut total = 0u64;
     for index in 0..zip.len() {
         let entry = zip.by_index(index).map_err(|_| error("err.installArchive"))?;
-        if !entry.name().starts_with(&format!("{from_dir}/")) {
+        // An empty from_dir means the archive's files live at its root (no
+        // wrapper directory, for example a nightly build package).
+        if !from_dir.is_empty() && !entry.name().starts_with(&format!("{from_dir}/")) {
             return Err(error("err.installArchive"));
         }
         total = total.checked_add(entry.size()).ok_or_else(|| error("err.installArchive"))?;
@@ -691,7 +709,8 @@ fn run_archive(
     for part in &parts[..parts.len() - 1] {
         target = composer_installer::ensure_dir(&target, part)?;
     }
-    fs::rename(source, child(&target, parts[parts.len() - 1])?)?;
+    let destination = child(&target, parts[parts.len() - 1])?;
+    fs::rename(&source, &destination)?;
     Ok(())
 }
 
@@ -1079,6 +1098,9 @@ mod tests {
         };
         let ok = make(&["wordpress/index.php", "wordpress/wp-includes/version.php"]);
         assert!(validate_zip(&ok, "wordpress", 1_000_000).is_ok());
+        // An archive whose files sit at its root (no wrapper directory) is valid.
+        let root_level = make(&["index.php", "install.php"]);
+        assert!(validate_zip(&root_level, "", 1_000_000).is_ok());
         let outside = make(&["wordpress/index.php", "other/index.php"]);
         assert_eq!(validate_zip(&outside, "wordpress", 1_000_000).unwrap_err().code, "err.installArchive");
         let oversized = make(&["wordpress/big.bin"]);
@@ -1108,5 +1130,120 @@ mod tests {
         assert!(!has_unresolved_placeholder("if (!defined('ABSPATH')) { define('ABSPATH', __DIR__); }"));
         assert!(!has_unresolved_placeholder("{$var} is not a placeholder body without braces"));
         assert!(has_unresolved_placeholder("{a_b123}"));
+    }
+
+    #[test]
+    fn smf_nightly_archive_installs_after_root_level_extraction() {
+        // Network is disabled in unit tests; feed the real nightly archive from disk.
+        let Some(zip_env) = std::env::var_os("OSP_CONTROL_SMF_NIGHTLY_ZIP") else {
+            eprintln!("skipped: OSP_CONTROL_SMF_NIGHTLY_ZIP not set");
+            return;
+        };
+        let zip_path = PathBuf::from(zip_env);
+        assert!(zip_path.is_file(), "nightly zip missing: {zip_path:?}");
+        let root = std::env::temp_dir().join(format!(
+            "osp-smf-root-{}-{}",
+            std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let stage = root.join("stage");
+        fs::create_dir_all(&stage).unwrap();
+        let archive_path = child(&stage, "package-archive").unwrap();
+        fs::copy(&zip_path, &archive_path).unwrap();
+        validate_zip(&archive_path, "", 52_428_800).unwrap();
+        let unpacked = child(&stage, "unpacked").unwrap();
+        crate::update_files::extract(&archive_path, &unpacked).unwrap();
+        for required in ["index.php", "install.php", "Settings.php", "SSI.php"] {
+            assert!(child(&unpacked, required).unwrap().is_file(), "missing required file {required}");
+        }
+        let application = composer_installer::ensure_dir(&stage, "application").unwrap();
+        let dest = child(&application, "public").unwrap();
+        fs::rename(&unpacked, &dest).unwrap();
+        // This is exactly what payload() runs on the staged application tree.
+        crate::update_files::safe_tree(&application).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn smf_nightly_archive_production_path_with_real_setup() {
+        let Some(zip_env) = std::env::var_os("OSP_CONTROL_SMF_NIGHTLY_ZIP") else {
+            eprintln!("skipped: OSP_CONTROL_SMF_NIGHTLY_ZIP not set");
+            return;
+        };
+        let zip_path = PathBuf::from(zip_env);
+        let f = Fixture::new("smf", "en");
+        let doc = crate::project_starters::load("smf").unwrap();
+        let channel = Channel::<Progress>::new(|_| Ok(()));
+        composer_installer::install_application(
+            &doc.manifest.id,
+            &CODES,
+            &f.root,
+            "site.test",
+            f.project.to_str().unwrap(),
+            |root, domain, base_dir| prepared(root, domain, base_dir, &doc),
+            |stage| payload(stage, &doc),
+            |stage, _| {
+                let archive_path = child(stage, "package-archive")?;
+                fs::copy(&zip_path, &archive_path)?;
+                validate_zip(&archive_path, "", 52_428_800)?;
+                let unpacked = child(stage, "unpacked")?;
+                crate::update_files::extract(&archive_path, &unpacked)?;
+                let application = composer_installer::ensure_dir(stage, "application")?;
+                fs::rename(&unpacked, child(&application, "public")?)?;
+                Ok(())
+            },
+            || {},
+            |application, php, dir| setup(&f.root, dir, "site.test", application, php, &doc, &channel),
+        )
+        .unwrap_or_else(|e| panic!("production install failed: {e:?}"));
+        assert_eq!(state(&f.project, "smf").as_deref(), Some("installed"));
+        assert!(f.project.join("public/Settings.php").is_file());
+        // SMF configures no environment variables, so no .env must be created.
+        assert!(!f.project.join(".env").exists());
+    }
+
+    #[test]
+    #[ignore]
+    fn smf_nightly_live_full_install_matches_production() {
+        // Runs the real run_archive with an actual HTTP download (network), so the
+        // exact production code path is exercised end to end.
+        if std::env::var_os("OSP_CONTROL_SMF_LIVE").is_none() {
+            eprintln!("skipped: OSP_CONTROL_SMF_LIVE not set");
+            return;
+        }
+        let f = Fixture::new("smf", "en");
+        let doc = crate::project_starters::load("smf").unwrap();
+        let channel = Channel::<Progress>::new(|_| Ok(()));
+        composer_installer::install_application(
+            &doc.manifest.id,
+            &CODES,
+            &f.root,
+            "site.test",
+            f.project.to_str().unwrap(),
+            |root, domain, base_dir| prepared(root, domain, base_dir, &doc),
+            |stage| payload(stage, &doc),
+            |stage, php| run_archive(stage, &doc, &channel),
+            || {},
+            |application, php, dir| setup(&f.root, dir, "site.test", application, php, &doc, &channel),
+        )
+        .unwrap_or_else(|e| panic!("live SMF install failed: {e:?}"));
+        assert_eq!(state(&f.project, "smf").as_deref(), Some("installed"));
+        assert!(f.project.join("public/Settings.php").is_file());
+    }
+
+    #[test]
+    fn chain_dir_with_an_empty_relative_path_returns_the_base() {
+        let root = std::env::temp_dir().join(format!(
+            "osp-chain-dir-{}-{}",
+            std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let root = fs::canonicalize(&root).unwrap();
+        assert_eq!(chain_dir(&root, "").unwrap(), root);
+        assert_eq!(chain_dir(&root, "a/b").unwrap(), root.join("a").join("b"));
+        assert_eq!(chain_dir(&root, "a//b").unwrap(), root.join("a").join("b"));
+        fs::remove_dir_all(&root).unwrap();
     }
 }

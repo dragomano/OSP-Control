@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "id": "smf",
+  "order": 40,
+  "name": {
+    "en": "SMF — preparation",
+    "ru": "SMF — подготовка",
+    "uk": "SMF — підготовка",
+    "be": "SMF — падрыхтоўка",
+    "es": "SMF — preparación"
+  },
+  "description": {
+    "en": "OSPanel settings, routing rules and a public/ placeholder. Simple Machines Forum can be downloaded and installed from the project overview.",
+    "ru": "Настройки OSPanel, правила маршрутизации и заглушка в public/. Simple Machines Forum можно загрузить и установить со страницы проекта.",
+    "uk": "Налаштування OSPanel, правила маршрутизації та заглушка в public/. Simple Machines Forum можна завантажити й установити зі сторінки проєкту.",
+    "be": "Налады OSPanel, правілы маршрутызацыі і заглушка ў public/. Simple Machines Forum можна спампаваць і ўсталяваць са старонкі праекта.",
+    "es": "Configuración de OSPanel, reglas de rutas y página provisional en public/. Simple Machines Forum se puede descargar e instalar desde la página del proyecto."
+  },
+  "nextStep": {
+    "en": "After creating the scaffold, click Install SMF in the project overview. Finish the database and administrator setup in your browser. The initial setup runs in English; additional forum languages are installed later from the admin panel.",
+    "ru": "После создания нажмите «Установить SMF» на странице проекта. Базу данных и администратора настройте в браузере. Первичная установка выполняется на английском; дополнительные языки форума устанавливаются позже из админ-панели.",
+    "uk": "Після створення натисніть «Встановити SMF» на сторінці проєкту. Базу даних і адміністратора налаштуйте в браузері. Первинне встановлення виконується англійською; додаткові мови форуму встановлюються пізніше з адмін-панелі.",
+    "be": "Пасля стварэння націсніце «Усталяваць SMF» на старонцы праекта. Базу даных і адміністратара наладзьце ў браўзеры. Першаснае ўсталяванне выконваецца па-англійску; дадатковыя мовы форума ўсталёўваюцца пазней з адмін-панэлі.",
+    "es": "Tras crear la plantilla, pulsa Instalar SMF en la página del proyecto. Configura la base de datos y el administrador en el navegador. La instalación inicial se realiza en inglés; otros idiomas del foro se instalan más tarde desde el panel de administración."
+  },
+  "createdMessage": {
+    "en": "Scaffold for {domain} created. Install SMF from the project overview.",
+    "ru": "Заготовка {domain} создана. Установите SMF со страницы проекта.",
+    "uk": "Заготовку {domain} створено. Встановіть SMF зі сторінки проєкту.",
+    "be": "Загатоўка {domain} створана. Усталюйце SMF са старонкі праекта.",
+    "es": "Plantilla de {domain} creada. Instala SMF desde la página del proyecto."
+  },
+  "messages": {
+    "SMF_TITLE": {
+      "en": "SMF project preparation",
+      "ru": "Заготовка проекта SMF",
+      "uk": "Заготовка проєкту SMF",
+      "be": "Загатоўка праекта SMF",
+      "es": "Plantilla inicial del proyecto SMF"
+    },
+    "SMF_HEADING": {
+      "en": "SMF is not installed yet",
+      "ru": "SMF пока не установлен",
+      "uk": "SMF ще не встановлено",
+      "be": "SMF яшчэ не ўсталяваны",
+      "es": "SMF aún no está instalado"
+    },
+    "SMF_INSTRUCTIONS": {
+      "en": "The project's public directory is ready. Open this project's overview in OSP Control and use the Install SMF button to download and install Simple Machines Forum.",
+      "ru": "Публичный каталог проекта готов. Откройте обзор этого проекта в OSP Control и нажмите «Установить SMF», чтобы загрузить и установить Simple Machines Forum.",
+      "uk": "Публічний каталог проєкту готовий. Відкрийте огляд цього проєкту в OSP Control і натисніть «Встановити SMF», щоб завантажити й установити Simple Machines Forum.",
+      "be": "Публічны каталог праекта гатовы. Адкрыйце агляд гэтага праекта ў OSP Control і націсніце «Усталяваць SMF», каб спампаваць і ўсталяваць Simple Machines Forum.",
+      "es": "El directorio público del proyecto está listo. Abre el resumen de este proyecto en OSP Control y pulsa «Instalar SMF» para descargar e instalar Simple Machines Forum."
+    },
+    "SMF_DETAILS": {
+      "en": "Installation replaces this placeholder with the forum files and preserves .osp. Instructions are in .osp/smf-readme.md.",
+      "ru": "При установке заглушка будет заменена файлами форума, а .osp сохранится. Инструкции находятся в .osp/smf-readme.md.",
+      "uk": "Під час встановлення заглушку буде замінено файлами форуму, а .osp збережеться. Інструкції розташовані в .osp/smf-readme.md.",
+      "be": "Пры ўсталяванні заглушка будзе заменена файламі форума, а .osp захаваецца. Інструкцыі знаходзяцца ў .osp/smf-readme.md.",
+      "es": "La instalación reemplaza esta página provisional con los archivos del foro y conserva .osp. Las instrucciones están en .osp/smf-readme.md."
+    },
+    "INSTALL_BUTTON": {
+      "en": "Install SMF",
+      "ru": "Установить SMF",
+      "uk": "Встановити SMF",
+      "be": "Усталяваць SMF",
+      "es": "Instalar SMF"
+    }
+  },
+  "install": {
+    "title": {
+      "en": "SMF installation",
+      "ru": "Установка SMF",
+      "uk": "Встановлення SMF",
+      "be": "Усталяванне SMF",
+      "es": "Instalación de SMF"
+    },
+    "pending": {
+      "en": "The public directory and placeholder are ready. SMF has not been installed yet.",
+      "ru": "Каталог public и заглушка готовы. SMF пока не установлен.",
+      "uk": "Каталог public і заглушка готові. SMF ще не встановлено.",
+      "be": "Каталог public і заглушка гатовыя. SMF яшчэ не ўсталяваны.",
+      "es": "El directorio public y la página provisional están listos. SMF aún no está instalado."
+    },
+    "button": {
+      "en": "Install SMF",
+      "ru": "Установить SMF",
+      "uk": "Встановити SMF",
+      "be": "Усталяваць SMF",
+      "es": "Instalar SMF"
+    },
+    "hint": {
+      "en": "Download the latest SMF 2.1 build, verify the archive, extract it into public/ and prepare the selected database. OSPanel settings in .osp are preserved. Restart OSPanel and open the site to finish the SMF setup wizard (database and administrator). The package includes English; other forum languages are installed later from the admin panel.",
+      "ru": "Последняя сборка SMF 2.1 будет загружена, архив проверен и распакован в public/, а выбранная база данных подготовлена. Настройки OSPanel в .osp сохранятся. После перезапуска OSPanel откройте сайт и завершите мастер установки SMF (база данных и администратор). В комплект входит английский; другие языки форума устанавливаются позже из админ-панели.",
+      "uk": "Останню збірку SMF 2.1 буде завантажено, архів перевірено й розпаковано в public/, а вибрану базу даних підготовлено. Налаштування OSPanel у .osp збережуться. Після перезапуску OSPanel відкрийте сайт і завершіть майстер встановлення SMF (база даних і адміністратор). До комплекту входить англійська; інші мови форуму встановлюються пізніше з адмін-панелі.",
+      "be": "Апошнюю зборку SMF 2.1 будзе спампавана, архіў правераны і распакаваны ў public/, а выбраная база даных падрыхтавана. Налады OSPanel у .osp захаваюцца. Пасля перазапуску OSPanel адкрыйце сайт і завяршыце майстар усталявання SMF (база даных і адміністратар). У камплект уваходзіць англійская; іншыя мовы форума ўсталёўваюцца пазней з адмін-панэлі.",
+      "es": "Se descargará la última compilación de SMF 2.1, se verificará el archivo, se extraerá en public/ y se preparará la base de datos seleccionada. Se conserva la configuración de OSPanel en .osp. Reinicia OSPanel y abre el sitio para completar el asistente de SMF (base de datos y administrador). El paquete incluye inglés; otros idiomas del foro se instalan más tarde desde el panel de administración."
+    },
+    "unsaved": {
+      "en": "Save or discard your project changes before installing SMF.",
+      "ru": "Перед установкой SMF сохраните или отмените изменения проекта.",
+      "uk": "Перед встановленням SMF збережіть або скасуйте зміни проєкту.",
+      "be": "Перад усталяваннем SMF захавайце або скасуйце змены праекта.",
+      "es": "Guarda o descarta los cambios del proyecto antes de instalar SMF."
+    },
+    "done": {
+      "en": "SMF files installed. Restart OSPanel and open the site to finish setup (database and administrator). English is included; other forum languages are added later from the admin panel.",
+      "ru": "Файлы SMF установлены. Перезапустите OSPanel и откройте сайт, чтобы завершить настройку (база данных и администратор). Английский входит в комплект; другие языки форума добавляются позже из админ-панели.",
+      "uk": "Файли SMF встановлено. Перезапустіть OSPanel і відкрийте сайт, щоб завершити налаштування (база даних і адміністратор). Англійська входить у комплект; інші мови форуму додаються пізніше з адмін-панелі.",
+      "be": "Файлы SMF усталяваны. Перазапусціце OSPanel і адкрыйце сайт, каб завяршыць наладжванне (база даных і адміністратар). Англійская ўваходзіць у камплект; іншыя мовы форума дадаюцца пазней з адмін-панэлі.",
+      "es": "Archivos de SMF instalados. Reinicia OSPanel y abre el sitio para completar la configuración (base de datos y administrador). El inglés viene incluido; otros idiomas del foro se añaden más tarde desde el panel de administración."
+    },
+    "log": {
+      "en": "Installation output",
+      "ru": "Журнал установки",
+      "uk": "Журнал встановлення",
+      "be": "Журнал усталявання",
+      "es": "Registro de instalación"
+    },
+    "backup": {
+      "en": "Original scaffold backup: {path}",
+      "ru": "Резервная копия исходной заготовки: {path}",
+      "uk": "Резервна копія початкової заготовки: {path}",
+      "be": "Рэзервовая копія пачатковай загатоўкі: {path}",
+      "es": "Copia de seguridad de la plantilla original: {path}"
+    },
+    "phases": {
+      "preparing": {
+        "en": "Checking the SMF scaffold…",
+        "ru": "Проверяем заготовку SMF…",
+        "uk": "Перевіряємо заготовку SMF…",
+        "be": "Правяраем загатоўку SMF…",
+        "es": "Comprobando la plantilla de SMF…"
+      },
+      "downloading": {
+        "en": "Downloading SMF…",
+        "ru": "Загружаем SMF…",
+        "uk": "Завантажуємо SMF…",
+        "be": "Спампоўваем SMF…",
+        "es": "Descargando SMF…"
+      },
+      "extracting": {
+        "en": "Checking and extracting the archive…",
+        "ru": "Проверяем и распаковываем архив…",
+        "uk": "Перевіряємо й розпаковуємо архів…",
+        "be": "Правяраем і распакоўваем архіў…",
+        "es": "Comprobando y extrayendo el archivo…"
+      },
+      "database": {
+        "en": "Preparing the selected database…",
+        "ru": "Подготавливаем выбранную базу данных…",
+        "uk": "Готуємо вибрану базу даних…",
+        "be": "Рыхтуем выбраную базу даных…",
+        "es": "Preparando la base de datos seleccionada…"
+      },
+      "configuring": {
+        "en": "Applying project configuration…",
+        "ru": "Применяем настройки проекта…",
+        "uk": "Застосовуємо налаштування проєкту…",
+        "be": "Ужываем налады праекта…",
+        "es": "Aplicando la configuración del proyecto…"
+      },
+      "publishing": {
+        "en": "Transferring SMF into public/…",
+        "ru": "Переносим SMF в public/…",
+        "uk": "Переносимо SMF у public/…",
+        "be": "Пераносім SMF у public/…",
+        "es": "Transfiriendo SMF a public/…"
+      }
+    },
+    "archive": {
+      "url": "https://0exclusive.de/smf/smf2.1_nightly_install.zip",
+      "maxArchiveBytes": 52428800,
+      "extract": {
+        "fromDir": "",
+        "to": "public",
+        "requiredFiles": [
+          "index.php",
+          "install.php",
+          "Settings.php",
+          "SSI.php"
+        ]
+      }
+    },
+    "keep": [
+      ".gitignore"
+    ]
+  },
+  "httpPreference": "apache",
+  "php": true,
+  "node": false,
+  "readmePath": ".osp/smf-readme.md",
+  "database": {
+    "enabled": true,
+    "engines": [
+      "mysql",
+      "mariadb",
+      "postgresql"
+    ],
+    "defaultEngine": "mysql",
+    "missing": {
+      "en": "Install a MySQL, MariaDB or PostgreSQL module to prepare a database automatically. You can also configure the connection in the SMF setup wizard later.",
+      "ru": "Для автоматического создания базы установите модуль MySQL, MariaDB или PostgreSQL. Подключение также можно настроить позже в мастере SMF.",
+      "uk": "Для автоматичного створення бази встановіть модуль MySQL, MariaDB або PostgreSQL. Підключення також можна налаштувати пізніше в майстрі SMF.",
+      "be": "Для аўтаматычнага стварэння базы ўсталюйце модуль MySQL, MariaDB або PostgreSQL. Падключэнне таксама можна наладзіць пазней у майстры SMF.",
+      "es": "Instala un módulo MySQL, MariaDB o PostgreSQL para preparar una base de datos automáticamente. También puedes configurar la conexión más tarde en el asistente de SMF."
+    }
+  },
+  "projectRoot": "{base_dir}",
+  "webRoot": "{base_dir}\\public",
+  "settings": {
+    "backend_enabled": "off"
+  },
+  "directories": [
+    "public"
+  ],
+  "applicationFiles": [
+    "Settings.php"
+  ]
+}

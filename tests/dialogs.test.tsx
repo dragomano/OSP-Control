@@ -376,7 +376,7 @@ describe('CreateProjectDialog', () => {
     const domain = await screen.findByLabelText('Domain name');
     fireEvent.change(domain, { target: { value: 'CAFÉ.test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Project template' }));
-    expect(screen.getAllByRole('menuitem')).toHaveLength(8);
+    expect(screen.getAllByRole('menuitem')).toHaveLength(9);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Laravel — preparation' }));
     expect(domain).toHaveValue('CAFÉ.test');
     expect(screen.getByText('{base_dir}\\public')).toBeInTheDocument();
@@ -457,6 +457,15 @@ describe('CreateProjectDialog', () => {
     );
   });
 
+  it('defaults Symfony to its declared SQLite database', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue(moduleOptions);
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'site.test' } });
+    pickMenu('Project template', 'Symfony');
+    expect(screen.getByLabelText('Database engine')).toHaveTextContent('SQLite — built in');
+    expect(screen.getByLabelText('New database name')).toHaveValue('site_test');
+  });
+
   it('limits WordPress to MySQL/MariaDB and submits database credentials', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue({
       ...moduleOptions,
@@ -502,6 +511,17 @@ describe('CreateProjectDialog', () => {
     expect(screen.getByLabelText('Database engine')).toHaveTextContent('Configure later');
     expect(screen.getByText(/Install a MySQL or MariaDB module/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create project' })).toBeEnabled();
+  });
+
+  it('defaults SMF to its declared MySQL database family instead of the highest version', async () => {
+    mocks.getProjectModuleOptions.mockResolvedValue({
+      ...moduleOptions,
+      databaseEngines: ['MySQL-8.4', 'PostgreSQL-17', 'MariaDB-11.8'],
+    });
+    renderDialog();
+    fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'forum.test' } });
+    pickMenu('Project template', 'SMF — preparation');
+    expect(screen.getByRole('button', { name: 'Database engine' })).toHaveTextContent('MySQL-8.4');
   });
 
   it('creates a static scaffold with unused runtimes and offers README instructions', async () => {

@@ -19,6 +19,7 @@ describe('project template catalog', () => {
       'php',
       'laravel',
       'wordpress',
+      'smf',
       'symfony',
       'bitrix',
       'node',
