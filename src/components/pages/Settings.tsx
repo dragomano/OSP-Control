@@ -1,13 +1,4 @@
-import {
-  ChevronRight,
-  FolderOpen,
-  Monitor,
-  Moon,
-  Palette,
-  RefreshCw,
-  SlidersHorizontal,
-  Sun,
-} from 'lucide-react';
+import { FolderOpen, Monitor, Moon, Palette, RefreshCw, SlidersHorizontal, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AppUpdateSettings } from '../../appUpdates';
 import { errorText, type LocaleInfo, useI18n } from '../../i18n';
@@ -23,10 +14,10 @@ import {
 import { settingsStorage } from '../../settingsStorage';
 import { ACCENT_THEMES, accentSwatch, FONT_OPTIONS, type ThemeMode } from '../../theme';
 import type { Notify, SettingsTab } from '../shared';
+import { MenuSelect } from '../widgets/MenuSelect';
 import { ModuleUpdateSources } from '../widgets/ModuleUpdateSources';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
-import { RowMenu } from '../widgets/RowMenu';
 import './settings.css';
 
 const settingsTabs = [
@@ -422,23 +413,11 @@ export function Settings({
                   <p>{t('settings.languageText')}</p>
                 </div>
                 <div className="row-actions">
-                  <RowMenu
-                    trigger={({ onToggle, open }) => (
-                      <button
-                        type="button"
-                        className="filter-button"
-                        onClick={onToggle}
-                        aria-haspopup="menu"
-                        aria-expanded={open}
-                      >
-                        {locales.find((item) => item.code === lang)?.name ?? lang}
-                        <ChevronRight size={14} />
-                      </button>
-                    )}
-                    entries={locales.map((item) => ({
-                      label: item.name,
-                      onSelect: () => onLangChange(item.code),
-                    }))}
+                  <MenuSelect
+                    ariaLabel={t('settings.languageTitle')}
+                    value={lang}
+                    options={locales.map((item) => ({ value: item.code, label: item.name }))}
+                    onChange={onLangChange}
                   />
                   <button type="button" className="secondary-button" onClick={() => void onReloadLocales()}>
                     <RefreshCw size={14} />
@@ -451,23 +430,11 @@ export function Settings({
                   <h3>{t('settings.fontTitle')}</h3>
                   <p>{t('settings.fontText')}</p>
                 </div>
-                <RowMenu
-                  trigger={({ onToggle, open }) => (
-                    <button
-                      type="button"
-                      className="filter-button"
-                      onClick={onToggle}
-                      aria-haspopup="menu"
-                      aria-expanded={open}
-                    >
-                      {t(`font.${font}`)}
-                      <ChevronRight size={14} />
-                    </button>
-                  )}
-                  entries={FONT_OPTIONS.map((item) => ({
-                    label: t(`font.${item.id}`),
-                    onSelect: () => onFontChange(item.id),
-                  }))}
+                <MenuSelect
+                  ariaLabel={t('settings.fontTitle')}
+                  value={font}
+                  options={FONT_OPTIONS.map((item) => ({ value: item.id, label: t(`font.${item.id}`) }))}
+                  onChange={onFontChange}
                 />
               </div>
               <div className="setting-block">

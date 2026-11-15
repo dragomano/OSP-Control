@@ -48,7 +48,7 @@ describe('locale loading request ordering', () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Интерфейс' }));
-      await screen.findByRole('button', { name: 'Русский' });
+      await screen.findByRole('button', { name: 'Язык интерфейса' });
 
       if (source === 'focus') fireEvent(window, new Event('focus'));
       if (source === 'manual reload') {
@@ -56,7 +56,7 @@ describe('locale loading request ordering', () => {
           fireEvent.click(screen.getByRole('button', { name: 'Перечитать переводы' }));
         });
       }
-      fireEvent.click(screen.getByRole('button', { name: 'Русский' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Язык интерфейса' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
 
       await resolveLocale('en', {

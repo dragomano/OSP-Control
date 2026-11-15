@@ -274,7 +274,7 @@ describe('Settings appearance tab', () => {
   it('changes the interface language from the menu', () => {
     const { props } = openTab();
 
-    fireEvent.click(screen.getByRole('button', { name: 'English' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Interface language' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Русский' }));
 
     expect(props.onLangChange).toHaveBeenCalledWith('ru');
@@ -291,7 +291,7 @@ describe('Settings appearance tab', () => {
   it('changes the interface font from the menu', () => {
     const { props } = openTab();
 
-    fireEvent.click(screen.getByRole('button', { name: 'DM Sans (default)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Interface font' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Consolas (monospace)' }));
 
     expect(props.onFontChange).toHaveBeenCalledWith('consolas');

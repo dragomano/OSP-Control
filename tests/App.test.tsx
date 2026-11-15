@@ -124,7 +124,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Русский' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Язык интерфейса' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
     expect(await screen.findByRole('link', { name: 'OSPanel documentation' })).toHaveAttribute(
       'href',
@@ -158,7 +158,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Русский' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Язык интерфейса' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
       await waitFor(() => expect(document.documentElement.lang).toBe('en'));
     });
@@ -484,7 +484,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Синяя' }));
       await waitFor(() => expect(localStorage.getItem('ospanel.accent')).toBe('blue'));
 
-      fireEvent.click(screen.getByRole('button', { name: 'DM Sans (по умолчанию)' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Шрифт интерфейса' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'Consolas (моноширинный)' }));
       await waitFor(() => expect(localStorage.getItem('ospanel.font')).toBe('consolas'));
 
@@ -520,7 +520,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Русский' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Язык интерфейса' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
 
       expect(await screen.findByRole('button', { name: 'Modules' })).toBeInTheDocument();
