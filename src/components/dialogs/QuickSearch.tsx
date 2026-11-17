@@ -21,6 +21,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { type Page, type SettingsTab, useDismiss } from '../shared';
+import { Button, DialogOverlay, DialogPanel, EmptyState, Input } from '../ui';
 
 // Catalog of the global search: pages and settings options from different sections.
 // Dictionary keys are known up front — titles are taken via t() at render time, so the locale applies on the fly.
@@ -110,6 +111,14 @@ const searchEntries: SearchEntry[] = [
     titleKey: 'settings.themeTitle',
     sectionKey: 'nav.settings',
     icon: Moon,
+  },
+  {
+    id: 'settings.palette',
+    page: 'settings',
+    settingsTab: 'interface',
+    titleKey: 'settings.paletteTitle',
+    sectionKey: 'nav.settings',
+    icon: Sun,
   },
   {
     id: 'settings.accent',
@@ -229,8 +238,8 @@ export function QuickSearch({
   if (!open) return null;
 
   return (
-    <div className="modal-overlay quick-search-overlay">
-      <div
+    <DialogOverlay className="modal-overlay quick-search-overlay">
+      <DialogPanel
         className="quick-search"
         role="dialog"
         aria-modal="true"
@@ -239,7 +248,8 @@ export function QuickSearch({
       >
         <div className="quick-search-field">
           <Search size={17} />
-          <input
+          <Input
+            embedded
             ref={inputRef}
             className="quick-search-input"
             value={query}
@@ -250,15 +260,25 @@ export function QuickSearch({
             placeholder={t('search.placeholder')}
             aria-label={t('search.open')}
           />
-          <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
+          <Button
+            variant="ghost"
+            square
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label={t('common.close')}
+          >
             <X size={15} />
-          </button>
+          </Button>
         </div>
         <div className="quick-search-list" ref={listRef}>
           {results.map(({ entry, title, section }, index) => {
             const Icon = entry.icon;
             return (
-              <button
+              <Button
+                layout="row"
+                selected={Boolean(index === active)}
+                variant="ghost"
                 type="button"
                 key={entry.id}
                 className={`quick-search-item ${index === active ? 'active' : ''}`}
@@ -270,10 +290,10 @@ export function QuickSearch({
                 </span>
                 <span className="quick-search-title">{title}</span>
                 <span className="quick-search-section">{section}</span>
-              </button>
+              </Button>
             );
           })}
-          {results.length === 0 && <div className="empty-note">{t('search.empty')}</div>}
+          {results.length === 0 && <EmptyState className="empty-note">{t('search.empty')}</EmptyState>}
         </div>
         <div className="quick-search-hint">
           <span>
@@ -286,7 +306,7 @@ export function QuickSearch({
             <kbd>Esc</kbd> {t('common.close')}
           </span>
         </div>
-      </div>
-    </div>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

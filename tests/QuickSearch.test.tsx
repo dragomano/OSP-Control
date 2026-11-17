@@ -44,10 +44,16 @@ describe('QuickSearch', () => {
     setup(true);
     const list = screen.getByRole('dialog');
     // Pages plus per-section settings options and the backups shortcut.
-    expect(list.querySelectorAll('.quick-search-item')).toHaveLength(17);
+    expect(list.querySelectorAll('.quick-search-item')).toHaveLength(18);
     expect(within(list).getByRole('button', { name: 'OverviewWorkspace' })).toBeInTheDocument();
     expect(within(list).getByRole('button', { name: /Interface themeSettings/ })).toBeInTheDocument();
     expect(within(list).getByRole('button', { name: 'BackupsSystem' })).toBeInTheDocument();
+  });
+
+  it('opens interface settings from the color theme entry', () => {
+    const { onNavigate } = setup(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Color themeSettings' }));
+    expect(onNavigate).toHaveBeenCalledWith('settings', 'interface');
   });
 
   it('filters by the query across title and section', () => {
@@ -141,6 +147,6 @@ describe('QuickSearch', () => {
     rerender(true);
     const reopened = screen.getByRole('textbox', { name: 'Quick search' });
     await waitFor(() => expect(reopened).toHaveValue(''));
-    expect(screen.getByRole('dialog').querySelectorAll('.quick-search-item')).toHaveLength(17);
+    expect(screen.getByRole('dialog').querySelectorAll('.quick-search-item')).toHaveLength(18);
   });
 });

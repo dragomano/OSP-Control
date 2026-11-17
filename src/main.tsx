@@ -5,6 +5,7 @@ import { initializeSettings } from './settingsStorage';
 import './styles.css';
 import './components/widgets/formControls.css';
 import './projectTags.css';
+import './components/ui/styles.css';
 
 // Disable the WebView2 default context menu (Back/Refresh/Save as/Print) —
 // a desktop panel does not need it; hotkeys (Ctrl+C/V and devtools) keep working.

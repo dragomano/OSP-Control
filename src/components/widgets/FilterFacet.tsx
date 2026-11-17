@@ -2,7 +2,7 @@ import type { Activity } from 'lucide-react';
 import { isEngineUnset } from '../../ospanel';
 import { MenuSelect } from './MenuSelect';
 
-// A single-choice filter menu: the button shows the facet name while the filter is
+// A single-choice filter: the control shows the facet name while the filter is
 // inactive and the current selection otherwise, with a check mark on the active item.
 export function FilterFacet<T extends string>({
   icon,

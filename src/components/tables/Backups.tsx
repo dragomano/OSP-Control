@@ -20,6 +20,7 @@ import {
 } from '../../ospanel';
 import { displayProjectDomain } from '../../projectDomain';
 import { formatSize, type Notify, type Service } from '../shared';
+import { Actions, Button, EmptyState, Field, FormRow, Panel, Select } from '../ui';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
 import '../widgets/formControls.css';
@@ -69,11 +70,12 @@ export function Backups({
   onRestart?: () => void;
 }) {
   const { t, plural, lang } = useI18n();
+  const createLabel = (section: string) => `${t('settings.backupsCreate')} — ${t(section)}`;
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const restoringRef = useRef(false);
-  const disabled = busy || blocked;
+  const disabled = busy || (blocked && import.meta.env.VITE_UI_WORKSHOP !== '1');
   const visibleBackups = backups.filter((item) => filter === 'all' || item.kind === filter);
   // Subjects for new backups: running DBMS with a supported engine
   // (MySQL/MariaDB/PostgreSQL — prefixes as in db_engine in src-tauri/src/db.rs) and projects.
@@ -282,6 +284,10 @@ export function Backups({
   // All dumps live in the same backups/ folder — open it; the command validates the path itself.
   const openBackupFolder = async () => {
     try {
+      if (import.meta.env.VITE_UI_WORKSHOP === '1') {
+        notify(t('settings.backupsFolderPreview'));
+        return;
+      }
       await openBackupsFolder();
     } catch (error) {
       notify(errorText(t, error, 'settings.backupsOpenFolderFailed'));
@@ -291,50 +297,56 @@ export function Backups({
   return (
     <>
       <PageHeader eyebrow={t('nav.system')} heading={t('nav.backups')} description={t('backups.subtitle')} />
-      <div className="settings-card backup-create-card">
-        <div className="setting-block">
+      <Panel className="settings-card backup-create-card">
+        <FormRow className="setting-block">
           <div>
             <h3>{t('settings.backupsTitle')}</h3>
             <p>
               <PathText text={t('settings.backupsText')} />
             </p>
           </div>
-          <button
+          <Button
+            variant="primary"
             type="button"
             className="primary-button"
             disabled={disabled}
             onClick={() => void createNewBackup()}
+            aria-label={createLabel('settings.backupsTitle')}
+            title={createLabel('settings.backupsTitle')}
           >
             <Copy size={15} />
             {t('settings.backupsCreate')}
-          </button>
-        </div>
-        <div className="setting-block">
+          </Button>
+        </FormRow>
+        <FormRow className="setting-block">
           <div>
             <h3>{t('settings.backupsMenuTitle')}</h3>
             <p>
               <PathText text={t('settings.backupsMenuText')} />
             </p>
           </div>
-          <button
+          <Button
+            variant="primary"
             type="button"
             className="primary-button"
             disabled={disabled}
             onClick={() => void createNewMenuBackup()}
+            aria-label={createLabel('settings.backupsMenuTitle')}
+            title={createLabel('settings.backupsMenuTitle')}
           >
             <ListTree size={15} />
-            {t('settings.backupsMenuCreate')}
-          </button>
-        </div>
-        <div className="setting-block">
+            {t('settings.backupsCreate')}
+          </Button>
+        </FormRow>
+        <FormRow className="setting-block">
           <div>
             <h3>{t('settings.backupsDbTitle')}</h3>
             <p>{t('settings.backupsDbText')}</p>
           </div>
           <div className="backup-actions">
             {dbModules.length > 0 ? (
-              <label className="backup-select">
-                <select
+              <Field className="backup-select">
+                <Select
                   aria-label={t('settings.backupsDbTitle')}
                   value={selectedDbModule}
                   onChange={(event) => setDbModule(event.target.value)}
@@ -345,23 +357,26 @@ export function Backups({
                       {name}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             ) : (
               <span className="select-hint">{t('settings.backupsDbNone')}</span>
             )}
-            <button
+            <Button
+              variant="primary"
               type="button"
               className="primary-button"
               disabled={disabled || !selectedDbModule}
               onClick={() => void createNewDbBackup()}
+              aria-label={createLabel('settings.backupsDbTitle')}
+              title={createLabel('settings.backupsDbTitle')}
             >
               <Database size={15} />
-              {t('settings.backupsDbCreate')}
-            </button>
+              {t('settings.backupsCreate')}
+            </Button>
           </div>
-        </div>
-        <div className="setting-block">
+        </FormRow>
+        <FormRow className="setting-block">
           <div>
             <h3>{t('settings.backupsProjectTitle')}</h3>
             <p>
@@ -370,8 +385,8 @@ export function Backups({
           </div>
           <div className="backup-actions">
             {projectDomains.length > 0 ? (
-              <label className="backup-select">
-                <select
+              <Field className="backup-select">
+                <Select
                   aria-label={t('settings.backupsProjectTitle')}
                   value={selectedProjectDomain}
                   onChange={(event) => setProjectDomain(event.target.value)}
@@ -382,28 +397,31 @@ export function Backups({
                       {displayProjectDomain(domain)}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             ) : (
               <span className="select-hint">{t('settings.backupsProjectNone')}</span>
             )}
-            <button
+            <Button
+              variant="primary"
               type="button"
               className="primary-button"
               disabled={disabled || !selectedProjectDomain}
               onClick={() => void createNewProjectBackup()}
+              aria-label={createLabel('settings.backupsProjectTitle')}
+              title={createLabel('settings.backupsProjectTitle')}
             >
               <Box size={15} />
-              {t('settings.backupsProjectCreate')}
-            </button>
+              {t('settings.backupsCreate')}
+            </Button>
           </div>
-        </div>
-      </div>
-      <div className="settings-card backup-history-card">
+        </FormRow>
+      </Panel>
+      <Panel className="settings-card backup-history-card">
         <div className="backup-filter">
           <span>{t('backups.filter')}</span>
-          <label className="backup-select">
-            <select
+          <Field className="backup-select">
+            <Select
               aria-label={t('backups.filter')}
               value={filter}
               onChange={(event) => onFilterChange(event.target.value as BackupFilter)}
@@ -413,13 +431,14 @@ export function Backups({
                   {t(key)}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
         </div>
         {loadError && (
           <div className="backup-load-error" role="alert">
             <span>{t('settings.backupsLoadFailed')}</span>
-            <button
+            <Button
+              variant="ghost"
               type="button"
               className="text-button"
               onClick={() => void refreshBackups()}
@@ -427,13 +446,13 @@ export function Backups({
             >
               <RefreshCw size={14} />
               {t('settings.backupsRetry')}
-            </button>
+            </Button>
           </div>
         )}
         {visibleBackups.length === 0 && !loadError && (
-          <div className="empty-note">
+          <EmptyState className="empty-note">
             {t(filter === 'all' ? 'settings.backupsNone' : 'backups.filteredNone')}
-          </div>
+          </EmptyState>
         )}
         {visibleBackups.length > 0 && (
           <div className="backup-list">
@@ -448,37 +467,37 @@ export function Backups({
                     })}
                   </span>
                 </div>
-                <div className="row-actions">
-                  <button
+                <Actions className="row-actions">
+                  <Button
                     type="button"
                     className="secondary-button"
                     disabled={disabled}
                     onClick={() => void restoreFromBackup(item)}
                   >
                     {t('settings.backupsRestore')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className="secondary-button"
                     disabled={disabled}
                     onClick={() => void openBackupFolder()}
                   >
                     {t('settings.backupsOpenFolder')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className="secondary-button"
                     disabled={disabled}
                     onClick={() => void deleteFromBackup(item)}
                   >
                     {t('settings.backupsDelete')}
-                  </button>
-                </div>
+                  </Button>
+                </Actions>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Panel>
     </>
   );
 }

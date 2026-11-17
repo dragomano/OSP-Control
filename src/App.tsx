@@ -19,6 +19,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { version as appVersion } from '../package.json';
 import { AppUpdateButton, AppUpdatesProvider } from './appUpdates';
 import { APP_NAME } from './brand';
+import { applyColorTheme, colorThemeId, colorThemeIsLight } from './colorThemes';
 import { ConfirmDialog } from './components/dialogs/ConfirmDialog';
 import { QuickSearch } from './components/dialogs/QuickSearch';
 import { Overview } from './components/pages/Overview';
@@ -37,7 +38,7 @@ import {
 } from './components/shared';
 import { type BackupFilter, Backups } from './components/tables/Backups';
 import { buildActivityRows, Logs, logAliasesFromTranslator } from './components/tables/Logs';
-import { RowMenu } from './components/widgets/RowMenu';
+import { Badge, Button, ButtonLink, EmptyState, NavItem, Notice, Select } from './components/ui';
 import { SettingsStorageError } from './components/widgets/SettingsStorageError';
 import {
   BASE_LANG,
@@ -46,6 +47,7 @@ import {
   embeddedDict,
   errorText,
   I18nContext,
+  LOCALES_UPDATED_EVENT,
   type LocaleInfo,
   loadLocaleDict,
   loadLocaleList,
@@ -169,8 +171,10 @@ function App() {
     return stored === 'dark' || stored === 'light' ? stored : 'system';
   });
   const systemLight = useSystemPrefersLight();
-  // Effective theme: the explicit choice, or the system setting for the 'system' mode.
-  const isLight = themeMode === 'light' || (themeMode === 'system' && systemLight);
+  const [colorTheme, setColorTheme] = useState(() =>
+    colorThemeId(settingsStorage.getItem('ospanel.colorTheme')),
+  );
+  const isLight = colorThemeIsLight(colorTheme, themeMode, systemLight);
   const [accent, setAccent] = useState(() => settingsStorage.getItem('ospanel.accent') ?? 'blue');
   const [font, setFont] = useState(() => settingsStorage.getItem('ospanel.font') ?? 'dm-sans');
   const [scale, setScale] = useState(() => Number(settingsStorage.getItem('ospanel.scale') ?? 100));
@@ -632,9 +636,10 @@ function App() {
   // defaults and then re-laying-out (zoom) after the first frame.
   useLayoutEffect(() => {
     applyAccentTheme(accent);
+    applyColorTheme(colorTheme, isLight, accent);
     applyFont(font);
     applyUiScale(scale);
-  }, [accent, font, scale]);
+  }, [accent, font, scale, colorTheme, isLight]);
 
   const refreshLocales = useCallback(async () => {
     const request = ++localeListRequestRef.current;
@@ -723,7 +728,7 @@ function App() {
         try {
           const { dict: next } = await loadLocaleDict(lang);
           if (request !== localeDictRequestRef.current) return;
-          setDict(next);
+          setDict({ ...next });
         } catch {
           /* the dictionary stays as is */
         }
@@ -733,8 +738,12 @@ function App() {
     };
 
     window.addEventListener('focus', onFocus);
+    window.addEventListener(LOCALES_UPDATED_EVENT, onFocus);
 
-    return () => window.removeEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener(LOCALES_UPDATED_EVENT, onFocus);
+    };
   }, [lang, refreshLocales]);
 
   // The UI language drives <html lang> (screen readers, spellcheck, CSS :lang()).
@@ -751,6 +760,11 @@ function App() {
   const changeTheme = useCallback((mode: ThemeMode) => {
     setThemeMode(mode);
     settingsStorage.setItem('ospanel.theme', mode);
+  }, []);
+  const changeColorTheme = useCallback((id: string) => {
+    const next = colorThemeId(id);
+    setColorTheme(next);
+    settingsStorage.setItem('ospanel.colorTheme', next);
   }, []);
 
   const reloadLocales = useCallback(async () => {
@@ -994,7 +1008,8 @@ function App() {
           >
             <aside className={`sidebar ${sidebarNarrow ? 'collapsed' : ''}`}>
               <div className="brand">
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   className="brand-mark"
                   onClick={toggleSidebar}
@@ -1002,7 +1017,7 @@ function App() {
                   title={sidebarNarrow ? t('nav.expand') : t('nav.collapse')}
                 >
                   <Leaf size={18} strokeWidth={2.5} />
-                </button>
+                </Button>
                 <div>
                   <strong>{APP_NAME}</strong>
                   <span className="brand-version">v{appVersion}</span>
@@ -1019,7 +1034,9 @@ function App() {
                   <span>{panelLabel}</span>
                 </div>
                 {snapshot?.detected ? (
-                  <button
+                  <Button
+                    variant="ghost"
+                    square
                     type="button"
                     className="icon-button workspace-open"
                     aria-label={t('nav.openFolder')}
@@ -1027,9 +1044,11 @@ function App() {
                     onClick={() => void openPanelDir()}
                   >
                     <FolderOpen size={16} />
-                  </button>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
+                    variant="ghost"
+                    square
                     type="button"
                     className="icon-button workspace-open"
                     aria-label={t('nav.openSettings')}
@@ -1037,7 +1056,7 @@ function App() {
                     onClick={() => navigateTo('settings', 'general')}
                   >
                     <Settings2 size={16} />
-                  </button>
+                  </Button>
                 )}
               </div>
               <nav className="navigation">
@@ -1045,7 +1064,7 @@ function App() {
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <button
+                    <NavItem
                       type="button"
                       key={item.id}
                       className={`nav-item ${page === item.id ? 'active' : ''}`}
@@ -1056,25 +1075,25 @@ function App() {
                       <Icon size={17} />
                       <span>{t(`nav.${item.id}`)}</span>
                       {item.id === 'logs' && logErrors > 0 && (
-                        <span className="nav-badge" title={t('nav.logsErrors', { n: logErrors })}>
+                        <Badge className="nav-badge" title={t('nav.logsErrors', { n: logErrors })}>
                           {logErrors}
-                        </span>
+                        </Badge>
                       )}
                       {item.id === 'projects' && (
-                        <span className="nav-badge" title={t('nav.projectsActive', { n: projects.length })}>
+                        <Badge className="nav-badge" title={t('nav.projectsActive', { n: projects.length })}>
                           {projects.length}
-                        </span>
+                        </Badge>
                       )}
                       {item.id === 'services' && (
-                        <span className="nav-badge" title={t('nav.servicesRunning', { n: runningCount })}>
+                        <Badge className="nav-badge" title={t('nav.servicesRunning', { n: runningCount })}>
                           {runningCount}
-                        </span>
+                        </Badge>
                       )}
-                    </button>
+                    </NavItem>
                   );
                 })}
                 <div className="nav-label second">{t('nav.system')}</div>
-                <button
+                <NavItem
                   type="button"
                   className={`nav-item nav-settings ${page === 'settings' ? 'active' : ''}`}
                   onClick={() => setPage('settings')}
@@ -1083,8 +1102,8 @@ function App() {
                 >
                   <Settings2 size={17} />
                   <span>{t('nav.settings')}</span>
-                </button>
-                <button
+                </NavItem>
+                <NavItem
                   type="button"
                   className={`nav-item nav-backups ${page === 'backups' ? 'active' : ''}`}
                   onClick={() => navigateTo('backups')}
@@ -1093,7 +1112,7 @@ function App() {
                 >
                   <Copy size={17} />
                   <span>{t('nav.backups')}</span>
-                </button>
+                </NavItem>
               </nav>
               <div className="sidebar-ideas">
                 <div className="sidebar-ideas-heading">
@@ -1101,7 +1120,8 @@ function App() {
                   <h2>{t('nav.ideasTitle')}</h2>
                 </div>
                 <p>{t('nav.ideasText')}</p>
-                <a
+                <ButtonLink
+                  variant="primary"
                   className="primary-button sidebar-ideas-link"
                   href={DISCUSSIONS_URL}
                   target="_blank"
@@ -1124,7 +1144,7 @@ function App() {
                       <ArrowUpRight size={14} aria-hidden="true" />
                     </>
                   )}
-                </a>
+                </ButtonLink>
               </div>
             </aside>
             <main className="main-content">
@@ -1153,7 +1173,9 @@ function App() {
                   >
                     <CircleHelp size={17} aria-hidden="true" />
                   </a>
-                  <button
+                  <Button
+                    variant="ghost"
+                    square
                     type="button"
                     className="icon-button"
                     onClick={() => setSearchOpen(true)}
@@ -1161,39 +1183,30 @@ function App() {
                     title={t('search.open')}
                   >
                     <Search size={17} />
-                  </button>
-                  <RowMenu
-                    trigger={({ onToggle, open }) => (
-                      <button
-                        type="button"
-                        className={`icon-button ${open ? 'active' : ''}`}
-                        onClick={onToggle}
-                        aria-label={t('common.toggleTheme')}
-                        title={t(
-                          `settings.theme${themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light'}`,
-                        )}
-                        aria-haspopup="menu"
-                        aria-expanded={open}
-                      >
-                        {themeMode === 'system' ? (
-                          <Monitor size={17} />
-                        ) : themeMode === 'light' ? (
-                          <Sun size={17} />
-                        ) : (
-                          <Moon size={17} />
-                        )}
-                      </button>
+                  </Button>
+                  <Select
+                    iconOnly
+                    className="icon-button"
+                    aria-label={t('common.toggleTheme')}
+                    title={t(
+                      `settings.theme${themeMode === 'system' ? 'System' : isLight ? 'Light' : 'Dark'}`,
                     )}
-                    entries={[
-                      {
-                        label: t('settings.themeSystem'),
-                        icon: Monitor,
-                        onSelect: () => changeTheme('system'),
-                      },
-                      { label: t('settings.themeDark'), icon: Moon, onSelect: () => changeTheme('dark') },
-                      { label: t('settings.themeLight'), icon: Sun, onSelect: () => changeTheme('light') },
-                    ]}
-                  />
+                    value={themeMode}
+                    onChange={(event) => changeTheme(event.target.value as ThemeMode)}
+                    leadingIcon={
+                      themeMode === 'system' ? (
+                        <Monitor size={17} />
+                      ) : isLight ? (
+                        <Sun size={17} />
+                      ) : (
+                        <Moon size={17} />
+                      )
+                    }
+                  >
+                    <option value="system">{t('settings.themeSystem')}</option>
+                    <option value="dark">{t('settings.themeDark')}</option>
+                    <option value="light">{t('settings.themeLight')}</option>
+                  </Select>
                 </div>
               </header>
               <div className="content-wrap">
@@ -1250,9 +1263,9 @@ function App() {
                 {page === 'configs' && (
                   <Suspense
                     fallback={
-                      <div className="notice" role="status">
+                      <Notice className="notice" role="status">
                         {t('common.loading')}
-                      </div>
+                      </Notice>
                     }
                   >
                     <Configs notify={notify} />
@@ -1260,7 +1273,9 @@ function App() {
                 )}
                 {(page === 'menu' || menuVisited) && (
                   <div hidden={page !== 'menu'}>
-                    <Suspense fallback={<div className="empty-note">{t('common.loading')}</div>}>
+                    <Suspense
+                      fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}
+                    >
                       <MenuEditor
                         notify={notify}
                         installationPath={snapshot?.path ?? null}
@@ -1314,6 +1329,8 @@ function App() {
                     }}
                     themeMode={themeMode}
                     setTheme={changeTheme}
+                    colorTheme={colorTheme}
+                    onColorThemeChange={changeColorTheme}
                     accent={accent}
                     font={font}
                     onAccentChange={(id: string) => {
@@ -1365,7 +1382,8 @@ function App() {
                 <ShieldCheck size={17} />
                 <span>{toast.message}</span>
                 {toastAction && (
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="toast-action"
                     onClick={() => {
@@ -1374,11 +1392,16 @@ function App() {
                     }}
                   >
                     {toastAction.label}
-                  </button>
+                  </Button>
                 )}
-                <button type="button" onClick={() => setToast(null)} aria-label={t('common.close')}>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setToast(null)}
+                  aria-label={t('common.close')}
+                >
                   <X size={14} />
-                </button>
+                </Button>
               </div>
             )}
             <QuickSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={navigateTo} />

@@ -28,7 +28,7 @@ export function ModuleSelect({
   includeAuto?: boolean;
   onChange: (value: string) => void;
 }) {
-  // Not a <label>: the trigger button carries its own accessible name via aria-label.
+  // The shared choice control carries its own accessible name via aria-label.
   return (
     <div className="module-select">
       <span>{label}</span>

@@ -252,7 +252,7 @@ describe('Log source switching', () => {
       );
       selectSource('general.log', 'Apache.log');
       expect(container.querySelectorAll('.log-line')).toHaveLength(0);
-      expect(screen.getByRole('button', { name: 'Errors 0' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Errors 0' })).toBeInTheDocument();
       await act(async () => {
         if (outcome === 'empty') finishRead([]);
         else failRead(new Error('err.ioFailed'));

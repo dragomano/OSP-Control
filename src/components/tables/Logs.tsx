@@ -1,9 +1,10 @@
 import { Copy, Eraser, RefreshCw, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useI18n } from '../../i18n';
 import type { LogSource } from '../../ospanel';
 import { ClearLogsDialog } from '../dialogs/ClearLogsDialog';
 import { type ActivityEntry, copyText, type Notify } from '../shared';
+import { Button, EmptyState, Tab, Tabs, Toolbar } from '../ui';
 import { LogSourcePicker } from '../widgets/LogSourcePicker';
 import { PageHeader } from '../widgets/PageHeader';
 import { SearchField } from '../widgets/SearchField';
@@ -177,6 +178,7 @@ export function Logs({
   const aliases = useMemo(() => logAliasesFromTranslator(t), [t]);
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<'all' | 'error' | 'warning'>('all');
+  const tabsId = useId();
   const [clearTarget, setClearTarget] = useState<{ source: string | null } | null>(null);
   const [clearError, setClearError] = useState<string | null>(null);
   const openClearDialog = (target: string | null) => {
@@ -244,7 +246,8 @@ export function Logs({
         description={t('logs.subtitle')}
         action={
           <div className="logs-header-actions">
-            <button
+            <Button
+              selected={Boolean(auto)}
               type="button"
               className={`secondary-button ${auto ? 'on' : ''}`}
               onClick={() => onAutoChange(!auto)}
@@ -253,8 +256,8 @@ export function Logs({
             >
               <RefreshCw size={16} />
               {t('logs.autorefresh')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="secondary-button log-clear-all"
               onClick={() => openClearDialog(null)}
@@ -262,11 +265,11 @@ export function Logs({
             >
               <Trash2 size={16} />
               {t('logs.clearAll')}
-            </button>
+            </Button>
           </div>
         }
       />
-      <div className="toolbar">
+      <Toolbar className="toolbar">
         <SearchField
           value={query}
           onChange={setQuery}
@@ -274,32 +277,67 @@ export function Logs({
           iconSize={16}
         />
         <LogSourcePicker sources={sources} value={source} onChange={onSourceChange} disabled={clearing} />
-      </div>
+      </Toolbar>
       <div className="log-panel">
         <div className="log-tabs">
-          <button
-            type="button"
-            className={`log-tab ${level === 'all' ? 'active' : ''}`}
-            onClick={() => setLevel('all')}
+          <Tabs
+            className="log-level-tabs"
+            role="tablist"
+            aria-label={t('nav.logs')}
+            onKeyDown={(event) => {
+              const levels = ['all', 'error', 'warning'] as const;
+              const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+              if (!step && event.key !== 'Home' && event.key !== 'End') return;
+              event.preventDefault();
+              const next =
+                event.key === 'Home'
+                  ? 'all'
+                  : event.key === 'End'
+                    ? 'warning'
+                    : levels[(levels.indexOf(level) + step + levels.length) % levels.length];
+              setLevel(next);
+              document.getElementById(`${tabsId}-${next}`)?.focus();
+            }}
           >
-            {t('logs.tabAll')}
-          </button>
-          <button
-            type="button"
-            className={`log-tab ${level === 'error' ? 'active' : ''}`}
-            onClick={() => setLevel('error')}
-          >
-            {t('logs.tabErrors')} <em>{counts.error}</em>
-          </button>
-          <button
-            type="button"
-            className={`log-tab ${level === 'warning' ? 'active' : ''}`}
-            onClick={() => setLevel('warning')}
-          >
-            {t('logs.tabWarnings')} <em className="orange">{counts.warning}</em>
-          </button>
+            <Tab
+              role="tab"
+              id={`${tabsId}-all`}
+              aria-controls={`${tabsId}-panel`}
+              aria-selected={level === 'all'}
+              tabIndex={level === 'all' ? 0 : -1}
+              type="button"
+              className={`log-tab ${level === 'all' ? 'active' : ''}`}
+              onClick={() => setLevel('all')}
+            >
+              {t('logs.tabAll')}
+            </Tab>
+            <Tab
+              role="tab"
+              id={`${tabsId}-error`}
+              aria-controls={`${tabsId}-panel`}
+              aria-selected={level === 'error'}
+              tabIndex={level === 'error' ? 0 : -1}
+              type="button"
+              className={`log-tab ${level === 'error' ? 'active' : ''}`}
+              onClick={() => setLevel('error')}
+            >
+              {t('logs.tabErrors')} <em>{counts.error}</em>
+            </Tab>
+            <Tab
+              role="tab"
+              id={`${tabsId}-warning`}
+              aria-controls={`${tabsId}-panel`}
+              aria-selected={level === 'warning'}
+              tabIndex={level === 'warning' ? 0 : -1}
+              type="button"
+              className={`log-tab ${level === 'warning' ? 'active' : ''}`}
+              onClick={() => setLevel('warning')}
+            >
+              {t('logs.tabWarnings')} <em className="orange">{counts.warning}</em>
+            </Tab>
+          </Tabs>
           <div className="log-tab-actions">
-            <button
+            <Button
               type="button"
               className="secondary-button log-clear-current"
               disabled={clearing || blocked || !activeSource}
@@ -307,8 +345,10 @@ export function Logs({
             >
               <Eraser size={15} />
               {t('logs.clearCurrent')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              square
               type="button"
               className="icon-button"
               aria-label={t('logs.copyAria')}
@@ -324,14 +364,21 @@ export function Logs({
               }
             >
               <Copy size={15} />
-            </button>
+            </Button>
           </div>
         </div>
-        <div className="log-content">
+        <div
+          className="log-content"
+          id={`${tabsId}-panel`}
+          role="tabpanel"
+          aria-labelledby={`${tabsId}-${level}`}
+        >
           {rendered.length > 0 ? (
             rendered
           ) : (
-            <div className="empty-note">{t(lines.length === 0 ? 'logs.emptyLog' : 'logs.empty')}</div>
+            <EmptyState className="empty-note">
+              {t(lines.length === 0 ? 'logs.emptyLog' : 'logs.empty')}
+            </EmptyState>
           )}
         </div>
       </div>

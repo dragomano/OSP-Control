@@ -587,7 +587,6 @@
   "backups.filteredNone": "No backups of this type yet",
   "settings.backupsMenuTitle": "Menu backups",
   "settings.backupsMenuText": "An exact copy of system/menu.dat. The current file is saved automatically before restoring.",
-  "settings.backupsMenuCreate": "Create menu copy",
   "settings.backupsMenuCreated": "Menu backup created",
   "settings.backupsKindMenu": "OSPanel menu",
   "settings.backupsConfirmMenu": "Restore the menu from the backup dated {date}? The current system/menu.dat is saved automatically before replacement.",
@@ -617,7 +616,6 @@
   "settings.backupsDbTitle": "Database dumps",
   "settings.backupsDbText": "A logical SQL dump of a running database module (MySQL, MariaDB, PostgreSQL). The current state is saved automatically before restore.",
   "settings.backupsDbNone": "No running database modules",
-  "settings.backupsDbCreate": "Create dump",
   "settings.backupsDbCreated": "Database dump saved: {module}",
   "settings.backupsDbCreatedCount": {
     "one": "Created {count} dump",
@@ -626,7 +624,6 @@
   "settings.backupsProjectTitle": "Project backups",
   "settings.backupsProjectText": "A zip archive of the project folder; node_modules and vendor are excluded. The current folder is saved automatically before restore.",
   "settings.backupsProjectNone": "No projects",
-  "settings.backupsProjectCreate": "Create archive",
   "settings.backupsProjectCreated": "Project archive saved: {domain}",
   "settings.backupsProjectCreatedCount": {
     "one": "Created {count} archive",
@@ -905,6 +902,7 @@
   "projects.tagsCreate": "Create tag “{tag}”",
   "projects.tagsSelectHelp": "Type to search or create a tag. Use arrow keys to navigate and Enter to select. Use Backspace to remove a selected tag.",
   "projects.tagsSelection": "Selected tags: {tags}",
+  "projects.tagsAvailable": "Available tags",
   "projects.tagsOptions": "Available tags: {count}",
   "projects.tagsAdd": "Add",
   "projects.tagsDone": "Done",
@@ -917,6 +915,7 @@
   "projects.tagsEdit": "Edit tags",
   "projects.tagsTag": "tag",
   "projects.tagsColumn": "Tags",
+  "projects.tagsMore": "Hidden tags for {domain} ({count})",
   "projects.tagsBulk": "Bulk tag actions",
   "projects.tagsSelected": "Selected: {count}",
   "projects.tagsBulkName": "Tag for selected projects",
@@ -1289,11 +1288,16 @@
   "err.installFailed": "The installation failed. Check the command output. The scaffold is kept unless a separate recovery message is shown.",
   "err.installTimeout": "The installation exceeded the 15-minute limit. The scaffold is kept; check the connection and try again.",
   "err.installPayload": "The installation did not produce a complete application. The scaffold is kept.",
-"err.installPayloadFile": "The installation did not produce a complete application: {path} is missing. The scaffold is kept.",
+  "err.installPayloadFile": "The installation did not produce a complete application: {path} is missing. The scaffold is kept.",
   "err.installPayloadName": "The downloaded package is {actual}, but {name} was expected. The scaffold is kept.",
   "err.installRecovery": "The project transfer could not be completed or restored automatically. Original files: {path}. Prepared application and recovery details: {staging}.",
   "err.installDownload": "The download failed. Check the connection and the availability of the archive source, then retry. The scaffold is kept.",
   "err.installChecksum": "The downloaded archive does not match the published checksum. The scaffold is kept; check the download source and retry.",
   "err.installArchive": "The downloaded archive is not the expected application package. The scaffold is kept.",
-  "starters.static.ready": "Your local site is ready. Replace this page with your project files."
+  "starters.static.ready": "Your local site is ready. Replace this page with your project files.",
+  "settings.paletteTitle": "Color theme",
+  "settings.paletteText": "Interface colors. Every theme supports light, dark and system modes.",
+  "settings.backupsFolderPreview": "Preview of opening the backup folder.",
+  "settings.accentOriginal": "Original theme accent",
+  "settings.accentVariant": "Accent {number}"
 }

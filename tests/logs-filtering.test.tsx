@@ -35,7 +35,7 @@ const displayedLines = (container: HTMLElement) =>
   Array.from(container.querySelectorAll('.log-line code'), (line) => line.textContent);
 const selectLevel = (level: 'all' | 'error' | 'warning') =>
   fireEvent.click(
-    screen.getByRole('button', {
+    screen.getByRole('tab', {
       name: level === 'all' ? 'All events' : level === 'error' ? /^Errors / : /^Warnings /,
     }),
   );
@@ -43,6 +43,21 @@ const selectLevel = (level: 'all' | 'error' | 'warning') =>
 afterEach(() => cleanup());
 
 describe('Log filter rendering', () => {
+  it('supports arrow-key tab selection and connects each tab to the log panel', () => {
+    render(logs(repeatedLines));
+    const all = screen.getByRole('tab', { name: 'All events' });
+    all.focus();
+    fireEvent.keyDown(all, { key: 'ArrowRight' });
+    const errors = screen.getByRole('tab', { name: /^Errors / });
+    expect(errors).toHaveFocus();
+    expect(errors).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', errors.id);
+    fireEvent.keyDown(errors, { key: 'End' });
+    expect(screen.getByRole('tab', { name: /^Warnings / })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('tab', { name: /^Warnings / }), { key: 'Home' });
+    expect(all).toHaveFocus();
+  });
+
   it('keeps source prefix search independent of the filter for log contents', () => {
     const { container } = render(logs(repeatedLines));
     fireEvent.change(screen.getByPlaceholderText('Filter log...'), {

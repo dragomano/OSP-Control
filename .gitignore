@@ -1,10 +1,12 @@
 node_modules/
+.pnpm-store/
 dist/
+dist-demo/
 coverage/
 src-tauri/target/
 src-tauri/gen/
 dist-portable/
-demo/
+/demo/
 .sharrowkin/
 .vscode/
 .zcode/

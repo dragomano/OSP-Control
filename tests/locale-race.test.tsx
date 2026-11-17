@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../src/App';
+import { LOCALES_UPDATED_EVENT } from '../src/i18n';
+import { selectOption } from './selectOption';
 
 const pending = new Map<
   string,
@@ -42,22 +44,35 @@ describe('locale loading request ordering', () => {
 
   afterEach(() => cleanup());
 
-  it.each(['startup', 'focus', 'manual reload'])(
+  it('refreshes a mounted translator when the same dictionary object changes', async () => {
+    const dict = { 'nav.settings': 'Settings before update' };
+    render(<App />);
+    await resolveLocale('ru', dict);
+    fireEvent.click(screen.getByRole('button', { name: 'Settings before update' }));
+    dict['nav.settings'] = 'Settings after update';
+    fireEvent(window, new Event(LOCALES_UPDATED_EVENT));
+    await resolveLocale('ru', dict);
+    expect(screen.getByRole('button', { name: 'Settings after update' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Settings before update' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'General' })).toBeInTheDocument();
+  });
+
+  it.each(['startup', 'focus', 'dictionary update', 'manual reload'])(
     'ignores stale %s responses after a language switch',
     async (source) => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Интерфейс' }));
-      await screen.findByRole('button', { name: 'Язык интерфейса' });
+      await screen.findByRole('option', { name: 'English' });
 
       if (source === 'focus') fireEvent(window, new Event('focus'));
+      if (source === 'dictionary update') fireEvent(window, new Event(LOCALES_UPDATED_EVENT));
       if (source === 'manual reload') {
         await act(async () => {
           fireEvent.click(screen.getByRole('button', { name: 'Перечитать переводы' }));
         });
       }
-      fireEvent.click(screen.getByRole('button', { name: 'Язык интерфейса' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
+      selectOption(screen.getByRole('combobox', { name: 'Язык интерфейса' }), 'English');
 
       await resolveLocale('en', {
         'nav.settings': 'Settings from latest response',

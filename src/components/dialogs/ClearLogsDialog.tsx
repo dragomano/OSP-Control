@@ -2,6 +2,7 @@ import { Eraser, Files, FileText, X } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
 import { useI18n } from '../../i18n';
 import { useDismiss } from '../shared';
+import { Button, DialogFooter, DialogHeader, DialogOverlay, DialogPanel } from '../ui';
 
 export function ClearLogsDialog({
   source,
@@ -36,8 +37,8 @@ export function ClearLogsDialog({
   }, []);
 
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
         className="modal-window log-clear-dialog"
         role="dialog"
         aria-modal="true"
@@ -63,14 +64,16 @@ export function ClearLogsDialog({
           }
         }}
       >
-        <div className="modal-head">
+        <DialogHeader className="modal-head">
           <div className="log-clear-heading">
             <Eraser size={19} />
             <h3 className="modal-title" id={titleId}>
               {t(all ? 'logs.clearAllTitle' : 'logs.clearCurrentTitle')}
             </h3>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button"
             onClick={onClose}
@@ -78,8 +81,8 @@ export function ClearLogsDialog({
             aria-label={t('common.close')}
           >
             <X size={16} />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
         <p className="modal-hint" id={descriptionId}>
           {t(all ? 'logs.clearAllDescription' : 'logs.clearCurrentDescription')}
         </p>
@@ -96,8 +99,8 @@ export function ClearLogsDialog({
             {error}
           </p>
         )}
-        <div className="modal-foot log-clear-foot">
-          <button
+        <DialogFooter className="modal-foot log-clear-foot">
+          <Button
             type="button"
             className="secondary-button"
             onClick={onClose}
@@ -105,18 +108,19 @@ export function ClearLogsDialog({
             ref={cancelRef}
           >
             {t('logs.cancel')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="danger"
             type="button"
-            className="primary-button log-clear-confirm"
+            className="log-clear-confirm"
             onClick={onConfirm}
             disabled={busy}
           >
             <Eraser size={15} />
             {t(busy ? 'logs.clearing' : all ? 'logs.clearAll' : 'logs.clearCurrent')}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

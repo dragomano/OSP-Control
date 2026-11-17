@@ -4,6 +4,7 @@ import { Settings } from '../src/components/pages/Settings';
 import type { Notify, SettingsTab } from '../src/components/shared';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
 import type { ThemeMode } from '../src/theme';
+import { selectOption } from './selectOption';
 
 const mocks = vi.hoisted(() => ({
   autostartEnabled: vi.fn(),
@@ -283,8 +284,7 @@ describe('Settings appearance tab', () => {
   it('changes the interface language from the menu', () => {
     const { props } = openTab();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Interface language' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Русский' }));
+    selectOption(screen.getByRole('combobox', { name: 'Interface language' }), 'Русский');
 
     expect(props.onLangChange).toHaveBeenCalledWith('ru');
   });
@@ -300,8 +300,7 @@ describe('Settings appearance tab', () => {
   it('changes the interface font from the menu', () => {
     const { props } = openTab();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Interface font' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Consolas (monospace)' }));
+    selectOption(screen.getByRole('combobox', { name: 'Interface font' }), 'Consolas (monospace)');
 
     expect(props.onFontChange).toHaveBeenCalledWith('consolas');
   });

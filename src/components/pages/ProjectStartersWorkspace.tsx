@@ -30,6 +30,20 @@ import {
   starterText,
 } from '../../projectTemplates';
 import type { Notify } from '../shared';
+import {
+  Actions,
+  Button,
+  CardButton,
+  FormRow,
+  Input,
+  NoticeText,
+  Panel,
+  SectionHeader,
+  Table,
+  Tabs,
+  Textarea,
+  Tab as UITab,
+} from '../ui';
 import { ConfigEditor } from '../widgets/ConfigEditor';
 import { PageHeader } from '../widgets/PageHeader';
 import { ToggleSwitch } from '../widgets/ToggleSwitch';
@@ -174,19 +188,20 @@ export function ProjectStartersWorkspace({
       <h3>{t('starter.builtin')}</h3>
       <div className="starter-grid">
         {BUILT_IN.map((id) => (
-          <div key={id} className="starter-card starter-card-builtin">
+          <Panel layout="column" key={id} className="starter-card starter-card-builtin">
             <span className="starter-card-head">
               <Lock size={14} />
               <b>{t(`templates.${id}.name`)}</b>
             </span>
             <small>{t('starter.readonly')}</small>
-          </div>
+          </Panel>
         ))}
       </div>
       <h3>{t('starter.customizable')}</h3>
       <div className="starter-grid">
         {entries.map((entry) => (
-          <button
+          <CardButton
+            variant="ghost"
             type="button"
             className="starter-card"
             key={entry.id}
@@ -209,10 +224,11 @@ export function ProjectStartersWorkspace({
                 )}
               </span>
             )}
-          </button>
+          </CardButton>
         ))}
         {missing.map((doc) => (
-          <button
+          <CardButton
+            variant="ghost"
             type="button"
             className="starter-card starter-card-missing"
             key={doc.manifest.id}
@@ -227,27 +243,27 @@ export function ProjectStartersWorkspace({
             <span className="starter-badges">
               <code className="starter-badge">{t('starter.restoreShipped')}</code>
             </span>
-          </button>
+          </CardButton>
         ))}
       </div>
     </div>
   );
   const field = (key: string, value: string, onChange: (value: string) => void, disabled = false) => (
-    <div className="workspace-setting" key={key}>
+    <FormRow className="workspace-setting" key={key}>
       <b>{t(`starter.${key}`)}</b>
-      <input
+      <Input
         className="starter-input"
         aria-label={t(`starter.${key}`)}
         disabled={busy || disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </div>
+    </FormRow>
   );
   const area = (key: string, value: string, onChange: (value: string) => void) => (
-    <div className="workspace-setting" key={key}>
+    <FormRow className="workspace-setting" key={key}>
       <b>{t(`starter.${key}`)}</b>
-      <textarea
+      <Textarea
         className="starter-textarea"
         aria-label={t(`starter.${key}`)}
         rows={3}
@@ -255,7 +271,7 @@ export function ProjectStartersWorkspace({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </div>
+    </FormRow>
   );
   // Older documents may carry an explicit null section; the editor works with the optional shape.
   const install = m?.install ?? undefined;
@@ -358,21 +374,21 @@ export function ProjectStartersWorkspace({
   const commandText = (steps: string[][]) => steps.map((args) => args.join(' ')).join('\n');
   const parseCommands = (value: string): string[][] => parseList(value).map((line) => line.split(/\s+/));
   const installField = (labelKey: string, value: string, onChange: (value: string) => void) => (
-    <div className="workspace-setting" key={labelKey}>
+    <FormRow className="workspace-setting" key={labelKey}>
       <b>{t(labelKey)}</b>
-      <input
+      <Input
         className="starter-input"
         aria-label={t(labelKey)}
         disabled={busy}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </div>
+    </FormRow>
   );
   const installArea = (labelKey: string, value: string, onChange: (value: string) => void, rows = 3) => (
-    <div className="workspace-setting" key={labelKey}>
+    <FormRow className="workspace-setting" key={labelKey}>
       <b>{t(labelKey)}</b>
-      <textarea
+      <Textarea
         className="starter-textarea"
         aria-label={t(labelKey)}
         rows={rows}
@@ -380,10 +396,10 @@ export function ProjectStartersWorkspace({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </div>
+    </FormRow>
   );
   const installSwitch = (key: 'scripts' | 'sqliteFallback', labelKey: string) => (
-    <div className="workspace-setting">
+    <FormRow className="workspace-setting">
       <b>{t(labelKey)}</b>
       <ToggleSwitch
         checked={Boolean(install?.[key])}
@@ -391,12 +407,12 @@ export function ProjectStartersWorkspace({
         disabled={busy}
         onChange={(value) => changeInstall({ [key]: value } as Partial<StarterInstall>)}
       />
-    </div>
+    </FormRow>
   );
   const installTab =
     install !== undefined && m ? (
       <>
-        <div className="workspace-setting">
+        <FormRow className="workspace-setting">
           <b>{t('starter.oneClick')}</b>
           <ToggleSwitch
             checked
@@ -404,11 +420,11 @@ export function ProjectStartersWorkspace({
             disabled={busy}
             onChange={() => change({ install: undefined })}
           />
-        </div>
-        <div className="workspace-section-head">
+        </FormRow>
+        <SectionHeader className="workspace-section-head">
           <h2>{t('starter.texts')}</h2>
           <p>{t('starter.textsHint')}</p>
-        </div>
+        </SectionHeader>
         {installField('starter.installTitle', installText('title'), (value) =>
           changeInstallText('title', value),
         )}
@@ -434,10 +450,10 @@ export function ProjectStartersWorkspace({
         {installArea('starter.installUnsaved', installText('unsaved'), (value) =>
           changeInstallText('unsaved', value),
         )}
-        <div className="workspace-section-head">
+        <SectionHeader className="workspace-section-head">
           <h2>{t('starter.phases')}</h2>
           <p>{t('starter.phasesHint')}</p>
-        </div>
+        </SectionHeader>
         {(
           [
             'preparing',
@@ -451,27 +467,31 @@ export function ProjectStartersWorkspace({
         ).map((key) =>
           installField(`starter.phase.${key}`, phaseValue(key), (value) => changePhase(key, value)),
         )}
-        <div className="workspace-setting">
+        <FormRow className="workspace-setting">
           <b>{t('starter.engine')}</b>
           <div className="starter-chips">
-            <button
+            <Button
+              selected={Boolean(engineKind === 'composer')}
+              variant="ghost"
               type="button"
               className={`starter-chip ${engineKind === 'composer' ? 'selected' : ''}`}
               disabled={busy}
               onClick={() => switchEngine('composer')}
             >
               {t('starter.engineComposer')}
-            </button>
-            <button
+            </Button>
+            <Button
+              selected={Boolean(engineKind === 'archive')}
+              variant="ghost"
               type="button"
               className={`starter-chip ${engineKind === 'archive' ? 'selected' : ''}`}
               disabled={busy}
               onClick={() => switchEngine('archive')}
             >
               {t('starter.engineArchive')}
-            </button>
+            </Button>
           </div>
-        </div>
+        </FormRow>
         <p className="workspace-hint">{t('starter.engineHint')}</p>
         {engineKind === 'composer' ? (
           <>
@@ -549,10 +569,10 @@ export function ProjectStartersWorkspace({
             );
           })()
         )}
-        <div className="workspace-section-head">
+        <SectionHeader className="workspace-section-head">
           <h2>{t('starter.envTitle')}</h2>
           <p>{t('starter.envHint')}</p>
-        </div>
+        </SectionHeader>
         {installField('starter.envSource', install.envSource ?? '', (value) =>
           changeInstall({ envSource: value || undefined }),
         )}
@@ -567,17 +587,17 @@ export function ProjectStartersWorkspace({
           changeInstall({ sqliteDir: value || undefined }),
         )}
         {installSwitch('sqliteFallback', 'starter.sqliteFallback')}
-        <div className="workspace-section-head">
+        <SectionHeader className="workspace-section-head">
           <h2>{t('starter.keepTitle')}</h2>
           <p>{t('starter.keepHint')}</p>
-        </div>
+        </SectionHeader>
         {installArea('starter.keep', listText(install.keep ?? []), (value) =>
           changeInstall({ keep: parseList(value) }),
         )}
-        <div className="workspace-section-head">
+        <SectionHeader className="workspace-section-head">
           <h2>{t('starter.randomTitle')}</h2>
           <p>{t('starter.randomHint')}</p>
-        </div>
+        </SectionHeader>
         {installArea(
           'starter.randomHex',
           Object.entries(install.randomHex)
@@ -590,10 +610,10 @@ export function ProjectStartersWorkspace({
               ),
             }),
         )}
-        <div className="workspace-section-head">
+        <SectionHeader className="workspace-section-head">
           <h2>{t('starter.configTitle')}</h2>
           <p>{t('starter.configHint')}</p>
-        </div>
+        </SectionHeader>
         {installArea(
           'starter.configFiles',
           install.configFiles.map((file) => `${file.template}=${file.to}`).join('\n'),
@@ -606,19 +626,19 @@ export function ProjectStartersWorkspace({
         )}
       </>
     ) : (
-      <div className="workspace-card starter-empty-config">
+      <Panel className="workspace-card starter-empty-config">
         <p>{t('starter.oneClickOff')}</p>
-        <button type="button" className="secondary-button" disabled={busy} onClick={() => toggleInstall()}>
+        <Button type="button" className="secondary-button" disabled={busy} onClick={() => toggleInstall()}>
           <Plus size={14} />
           {t('starter.oneClickOn')}
-        </button>
-      </div>
+        </Button>
+      </Panel>
     );
   const editor = draft && m && (
     <>
-      <div className="workspace-tabs" role="tablist">
+      <Tabs className="workspace-tabs" role="tablist">
         {(['general', 'install', 'web', 'files', 'database', 'json'] as Tab[]).map((item) => (
-          <button
+          <UITab
             type="button"
             role="tab"
             aria-selected={tab === item}
@@ -627,20 +647,20 @@ export function ProjectStartersWorkspace({
             onClick={() => setTab(item)}
           >
             {t(`starter.tab.${item}`)}
-          </button>
+          </UITab>
         ))}
-      </div>
-      <div className="workspace-card starter-panel">
+      </Tabs>
+      <Panel layout="column" className="workspace-card starter-panel">
         {tab === 'general' && (
           <>
-            <div className="workspace-section-head">
+            <SectionHeader className="workspace-section-head">
               <h2>{t('starter.tab.general')}</h2>
               <p>{t('starter.generalHint')}</p>
-            </div>
+            </SectionHeader>
             {!idValid && (
-              <p className="workspace-error" role="alert">
+              <NoticeText className="workspace-error" role="alert">
                 {t('err.projectTemplateInvalid')}
-              </p>
+              </NoticeText>
             )}
             {field('id', m.id, (id) => change({ id }), !!draft.revision)}
             {field('name', starterText(m.name, lang), (name) =>
@@ -659,11 +679,13 @@ export function ProjectStartersWorkspace({
                 nextStep: typeof m.nextStep === 'string' ? nextStep : { ...m.nextStep, [lang]: nextStep },
               }),
             )}
-            <div className="workspace-setting">
+            <FormRow className="workspace-setting">
               <b>{t('starter.httpPreference')}</b>
               <div className="starter-chips">
                 {(['any', 'apache', 'nginx', 'caddy'] as const).map((value) => (
-                  <button
+                  <Button
+                    selected={Boolean(m.httpPreference === value)}
+                    variant="ghost"
                     type="button"
                     key={value}
                     className={`starter-chip ${m.httpPreference === value ? 'selected' : ''}`}
@@ -671,15 +693,17 @@ export function ProjectStartersWorkspace({
                     onClick={() => change({ httpPreference: value })}
                   >
                     {value === 'any' ? t('starter.any') : value}
-                  </button>
+                  </Button>
                 ))}
               </div>
-            </div>
-            <div className="workspace-setting">
+            </FormRow>
+            <FormRow className="workspace-setting">
               <b>{t('starter.runtimes')}</b>
               <div className="starter-chips">
                 {(['php', 'node'] as const).map((runtime) => (
-                  <button
+                  <Button
+                    selected={Boolean(m[runtime])}
+                    variant="ghost"
                     type="button"
                     key={runtime}
                     className={`starter-chip ${m[runtime] ? 'selected' : ''}`}
@@ -687,10 +711,10 @@ export function ProjectStartersWorkspace({
                     onClick={() => change({ [runtime]: !m[runtime] })}
                   >
                     {runtime === 'php' ? 'PHP' : 'Node.js'}
-                  </button>
+                  </Button>
                 ))}
               </div>
-            </div>
+            </FormRow>
             {/* Not a <label>: ConfigEditor's textarea is named through its own aria-label. */}
             <div className="workspace-file-section">
               <div className="workspace-file-head">
@@ -718,13 +742,15 @@ export function ProjectStartersWorkspace({
         {tab === 'install' && installTab}
         {tab === 'web' && (
           <>
-            <div className="workspace-section-head">
+            <SectionHeader className="workspace-section-head">
               <h2>{t('starter.tab.web')}</h2>
               <p>{t('starter.webHint')}</p>
-            </div>
+            </SectionHeader>
             <div className="workspace-file-tabs">
               {ENGINES.map((item) => (
-                <button
+                <Button
+                  selected={Boolean(engine === item)}
+                  variant="ghost"
                   type="button"
                   key={item}
                   className={`${engine === item ? 'selected' : ''} ${
@@ -734,7 +760,7 @@ export function ProjectStartersWorkspace({
                 >
                   <FileCode2 size={13} />
                   {item}
-                </button>
+                </Button>
               ))}
             </div>
             <p className="workspace-hint">
@@ -748,14 +774,15 @@ export function ProjectStartersWorkspace({
                     <FileCode2 size={13} />
                     <b>{`.osp/${engine}/${m.id || '<id>'}.conf`}</b>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="text-button"
                     disabled={busy}
                     onClick={() => asset(`${engine}.conf`, null)}
                   >
                     {t('starter.deleteFile')}
-                  </button>
+                  </Button>
                 </div>
                 <ConfigEditor
                   file={`${engine}.conf`}
@@ -766,9 +793,9 @@ export function ProjectStartersWorkspace({
                 />
               </div>
             ) : (
-              <div className="workspace-card starter-empty-config">
+              <Panel className="workspace-card starter-empty-config">
                 <p>{t('starter.webNone')}</p>
-                <button
+                <Button
                   type="button"
                   className="secondary-button"
                   disabled={busy}
@@ -783,13 +810,13 @@ export function ProjectStartersWorkspace({
                 >
                   <Plus size={14} />
                   {t('starter.createConf')}
-                </button>
-              </div>
+                </Button>
+              </Panel>
             )}
-            <div className="workspace-section-head">
+            <SectionHeader className="workspace-section-head">
               <h2>{t('starter.tokens')}</h2>
-            </div>
-            <table className="starter-token-table">
+            </SectionHeader>
+            <Table className="starter-token-table">
               <thead>
                 <tr>
                   <th>{t('starter.tokenVariable')}</th>
@@ -806,18 +833,18 @@ export function ProjectStartersWorkspace({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           </>
         )}
         {tab === 'files' && (
           <>
-            <div className="workspace-section-head">
+            <SectionHeader className="workspace-section-head">
               <h2>{t('starter.tab.files')}</h2>
               <p>{t('starter.filesHint')}</p>
-            </div>
-            <div className="workspace-setting">
+            </SectionHeader>
+            <FormRow className="workspace-setting">
               <b>{t('starter.directories')}</b>
-              <textarea
+              <Textarea
                 className="starter-textarea"
                 aria-label={t('starter.directories')}
                 rows={2}
@@ -825,16 +852,16 @@ export function ProjectStartersWorkspace({
                 disabled={busy}
                 onChange={(e) => change({ directories: e.target.value.split('\n') })}
               />
-            </div>
+            </FormRow>
             <div className="starter-file-row">
-              <input
+              <Input
                 aria-label={t('starter.path')}
                 value={newFile}
                 disabled={busy}
                 placeholder="files/public/index.php"
                 onChange={(e) => setNewFile(e.target.value)}
               />
-              <button
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={busy || !newFile || newFile in draft.assets}
@@ -845,20 +872,22 @@ export function ProjectStartersWorkspace({
               >
                 <Plus size={14} />
                 {t('starter.addFile')}
-              </button>
+              </Button>
             </div>
             <div className="workspace-file-tabs">
               {Object.keys(draft.assets)
                 .filter((p) => p.startsWith('files/') || p.startsWith('docs/'))
                 .map((path) => (
-                  <button
+                  <Button
+                    selected={Boolean(file === path)}
+                    variant="ghost"
                     type="button"
                     key={path}
                     className={file === path ? 'selected' : ''}
                     onClick={() => setFile(path)}
                   >
                     {path}
-                  </button>
+                  </Button>
                 ))}
             </div>
             {file in draft.assets ? (
@@ -868,14 +897,15 @@ export function ProjectStartersWorkspace({
                     <FileCode2 size={13} />
                     <b>{file}</b>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="text-button"
                     disabled={busy}
                     onClick={() => asset(file, null)}
                   >
                     {t('starter.deleteFile')}
-                  </button>
+                  </Button>
                 </div>
                 <ConfigEditor
                   file={file}
@@ -892,11 +922,11 @@ export function ProjectStartersWorkspace({
         )}
         {tab === 'database' && (
           <>
-            <div className="workspace-section-head">
+            <SectionHeader className="workspace-section-head">
               <h2>{t('starter.tab.database')}</h2>
               <p>{t('starter.databaseHint')}</p>
-            </div>
-            <div className="workspace-setting">
+            </SectionHeader>
+            <FormRow className="workspace-setting">
               <b>{t('starter.databaseEnabled')}</b>
               <ToggleSwitch
                 checked={m.database.enabled}
@@ -904,12 +934,14 @@ export function ProjectStartersWorkspace({
                 disabled={busy}
                 onChange={(value) => change({ database: { ...m.database, enabled: value } })}
               />
-            </div>
-            <div className="workspace-setting">
+            </FormRow>
+            <FormRow className="workspace-setting">
               <b>{t('starter.databaseEngines')}</b>
               <div className="starter-chips">
                 {DB_ENGINES.map((name) => (
-                  <button
+                  <Button
+                    selected={Boolean(m.database.engines.includes(name))}
+                    variant="ghost"
                     type="button"
                     key={name}
                     className={`starter-chip ${m.database.engines.includes(name) ? 'selected' : ''}`}
@@ -926,15 +958,17 @@ export function ProjectStartersWorkspace({
                     }
                   >
                     {name}
-                  </button>
+                  </Button>
                 ))}
               </div>
-            </div>
-            <div className="workspace-setting">
+            </FormRow>
+            <FormRow className="workspace-setting">
               <b>{t('starter.databaseDefault')}</b>
               <div className="starter-chips">
                 {['none', ...m.database.engines].map((value) => (
-                  <button
+                  <Button
+                    selected={Boolean(m.database.defaultEngine === value)}
+                    variant="ghost"
                     type="button"
                     key={value}
                     className={`starter-chip ${m.database.defaultEngine === value ? 'selected' : ''}`}
@@ -942,18 +976,18 @@ export function ProjectStartersWorkspace({
                     onClick={() => change({ database: { ...m.database, defaultEngine: value } })}
                   >
                     {value === 'none' ? t('projectDb.later') : value}
-                  </button>
+                  </Button>
                 ))}
               </div>
-            </div>
+            </FormRow>
           </>
         )}
         {tab === 'json' && (
           <>
-            <div className="workspace-section-head">
+            <SectionHeader className="workspace-section-head">
               <h2>starter.json</h2>
               <p>{t('starter.jsonHint')}</p>
-            </div>
+            </SectionHeader>
             <ConfigEditor
               file="starter.json"
               label="starter.json"
@@ -970,12 +1004,13 @@ export function ProjectStartersWorkspace({
             />
           </>
         )}
-      </div>
+      </Panel>
     </>
   );
   return (
     <section className="project-workspace starter-workspace">
-      <button
+      <Button
+        variant="ghost"
         type="button"
         className="text-button workspace-back"
         disabled={busy}
@@ -994,16 +1029,16 @@ export function ProjectStartersWorkspace({
       >
         <ArrowLeft size={15} />
         {draft ? t('starter.allTemplates') : t('workspace.allProjects')}
-      </button>
+      </Button>
       <PageHeader
         eyebrow={t('nav.projects')}
         heading={draft ? starterText(m?.name, lang) || t('starter.new') : t('starter.title')}
         description={draft ? `starters/${m?.id}/` : t('starter.hint')}
         action={
-          <div className="row-actions">
+          <Actions className="row-actions">
             {draft ? (
               <>
-                <button
+                <Button
                   type="button"
                   className="secondary-button"
                   disabled={busy}
@@ -1011,9 +1046,9 @@ export function ProjectStartersWorkspace({
                 >
                   <Copy size={15} />
                   {t('starter.duplicate')}
-                </button>
+                </Button>
                 {shipped && (
-                  <button
+                  <Button
                     type="button"
                     className="secondary-button"
                     disabled={busy}
@@ -1021,9 +1056,9 @@ export function ProjectStartersWorkspace({
                   >
                     <RotateCcw size={15} />
                     {t('starter.restore')}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
                   className="secondary-button"
                   disabled={busy || !draft.revision}
@@ -1039,8 +1074,9 @@ export function ProjectStartersWorkspace({
                 >
                   <Trash2 size={15} />
                   {t('starter.delete')}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
                   type="button"
                   className="primary-button"
                   disabled={busy || !dirty || !idValid}
@@ -1048,11 +1084,11 @@ export function ProjectStartersWorkspace({
                 >
                   <Save size={15} />
                   {t('common.save')}
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <button
+                <Button
                   type="button"
                   className="secondary-button"
                   disabled={busy}
@@ -1060,8 +1096,9 @@ export function ProjectStartersWorkspace({
                 >
                   <FolderOpen size={15} />
                   {t('starter.folder')}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
                   type="button"
                   className="primary-button"
                   disabled={busy}
@@ -1069,10 +1106,10 @@ export function ProjectStartersWorkspace({
                 >
                   <Plus size={15} />
                   {t('starter.new')}
-                </button>
+                </Button>
               </>
             )}
-          </div>
+          </Actions>
         }
       />
       {draft ? editor : catalog}

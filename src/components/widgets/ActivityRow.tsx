@@ -1,5 +1,6 @@
 import { AlertTriangle, Info, OctagonAlert } from 'lucide-react';
 import type { ActivityEntry } from '../shared';
+import { Badge } from '../ui';
 
 // Log event level → row icon and status labels.
 const ACTIVITY_ICONS: Record<ActivityEntry['level'], typeof Info> = {
@@ -30,14 +31,15 @@ export function ActivityRow({
         <b>{title}</b>
         <span>{meta}</span>
       </div>
-      <span
+      <Badge
+        tone={level}
         className={`activity-status ${level !== 'info' ? level : ''}`}
         role="img"
         aria-label={status}
         title={status}
       >
         <Icon size={13} />
-      </span>
+      </Badge>
     </div>
   );
 }

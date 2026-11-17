@@ -135,8 +135,14 @@ describe('Backups list', () => {
     const cards = container.querySelectorAll('.settings-card');
 
     expect(cards).toHaveLength(2);
-    for (const name of ['Create copy', 'Create menu copy', 'Create dump', 'Create archive']) {
+    for (const name of [
+      'Create copy — Configuration backups',
+      'Create copy — Menu backups',
+      'Create copy — Database dumps',
+      'Create copy — Project backups',
+    ]) {
       expect(cards[0]).toContainElement(screen.getByRole('button', { name }));
+      expect(screen.getByRole('button', { name })).toHaveTextContent('Create copy');
     }
     for (const name of ['Database dumps', 'Project backups']) {
       expect(cards[0]).toContainElement(screen.getByRole('combobox', { name }));
@@ -183,7 +189,7 @@ describe('Backups creation', () => {
     const notify = vi.fn();
     renderBackups(notify);
     await screen.findByText('No saved backups yet');
-    fireEvent.click(screen.getByRole('button', { name: 'Create menu copy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create copy — Menu backups' }));
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Menu backup created'));
     expect(mocks.createMenuBackup).toHaveBeenCalledOnce();
     expect(mocks.listBackups).toHaveBeenCalledTimes(2);
@@ -195,7 +201,7 @@ describe('Backups creation', () => {
     renderBackups(notify);
     await screen.findByText('No saved backups yet');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create copy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create copy — Configuration backups' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Backup created: 1 file'));
     expect(mocks.listBackups).toHaveBeenCalledTimes(2);
@@ -207,7 +213,7 @@ describe('Backups creation', () => {
     renderBackups(notify);
     await screen.findByText('No saved backups yet');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create copy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create copy — Configuration backups' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to create backup'));
   });
@@ -219,7 +225,7 @@ describe('Backups creation', () => {
     await screen.findByRole('combobox', { name: 'Database dumps' });
 
     // The select defaults to the "All" sentinel: one dump per running module.
-    fireEvent.click(screen.getByRole('button', { name: 'Create dump' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create copy — Database dumps' }));
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Created 2 dumps'));
     expect(mocks.createDbBackup).toHaveBeenNthCalledWith(1, 'MySQL-8.0');
     expect(mocks.createDbBackup).toHaveBeenNthCalledWith(2, 'MariaDB-11.4');
@@ -227,7 +233,7 @@ describe('Backups creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Database dumps' }), {
       target: { value: 'MySQL-8.0' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Create dump' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create copy — Database dumps' }));
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Database dump saved: MySQL-8.0'));
     expect(mocks.createDbBackup).toHaveBeenCalledTimes(3);
   });
@@ -238,7 +244,7 @@ describe('Backups creation', () => {
     renderBackups(notify, { projects: [project] });
     await screen.findByRole('combobox', { name: 'Project backups' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create archive' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create copy — Project backups' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Project archive saved: my-shop.test'));
     expect(mocks.createProjectBackup).toHaveBeenCalledWith('my-shop.test');
@@ -255,7 +261,7 @@ describe('Backups creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Project backups' }), {
       target: { value: domain },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Create archive' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create copy — Project backups' }));
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Project archive saved: café.test'));
     expect(mocks.createProjectBackup).toHaveBeenCalledWith(domain);
   });
@@ -265,8 +271,8 @@ describe('Backups creation', () => {
 
     expect(await screen.findByText('No running database modules')).toBeInTheDocument();
     expect(screen.getByText('No projects')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create dump' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Create archive' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Create copy — Database dumps' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Create copy — Project backups' })).toBeDisabled();
   });
 });
 

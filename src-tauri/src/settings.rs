@@ -28,6 +28,7 @@ fn valid_tag_color(name: &str, color: &str) -> bool {
 const FIELDS: &[(&str, &str, &str, &str)] = &[
     ("ospanel.lang", "interface", "language", "string"),
     ("ospanel.theme", "interface", "theme", "string"),
+    ("ospanel.colorTheme", "interface", "color_theme", "string"),
     ("ospanel.accent", "interface", "accent", "string"),
     ("ospanel.font", "interface", "font", "string"),
     ("ospanel.scale", "interface", "scale", "integer"),
@@ -116,6 +117,10 @@ fn valid_scalar(key: &str, v: &str) -> bool {
     match key {
         "ospanel.lang" => crate::paths::is_valid_lang(v),
         "ospanel.theme" => ["system", "dark", "light"].contains(&v),
+        "ospanel.colorTheme" => {
+            !v.is_empty() && v.len() <= 64
+                && v.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+        }
         "ospanel.accent" => ["orange", "blue", "green", "purple", "red", "pink"].contains(&v),
         "ospanel.font" => ["dm-sans", "segoe", "arial", "tahoma", "verdana", "consolas"].contains(&v),
         "ospanel.scale" => v.parse::<i64>().is_ok_and(|n| (80..=130).contains(&n)),
@@ -560,6 +565,18 @@ mod tests {
             let _ = fs::remove_dir_all(&self.root);
         }
     }
+    #[test]
+    fn color_theme_round_trips_and_rejects_unsafe_ids() {
+        let f = Fixture::new();
+        for id in ["default", "custom", "night", "my-palette-2"] {
+            f.save("ospanel.colorTheme", id);
+            assert_eq!(f.store.load().unwrap().values["ospanel.colorTheme"], id);
+        }
+        for id in ["", "../night", "night\n", "Night", "theme with spaces"] {
+            assert!(f.store.save([("ospanel.colorTheme".into(), id.into())].into(), false).is_err());
+        }
+    }
+
     #[test]
     fn fresh_launch_and_empty_migration_do_not_create_files() {
         let f = Fixture::new();

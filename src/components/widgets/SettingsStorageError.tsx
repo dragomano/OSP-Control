@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorText, useI18n } from '../../i18n';
 import { flushSettings, settingsFailure, subscribeSettingsFailure } from '../../settingsStorage';
+import { Button, Notice } from '../ui';
 
 export function SettingsStorageError() {
   const { t } = useI18n();
@@ -9,9 +10,9 @@ export function SettingsStorageError() {
   useEffect(() => subscribeSettingsFailure(() => setError(settingsFailure())), []);
   if (!error) return null;
   return (
-    <div className="settings-storage-error" role="alert">
+    <Notice className="settings-storage-error" role="alert">
       <span>{errorText(t, error, 'settings.storageFailed')}</span>
-      <button
+      <Button
         type="button"
         className="secondary-button"
         disabled={busy}
@@ -22,7 +23,7 @@ export function SettingsStorageError() {
         }}
       >
         {t('settings.storageRetry')}
-      </button>
-    </div>
+      </Button>
+    </Notice>
   );
 }

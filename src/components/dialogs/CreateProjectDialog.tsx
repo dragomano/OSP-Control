@@ -24,6 +24,18 @@ import {
   starterText,
 } from '../../projectTemplates';
 import { copyText, type Notify, useDismiss } from '../shared';
+import {
+  Actions,
+  Button,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPanel,
+  EmptyState,
+  Field,
+  Input,
+} from '../ui';
 import { MenuSelect } from '../widgets/MenuSelect';
 import { PathText } from '../widgets/PathText';
 import { defaultEngineLabel, ModuleSelect } from './ModuleSelect';
@@ -282,20 +294,23 @@ export function CreateProjectDialog({
   };
 
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
+        size="lg"
         className="modal-window create-project-window"
         role="dialog"
         aria-modal="true"
         aria-label={t('projects.createTitle')}
         ref={windowRef}
       >
-        <div className="modal-head">
+        <DialogHeader className="modal-head">
           <div>
             <span className="eyebrow">{t('nav.projects')}</span>
             <h3 className="modal-title">{t('projects.createTitle')}</h3>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button"
             disabled={busy}
@@ -303,17 +318,17 @@ export function CreateProjectDialog({
             aria-label={t('common.close')}
           >
             <X size={16} />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
         <p className="modal-hint">
           <PathText text={t('projects.createHint')} />
         </p>
         {options ? (
-          <div className="modal-body create-project-body">
+          <DialogBody className="modal-body create-project-body">
             <fieldset className="create-project-fields" disabled={busy}>
-              <label className="module-select">
+              <Field className="module-select">
                 <span>{t('projects.createDomain')}</span>
-                <input
+                <Input
                   ref={domainRef}
                   type="text"
                   value={domain}
@@ -321,7 +336,7 @@ export function CreateProjectDialog({
                   onChange={(event) => setDomain(event.target.value)}
                   placeholder={t('projects.createDomainPlaceholder')}
                 />
-              </label>
+              </Field>
               {domain.trim() && !normalizedDomain && (
                 <p className="modal-hint" role="alert">
                   {t('err.invalidDomain')}
@@ -330,7 +345,8 @@ export function CreateProjectDialog({
               {normalizedDomain && !normalizedDomain.includes('.') && (
                 <div className="modal-hint">
                   <p>{t('projects.domainZoneHint')}</p>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="text-button"
                     onClick={() => setDomain(`${normalizedDomain}.test`)}
@@ -338,7 +354,7 @@ export function CreateProjectDialog({
                     {t('projects.useTestDomain', {
                       domain: displayProjectDomain(`${normalizedDomain}.test`),
                     })}
-                  </button>
+                  </Button>
                 </div>
               )}
               <div className="module-select">
@@ -452,9 +468,9 @@ export function CreateProjectDialog({
                     )}
                   </p>
                   {options.nvmAvailable !== false && <code>osp node install lts</code>}
-                  <div className="row-actions">
+                  <Actions className="row-actions">
                     {options.nvmAvailable !== false && (
-                      <button
+                      <Button
                         type="button"
                         className="secondary-button"
                         onClick={() =>
@@ -463,9 +479,9 @@ export function CreateProjectDialog({
                       >
                         <Copy size={13} />
                         {t('templates.node.copy')}
-                      </button>
+                      </Button>
                     )}
-                    <button
+                    <Button
                       type="button"
                       className="secondary-button"
                       disabled={refreshing}
@@ -473,8 +489,8 @@ export function CreateProjectDialog({
                     >
                       <RefreshCw size={13} />
                       {t(refreshing ? 'common.loading' : 'templates.node.refresh')}
-                    </button>
-                  </div>
+                    </Button>
+                  </Actions>
                 </section>
               )}
               {hasDatabase && (
@@ -488,16 +504,16 @@ export function CreateProjectDialog({
                   />
                   {databaseEngine !== 'none' && (
                     <>
-                      <label className="module-select">
+                      <Field className="module-select">
                         <span>{t('projectDb.name')}</span>
-                        <input
+                        <Input
                           value={dbName}
                           maxLength={63}
                           autoComplete="off"
                           aria-invalid={!validDatabaseName(dbName)}
                           onChange={(event) => setDatabaseName(event.target.value)}
                         />
-                      </label>
+                      </Field>
                       {!validDatabaseName(dbName) && (
                         <p className="modal-hint" role="alert">
                           {t('projectDb.invalidName')}
@@ -515,25 +531,25 @@ export function CreateProjectDialog({
                       ) : (
                         <>
                           <div className="create-project-db-credentials">
-                            <label className="module-select">
+                            <Field className="module-select">
                               <span>{t('projectDb.user')}</span>
-                              <input
+                              <Input
                                 value={databaseUser}
                                 maxLength={128}
                                 autoComplete="off"
                                 onChange={(event) => setDatabaseUser(event.target.value)}
                               />
-                            </label>
-                            <label className="module-select">
+                            </Field>
+                            <Field className="module-select">
                               <span>{t('projectDb.password')}</span>
-                              <input
+                              <Input
                                 type="password"
                                 value={databasePassword}
                                 maxLength={1024}
                                 autoComplete="new-password"
                                 onChange={(event) => setDatabasePassword(event.target.value)}
                               />
-                            </label>
+                            </Field>
                           </div>
                           <p className="modal-hint">
                             <PathText text={t('projectDb.hint')} />
@@ -551,9 +567,9 @@ export function CreateProjectDialog({
                 </section>
               )}
               {template.node && (
-                <label className="module-select">
+                <Field className="module-select">
                   <span>{t('templates.backendPort')}</span>
-                  <input
+                  <Input
                     aria-label={t('templates.backendPort')}
                     type="number"
                     min={1}
@@ -562,7 +578,7 @@ export function CreateProjectDialog({
                     aria-invalid={!validPort}
                     onChange={(event) => setBackendPort(event.target.value)}
                   />
-                </label>
+                </Field>
               )}
               {missingModule && (!template.node || options.nodeEngines.length > 0 || !httpEngine) && (
                 <p className="modal-hint" role="alert">
@@ -575,24 +591,31 @@ export function CreateProjectDialog({
                 </p>
               )}
             </fieldset>
-          </div>
+          </DialogBody>
         ) : (
-          <div className="empty-note">{t('common.loading')}</div>
+          <EmptyState className="empty-note">{t('common.loading')}</EmptyState>
         )}
-        <div className="modal-foot">
+        <DialogFooter className="modal-foot">
           {onManageTemplates && (
-            <button type="button" className="text-button" disabled={busy} onClick={onManageTemplates}>
+            <Button
+              variant="ghost"
+              type="button"
+              className="text-button"
+              disabled={busy}
+              onClick={onManageTemplates}
+            >
               {t('starter.manage')}
-            </button>
+            </Button>
           )}
           <span className="modal-path">
             {normalizedDomain ? `home/${normalizedDomain}/.osp/project.ini` : '\u00A0'}
           </span>
-          <div className="row-actions">
-            <button type="button" className="secondary-button" disabled={busy} onClick={onClose}>
+          <Actions className="row-actions">
+            <Button type="button" className="secondary-button" disabled={busy} onClick={onClose}>
               {t('common.close')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
               type="button"
               className="primary-button"
               disabled={
@@ -607,10 +630,10 @@ export function CreateProjectDialog({
               onClick={() => void create()}
             >
               {t('projects.create')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Button>
+          </Actions>
+        </DialogFooter>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

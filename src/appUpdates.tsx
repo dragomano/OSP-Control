@@ -1,3 +1,13 @@
+import {
+  Button,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPanel,
+  FormRow,
+  NoticeText,
+  Toggle,
+} from './components/ui';
 import { settingsStorage } from './settingsStorage';
 import './appUpdates.css';
 import { Download, RefreshCw, X } from 'lucide-react';
@@ -125,17 +135,19 @@ export function AppUpdatesProvider({
             <b>{t('appUpdates.available', { version: update.version })}</b>
             <span>{t('appUpdates.notice')}</span>
           </div>
-          <button type="button" className="secondary-button" onClick={open}>
+          <Button type="button" className="secondary-button" onClick={open}>
             {t('appUpdates.details')}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            square
             className="icon-button"
             aria-label={t('common.close')}
             onClick={() => setNotice(false)}
           >
             <X size={16} />
-          </button>
+          </Button>
         </div>
       )}
       {visible && (
@@ -194,8 +206,8 @@ function UpdateDialog({
   }, []);
   const percent = progress?.total ? Math.min(100, Math.floor((progress.received / progress.total) * 100)) : 0;
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
         className="modal-window app-update-dialog"
         role="dialog"
         aria-modal="true"
@@ -226,21 +238,23 @@ function UpdateDialog({
           }
         }}
       >
-        <div className="modal-head">
+        <DialogHeader className="modal-head">
           <div>
             <span className="eyebrow">OSP Control</span>
             <h3 className="modal-title">{t('appUpdates.title')}</h3>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            square
             className="icon-button"
             disabled={busy}
             onClick={onClose}
             aria-label={t('common.close')}
           >
             <X size={18} />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
         <div className="app-update-versions">
           <span>
             {t('appUpdates.installed')}
@@ -281,34 +295,35 @@ function UpdateDialog({
           </div>
         )}
         {message && (
-          <p className="notice" role="alert">
+          <NoticeText className="notice" role="alert">
             {message}
-          </p>
+          </NoticeText>
         )}
         {blocked && !busy && (
           <p className="modal-hint" role="status">
             {t('appUpdates.blocked')}
           </p>
         )}
-        <div className="modal-foot">
-          <button type="button" className="secondary-button" disabled={checking || busy} onClick={onCheck}>
+        <DialogFooter className="modal-foot">
+          <Button type="button" className="secondary-button" disabled={checking || busy} onClick={onCheck}>
             <RefreshCw size={14} />
             {t(checking ? 'appUpdates.checking' : 'appUpdates.check')}
-          </button>
+          </Button>
           {update && (
-            <button
+            <Button
               type="button"
+              variant="primary"
               className="primary-button"
               disabled={busy || checking || blocked}
               onClick={onInstall}
             >
               <Download size={14} />
               {t('appUpdates.install')}
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }
 
@@ -316,7 +331,9 @@ export function AppUpdateButton() {
   const { t } = useI18n();
   const { open } = useAppUpdates();
   return (
-    <button
+    <Button
+      variant="ghost"
+      square
       type="button"
       className="icon-button brand-update"
       aria-label={t('appUpdates.check')}
@@ -324,7 +341,7 @@ export function AppUpdateButton() {
       onClick={open}
     >
       <RefreshCw size={16} />
-    </button>
+    </Button>
   );
 }
 
@@ -334,12 +351,13 @@ export function AppUpdateSettings() {
     () => settingsStorage.getItem('ospanel.checkAppUpdates') === '1',
   );
   return (
-    <div className="setting-block">
+    <FormRow className="setting-block">
       <div>
         <h3>{t('appUpdates.startup')}</h3>
         <p>{t('appUpdates.startupHint')}</p>
       </div>
-      <button
+      <Toggle
+        checked={automatic}
         type="button"
         className={`large-toggle ${automatic ? 'on' : ''}`}
         aria-label={t('appUpdates.startup')}
@@ -351,7 +369,7 @@ export function AppUpdateSettings() {
         }}
       >
         <span />
-      </button>
-    </div>
+      </Toggle>
+    </FormRow>
   );
 }

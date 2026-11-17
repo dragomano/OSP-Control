@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Button } from './components/ui';
 import { errorText, useI18n } from './i18n';
 import {
   checkModuleUpdates,
@@ -235,28 +236,28 @@ export function ModuleUpdateAction({ name, disabled = false }: { name: string; d
       ) : update.recovery ? (
         <>
           <span role={result ? 'status' : undefined}>{result || t('updates.interrupted')}</span>
-          <button
+          <Button
             type="button"
             className="secondary-button"
             disabled={disabled || checking || webBusy}
             onClick={() => void install(name, true)}
           >
             {t('updates.recover')}
-          </button>
+          </Button>
         </>
       ) : update.available && !update.error ? (
         <>
           <span role={result ? 'status' : undefined}>
             {result || t('updates.available', { version: update.available })}
           </span>
-          <button
+          <Button
             type="button"
             className="secondary-button"
             disabled={disabled || checking || webBusy || !update.expected}
             onClick={() => void install(name)}
           >
             {t('updates.install')}
-          </button>
+          </Button>
         </>
       ) : (
         <span role="status">{result || failure}</span>
@@ -275,14 +276,14 @@ export function ModuleUpdateToolbar() {
         <span>{t('updates.description')}</span>
         {message && <span role="status">{message}</span>}
       </div>
-      <button
+      <Button
         type="button"
         className="secondary-button"
         disabled={checking || busy}
         onClick={() => void check()}
       >
         {t(checking ? 'updates.checking' : 'updates.check')}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { type ConfirmRequest, registerConfirmHost } from '../../ospanel';
 import { useDismiss } from '../shared';
+import { Button, DialogFooter, DialogOverlay, DialogPanel } from '../ui';
 
 // The single in-app confirmation dialog for every askConfirm() caller, mounted once
 // in App. It replaces the native Windows message box: same question, OK/Cancel and
@@ -48,8 +49,9 @@ export function ConfirmDialog() {
   if (!request) return null;
 
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
+        size="sm"
         className="modal-window confirm-window"
         role="dialog"
         aria-modal="true"
@@ -79,15 +81,21 @@ export function ConfirmDialog() {
             <p className="confirm-message">{request.message}</p>
           </div>
         </div>
-        <div className="modal-foot confirm-foot">
-          <button type="button" className="secondary-button" onClick={() => settle(false)}>
+        <DialogFooter className="modal-foot confirm-foot">
+          <Button type="button" className="secondary-button" onClick={() => settle(false)}>
             {t('common.cancel')}
-          </button>
-          <button type="button" className="primary-button" ref={okRef} onClick={() => settle(true)}>
+          </Button>
+          <Button
+            variant="primary"
+            type="button"
+            className="primary-button"
+            ref={okRef}
+            onClick={() => settle(true)}
+          >
             {t('common.ok')}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

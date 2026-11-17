@@ -1,0 +1,514 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "./index.tsx";
+@plugin "daisyui" {
+  themes: false;
+  exclude: rootscrollgutter, themecontroller;
+  logs: false;
+}
+
+/* DaisyUI supplies control defaults. The unlayered original CSS owns composition,
+   sizing and responsive behavior, identically for every palette. */
+@layer components {
+  :root {
+    --radius-field: 0.45rem;
+    --radius-box: 0.75rem;
+    --radius-selector: 0.35rem;
+    --size-field: 0.25rem;
+    --size-selector: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+  }
+  .ui-button,
+  .ui-input,
+  .ui-select,
+  .ui-textarea,
+  .ui-tab {
+    font-family: inherit;
+    text-transform: none;
+  }
+  .ui-button-row {
+    display: flex;
+    text-align: left;
+    justify-content: flex-start;
+  }
+  .ui-button-column {
+    display: flex;
+    flex-direction: column;
+  }
+  .ui-embedded-input {
+    border: 0;
+    padding: 0;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    min-width: 0;
+    flex: 1;
+  }
+  .ui-panel-block {
+    display: block;
+  }
+  .ui-panel-row {
+    display: flex;
+    flex-direction: row;
+  }
+  .ui-panel-column {
+    display: flex;
+    flex-direction: column;
+  }
+  .ui-panel-grid {
+    display: grid;
+  }
+  .ui-badge {
+    white-space: nowrap;
+  }
+}
+
+/* Compatibility fixes are shared across palettes, including Default. */
+:where(.ui-button, .ui-nav-item, .ui-menu-item, .ui-badge, .ui-tab) {
+  height: auto;
+  min-height: 0;
+  box-shadow: none;
+}
+.ui-button-row,
+.ui-menu-item {
+  justify-content: flex-start;
+}
+/* Scroll tall action menus vertically instead of allowing DaisyUI to create more columns. */
+.ui-menu {
+  flex-wrap: nowrap;
+}
+.ui-menu > * {
+  flex-shrink: 0;
+  min-width: 0;
+}
+.ui-menu .ui-menu-item {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ui-menu.menu-popover {
+  min-width: min(192px, calc(100vw - 16px));
+  max-width: min(240px, calc(100vw - 16px));
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.ui-menu-item > svg,
+.ui-menu-item .menu-chevron {
+  flex-shrink: 0;
+}
+:where(.ui-button.btn-square) {
+  padding: 0;
+  justify-content: center;
+  justify-items: center;
+}
+.ui-button.filter-button {
+  justify-content: space-between;
+}
+.filter-button .menu-select-label {
+  flex: 1;
+  text-align: left;
+}
+.ui-tab::before,
+.ui-tab::after {
+  content: none;
+}
+:where(.ui-panel) {
+  display: block;
+  flex-direction: row;
+}
+.ui-panel-column {
+  display: flex;
+  flex-direction: column;
+}
+.ui-panel-row {
+  display: flex;
+  flex-direction: row;
+}
+.ui-panel-grid {
+  display: grid;
+}
+.ui-dialog-panel {
+  max-width: 100%;
+  scale: none;
+  translate: none;
+  transform: none;
+}
+.ui-button {
+  box-shadow: none;
+}
+.ui-toggle::before {
+  content: none;
+}
+.ui-toggle {
+  place-content: normal;
+  justify-content: flex-start;
+}
+.ui-toggle > :is(span, i) {
+  padding: 0;
+  flex-shrink: 0;
+}
+.ui-button-swatch,
+.ui-button-swatch:hover {
+  border-radius: 50%;
+  box-shadow: none;
+}
+.ui-button.ui-button-swatch {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  padding: 6px;
+  display: grid;
+  place-items: center;
+  justify-content: center;
+}
+.app-shell .ui-button.ui-button-swatch[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--panel2);
+}
+.ui-button-swatch .theme-swatch {
+  display: grid;
+  place-items: center;
+}
+.app-shell .ui-button.ui-button-swatch .ui-swatch-check {
+  color: var(--ui-swatch-ink);
+}
+.ui-button.btn-error {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: var(--color-error-content);
+  padding: 10px 13px;
+}
+.app-shell :is(.log-clear-dialog, .log-clear-all) {
+  --log-danger: var(--ui-error-ink, var(--color-error));
+}
+.sidebar.collapsed .nav-badge {
+  display: none;
+}
+.sidebar .navigation {
+  overflow-x: hidden;
+}
+select.ui-select {
+  appearance: auto;
+  padding-inline: 12px 32px;
+}
+.ui-select-wrap {
+  position: relative;
+  display: inline-grid;
+  vertical-align: middle;
+  min-width: 0;
+  color: var(--text, var(--color-base-content));
+  font-size: 11px;
+  font-weight: 600;
+}
+.ui-search {
+  width: auto;
+  min-width: 0;
+}
+.ui-search .ui-embedded-input::placeholder {
+  color: var(--muted, var(--color-base-content));
+  opacity: 1;
+}
+.ui-toolbar :is(.ui-search, .ui-select, .filter-button) {
+  box-sizing: border-box;
+  height: 37px;
+  min-height: 37px;
+}
+.projects-toolbar .ui-select-wrap {
+  width: 100%;
+}
+.hosts-file-editor .ui-code-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ui-select-wrap > select.ui-select,
+.ui-select-label {
+  position: relative;
+  z-index: 1;
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.ui-select-wrap > select.ui-select {
+  width: 100%;
+}
+.ui-select-label {
+  align-self: center;
+  padding-inline: 12px 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.ui-select-leading {
+  position: absolute;
+  z-index: 1;
+  inset-inline-start: 12px;
+  top: 50%;
+  display: flex;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.ui-select-with-icon > select.ui-select,
+.ui-select-with-icon > .ui-select-label {
+  padding-inline-start: 35px;
+}
+.ui-select-wrap:has(select:disabled) {
+  opacity: 0.5;
+}
+.ui-select-icon-only {
+  width: 48px;
+}
+.ui-select-icon-only > select.ui-select {
+  min-width: 0;
+  min-height: 32px;
+  font-size: 0;
+  padding-inline: 8px;
+}
+.ui-select-icon-only .ui-select-leading {
+  inset-inline-start: 8px;
+}
+.ui-select-icon-only > select.ui-select option {
+  font-size: 11px;
+}
+.ui-choice-indicator {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.ui-button.ui-choice-option {
+  padding: 9px 10px;
+  gap: 16px;
+  font-size: 11px;
+  border-radius: 5px;
+}
+.ui-button.ui-choice-option + .ui-choice-option {
+  margin-block-start: 3px;
+}
+.ui-button.ui-choice-option:is(:hover, [aria-selected="true"], .active) {
+  background: color-mix(in oklab, var(--color-primary) 14%, var(--panel));
+}
+.app-shell .log-source-popover {
+  background: var(--panel);
+}
+[aria-expanded="true"] > .ui-choice-indicator {
+  transform: rotate(180deg);
+}
+/* Keep native forms, keyboard selection and top-layer placement, with one shared picker skin. */
+@supports (appearance: base-select) {
+  select.ui-select,
+  select.ui-select::picker(select) {
+    appearance: base-select;
+  }
+  select.ui-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding-inline: 12px;
+    background-image: none;
+    cursor: pointer;
+  }
+  select.ui-select::picker-icon {
+    content: "";
+    display: block;
+    width: 6px;
+    height: 6px;
+    flex: 0 0 6px;
+    margin-inline-start: auto;
+    margin-inline-end: 2px;
+    border-inline-end: 1.5px solid var(--text, var(--color-base-content));
+    border-block-end: 1.5px solid var(--text, var(--color-base-content));
+    transform: translateY(-2px) rotate(45deg);
+  }
+  select.ui-select:open::picker-icon {
+    transform: translateY(2px) rotate(225deg);
+  }
+  select.ui-select::picker(select) {
+    margin-block: 6px;
+    padding: 5px;
+    border: 1px solid var(--line, var(--color-base-300));
+    border-radius: 8px;
+    background: var(--panel, var(--color-base-100));
+    color: var(--text, var(--color-base-content));
+    box-shadow: 0 12px 30px #0004;
+    max-block-size: min(320px, calc(100dvh - 20px));
+    overflow-y: auto;
+    font: inherit;
+  }
+  select.ui-select option {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 9px 10px;
+    border-radius: 5px;
+    color: var(--text, var(--color-base-content));
+    background: transparent;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  select.ui-select option:is(:hover, :focus-visible, :checked) {
+    background: color-mix(in oklab, var(--color-primary) 14%, var(--panel, var(--color-base-100)));
+  }
+  select.ui-select option + option {
+    margin-block-start: 3px;
+  }
+  select.ui-select option::checkmark {
+    order: 2;
+    margin-inline-start: auto;
+    color: var(--accent, var(--color-primary));
+  }
+}
+.tag-select-color,
+.tag-select-color:hover {
+  color: inherit;
+}
+.tag-color-custom .tag-select-color,
+.tag-color-custom .tag-select-color:hover {
+  color: var(--tag-ink);
+}
+.module-sources-dialog .ui-textarea {
+  width: 100%;
+}
+.starter-file-row {
+  margin-bottom: 12px;
+}
+.workspace-php-files {
+  margin-top: 18px;
+}
+.create-project-database {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg);
+}
+.log-level-tabs {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  gap: 12px;
+}
+.log-level-tabs .ui-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  height: auto;
+  padding: 10px 4px;
+}
+.log-level-tabs .ui-tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+.settings-palette-select {
+  width: min(280px, 100%);
+  min-height: 36px;
+}
+.setting-block label[for="color-theme"] {
+  font-size: 11px;
+  font-weight: 600;
+}
+@media (max-width: 1000px) {
+  .projects-toolbar .search-field {
+    width: 100%;
+    max-width: none;
+  }
+  .project-tags-table .project-row > .project-activity-identity {
+    display: grid;
+  }
+}
+
+/* Palettes assign colors, never theme-specific dimensions or effects. */
+html[data-ui-palette]:not([data-ui-palette="default"]) .app-shell {
+  --bg: var(--color-base-200);
+  --panel: var(--color-base-100);
+  --panel2: var(--color-base-200);
+  --line: color-mix(in oklab, var(--color-base-content) 18%, var(--color-base-100));
+  --text: var(--color-base-content);
+  --muted: color-mix(in oklab, var(--text) 70%, var(--panel));
+  --dim: color-mix(in oklab, var(--text) 60%, var(--panel));
+  --accent: var(--ui-primary-ink);
+  --lt-bg: var(--bg);
+  --lt-panel: var(--panel);
+  --lt-panel-2: var(--panel2);
+  --lt-sidebar: var(--color-base-200);
+  --lt-text: var(--text);
+  --lt-muted: var(--muted);
+  --lt-dim: var(--dim);
+  --lt-line: var(--line);
+  --lt-accent: var(--color-primary);
+  --lt-accent-text: var(--ui-primary-ink);
+  --lt-accent-strong: var(--ui-primary-ink);
+  --lt-on-accent: var(--color-primary-content);
+  --lt-ok-text: var(--ui-success-ink);
+  --lt-info-text: var(--ui-info-ink);
+  --lt-plum-text: var(--ui-secondary-ink);
+  --lt-warn-text: var(--ui-warning-ink);
+  --lt-err-text: var(--ui-error-ink);
+  --dark-sidebar-top: var(--color-base-200);
+  --dark-sidebar-bottom: var(--color-base-200);
+}
+html[data-ui-palette]:not([data-ui-palette="default"]),
+html[data-ui-palette]:not([data-ui-palette="default"]) body {
+  background-color: var(--color-base-200);
+  color: var(--color-base-content);
+}
+
+html[data-ui-palette]:not([data-ui-palette="default"]) .app-shell {
+  --k-231b1220: color-mix(in oklab, var(--color-primary) 13%, transparent);
+  --k-4d3a2428: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  --k-d89a5a1b: color-mix(in oklab, var(--color-primary) 11%, transparent);
+  --k-d89a5a31: color-mix(in oklab, var(--color-primary) 19%, transparent);
+  --k-d9973f1a: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  --k-d9973f1f: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  --k-d9973f33: color-mix(in oklab, var(--color-primary) 20%, transparent);
+  --k-d9973f4b: color-mix(in oklab, var(--color-primary) 29%, transparent);
+  --k-eda75f1f: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  --k-f7e3c433: color-mix(in oklab, var(--color-primary) 20%, transparent);
+  --k-ffe2c24f: color-mix(in oklab, var(--color-primary) 31%, transparent);
+  --k-eda75f: var(--ui-primary-ink);
+  --k-f0b263: var(--color-primary);
+  --k-f4bc78: var(--ui-primary-ink);
+  --k-f6c184: var(--color-primary);
+  --k-e8a95f: var(--color-primary);
+  --k-c07a2e: var(--ui-primary-ink);
+  --k-b0762a: var(--ui-primary-ink);
+  --k-8a5a1a: var(--ui-primary-ink);
+  --k-f0c08c: var(--ui-primary-ink);
+  --k-f5c084: var(--ui-primary-ink);
+  --k-e8b57e: var(--ui-primary-ink);
+  --k-eeb26a: var(--ui-primary-ink);
+  --k-e8b877: var(--ui-primary-ink);
+  --k-edb377: var(--ui-primary-ink);
+  --k-f0cd96: var(--ui-primary-ink);
+  --k-e5b877: var(--ui-primary-ink);
+  --k-e0a558: var(--ui-primary-ink);
+  --k-a38a5f: var(--ui-primary-ink);
+  --k-a06a24: var(--ui-primary-ink);
+  --k-b8895a: var(--ui-primary-ink);
+  --k-d9973f: var(--ui-primary-ink);
+  --k-f7d9ae: var(--ui-primary-ink);
+  --k-3d2a14: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-ffe9d0: var(--color-primary-content);
+  --k-fff3e0: var(--color-primary-content);
+  --k-2b1a08: var(--color-primary-content);
+  --k-241608: var(--color-primary-content);
+  --k-3a2a17: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-332a1e: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-332a1c: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-362a1c: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-322b20: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-2a2118: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-241d13: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-241d14: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-3a2f1f: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-4a3a22: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-3a2f22: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-1b1712: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-1a1712: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+  --k-f7ecdb: var(--ui-primary-ink);
+  --k-faf3e6: var(--ui-primary-ink);
+  --k-faf3e4: var(--ui-primary-ink);
+  --k-eadfc8: var(--ui-primary-ink);
+  --k-4d3b26: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
+}

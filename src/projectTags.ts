@@ -11,12 +11,14 @@ export const isProjectTagColor = (value: unknown): value is ProjectTagColor =>
 function readableInk(color: ProjectTagColor): string {
   const channel = (offset: number) => {
     const value = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
-    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
   };
   const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
   const white = 1.05 / (luminance + 0.05);
-  const black = (luminance + 0.05) / 0.05;
-  return white > black ? '#ffffff' : '#101418';
+  const darkLuminance = 0.00686;
+  const dark = (luminance + 0.05) / (darkLuminance + 0.05);
+  if (white >= dark && white >= 4.5) return '#ffffff';
+  return dark >= 4.5 ? '#101418' : '#000000';
 }
 export function projectTagAppearance(colors: ProjectTagColors, tag: string) {
   const color = colorForTag(colors, tag);
@@ -28,6 +30,7 @@ export function projectTagAppearance(colors: ProjectTagColors, tag: string) {
   };
 }
 export type ProjectTagColors = Record<string, ProjectTagColor>;
+export type ProjectTagColorEdits = Record<string, ProjectTagColor | null>;
 export const projectTagKey = (value: string) => normalizeProjectTag(value).toLowerCase();
 export function colorForTag(colors: ProjectTagColors, tag: string): ProjectTagColor | undefined {
   const key = projectTagKey(tag);

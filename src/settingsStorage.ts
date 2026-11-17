@@ -5,6 +5,7 @@ const EVENT = 'ospanel:settings-error';
 const keys = new Set([
   'ospanel.lang',
   'ospanel.theme',
+  'ospanel.colorTheme',
   'ospanel.accent',
   'ospanel.font',
   'ospanel.scale',

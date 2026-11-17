@@ -4,7 +4,7 @@
   --tag-fill: var(--tag-custom);
 }
 .project-tags-table {
-  grid-template-columns: 28px minmax(0, 1.7fr) minmax(0, 1.3fr) minmax(65px, 0.8fr) minmax(60px, 0.6fr) auto;
+  grid-template-columns: 28px minmax(0, 1.7fr) minmax(0, 1.3fr) minmax(65px, 0.8fr) minmax(max-content, 0.6fr) auto;
   column-gap: 12px;
 }
 .project-tags-table .project-row,
@@ -42,13 +42,26 @@
   min-width: 0;
 }
 .project-tags-list {
+  position: relative;
+  contain: inline-size;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
 }
+.project-tags-list > :is(.project-tag-chip, .project-tag-add, .row-menu) {
+  flex: none;
+  max-width: none;
+  white-space: nowrap;
+}
+/* Keep the intrinsic widths of overflowed tags and the counter measurable. */
+.project-tags-list > [aria-hidden="true"] {
+  position: absolute;
+  inset-inline-start: 0;
+  visibility: hidden;
+}
 .project-tag-chip,
-.project-tag-add {
+.project-tag-add,
+.project-tag-more {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -56,19 +69,30 @@
   max-width: 100%;
   min-width: 0;
   padding: 4px 6px;
+  min-height: 24px;
   border: 1px solid transparent;
   border-radius: 5px;
   font-size: 10px;
+  line-height: 14px;
+  white-space: normal;
   overflow-wrap: anywhere;
   color: var(--accent);
   background: color-mix(in srgb, var(--k-eda75f) 11%, var(--panel));
+}
+.project-tag-more {
+  inline-size: calc(3ch + 16px);
+  max-width: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .project-tag-chip[class*="tag-color-"] {
   color: var(--tag-ink);
   background: var(--tag-fill);
 }
 .project-tag-chip:hover,
-.project-tag-chip.active {
+.project-tag-chip.active,
+.project-tag-more:hover,
+.project-tag-more[aria-expanded="true"] {
   border-color: currentColor;
 }
 .project-tag-palette {
@@ -175,6 +199,9 @@
   overflow-wrap: anywhere;
   cursor: pointer;
 }
+.project-tags-filter-option .project-tag-chip {
+  flex-shrink: 1;
+}
 .project-tags-match {
   display: flex;
   align-items: center;
@@ -206,6 +233,8 @@
   font-size: 11px;
 }
 .project-tag-editor {
+  /* Keep the full-width editor's contents out of the table's column sizing. */
+  contain: inline-size;
   padding: 14px 15px;
   border-bottom: 1px solid var(--line);
   background: var(--panel2);
@@ -219,12 +248,19 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-.project-tag-form {
+.project-tag-editor-title {
+  min-width: 0;
+}
+.project-tag-editor-actions {
   display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+.project-tag-palette legend {
+  padding-inline: 0 8px;
+  color: var(--muted);
+  font-size: 11px;
 }
 .project-tag-input {
   box-sizing: border-box;
@@ -304,7 +340,6 @@
   .project-tag-color-reset,
   .project-tags-filter-option,
   .project-tags-bulk button,
-  .project-tag-form button,
   .project-tags-table .row-actions button {
     min-height: 44px;
   }
@@ -345,13 +380,15 @@
   }
   .project-tags-table .project-row {
     display: grid;
-    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-columns: 22px minmax(0, 1fr) auto auto;
     gap: 8px;
     padding: 12px;
+    align-items: center;
   }
   .project-tags-table .project-row > .project-selection {
     grid-column: 1;
     grid-row: 1;
+    min-height: 30px;
   }
   .project-tags-table .project-row > .project-activity-identity {
     grid-column: 2 / -1;
@@ -363,9 +400,15 @@
     grid-row: 2;
   }
   .project-tags-table .project-row > .project-environment {
-    display: block;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 8px;
     grid-column: 2;
     grid-row: 3;
+  }
+  .project-tags-table .project-environment .table-sub {
+    margin: 0;
   }
   .project-tags-table .project-row > .project-ssl-cell {
     display: block;
@@ -373,22 +416,27 @@
     grid-row: 3;
   }
   .project-tags-table .project-row > .row-actions {
-    display: grid;
-    grid-column: 2 / -1;
-    grid-row: 4;
-    grid-template-columns: minmax(0, 1fr) 44px;
+    display: flex;
+    grid-column: 4;
+    grid-row: 3;
+    justify-self: end;
+    gap: 6px;
   }
-  .project-actions-label {
-    display: block;
-    grid-column: 1 / -1;
-    color: var(--muted);
-    font-size: 11px;
+  .project-tags-table .project-row > .row-actions > button {
+    width: auto;
+    min-height: 34px;
+    padding: 7px 10px;
+  }
+  .project-tags-table .project-tags-list :is(.project-tag-chip, .project-tag-add, .project-tag-more) {
+    min-height: 26px;
+    padding: 4px 7px;
   }
   .project-tags-table .row-actions .row-menu > button {
-    width: 44px;
+    width: 34px;
+    min-height: 34px;
   }
   .project-tags-table .ssl-toggle {
-    min-height: 36px;
+    min-height: 30px;
   }
   .projects-toolbar input,
   .project-tag-input,
@@ -397,6 +445,16 @@
   }
   .project-tags-bulk .project-tag-select {
     flex-basis: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .project-tags-table .project-row {
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+  }
+  .project-tags-table .project-row > .row-actions {
+    grid-column: 2 / -1;
+    grid-row: 4;
   }
 }
 
@@ -468,6 +526,42 @@
 /* Colored rows touch each other otherwise, which makes them read as one block. */
 .project-tag-select .tag-select__option + .tag-select__option {
   margin-top: 4px;
+}
+.project-tag-select-inline .tag-select__menu {
+  margin-top: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.tag-select-menu-caption {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.project-tag-select-inline .tag-select__menu-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  max-height: 160px;
+  padding: 2px;
+}
+.project-tag-select.project-tag-select-inline .tag-select__option {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  background: var(--tag-fill, var(--panel));
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.project-tag-select-inline .tag-select__option + .tag-select__option {
+  margin-top: 0;
+}
+.project-tag-select-inline .tag-select-option-focused {
+  box-shadow: inset 0 0 0 1px currentColor;
 }
 .project-tag-select .tag-select-color {
   padding: 0;

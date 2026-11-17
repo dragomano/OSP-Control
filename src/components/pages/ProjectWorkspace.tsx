@@ -46,6 +46,21 @@ import {
   type ProjectWorkspace as WorkspaceDocument,
 } from '../../projectWorkspace';
 import type { Notify } from '../shared';
+import {
+  Actions,
+  Button,
+  EmptyState,
+  Field,
+  FormRow,
+  Input,
+  Notice,
+  NoticeText,
+  Panel,
+  SectionHeader,
+  Select,
+  Tabs,
+  Tab as UITab,
+} from '../ui';
 import { ConfigEditor } from '../widgets/ConfigEditor';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
@@ -358,17 +373,17 @@ export function ProjectWorkspace({
     }
   };
   const field = (key: string, control: ReactNode) => (
-    <div className="workspace-setting" key={key}>
+    <FormRow className="workspace-setting" key={key}>
       <div>
         <b>{t(`workspace.${key}`)}</b>
       </div>
       {control}
-    </div>
+    </FormRow>
   );
   const text = (key: string, placeholder = '', type = 'text') =>
     field(
       key,
-      <input
+      <Input
         type={type}
         min={type === 'number' ? 1 : undefined}
         max={type === 'number' ? 65535 : undefined}
@@ -383,7 +398,7 @@ export function ProjectWorkspace({
     const current = values[key] ?? '';
     return field(
       key,
-      <select
+      <Select
         aria-label={t(`workspace.${key}`)}
         value={current}
         disabled={locked || !options}
@@ -403,7 +418,7 @@ export function ProjectWorkspace({
             {item === 'on' ? t('workspace.on') : item === 'off' ? t('workspace.off') : item}
           </option>
         ))}
-      </select>,
+      </Select>,
     );
   };
   const codeEditor = (
@@ -422,9 +437,9 @@ export function ProjectWorkspace({
         <span>{projectFileLanguage(file)}</span>
       </div>
       {fileBusy ? (
-        <div className="empty-note" role="status">
+        <EmptyState className="empty-note" role="status">
           {t('common.loading')}
-        </div>
+        </EmptyState>
       ) : fileState ? (
         <ConfigEditor
           file={file}
@@ -437,14 +452,14 @@ export function ProjectWorkspace({
           }}
         />
       ) : (
-        <button
+        <Button
           type="button"
           className="secondary-button"
           disabled={locked}
           onClick={() => setFileRetry((value) => value + 1)}
         >
           {t('workspace.reload')}
-        </button>
+        </Button>
       )}
       {fileState?.original === null && <p className="workspace-hint">{t('workspace.createFile')}</p>}
     </section>
@@ -452,7 +467,8 @@ export function ProjectWorkspace({
 
   return (
     <section className="project-workspace" aria-label={t('workspace.settings')}>
-      <button
+      <Button
+        variant="ghost"
         type="button"
         className="text-button workspace-back"
         disabled={locked}
@@ -460,35 +476,35 @@ export function ProjectWorkspace({
       >
         <ArrowLeft size={15} />
         {t('workspace.allProjects')}
-      </button>
+      </Button>
       <PageHeader
         eyebrow={t('workspace.settings')}
         heading={displayProjectDomain(project.domain)}
         description={doc?.baseDir ?? project.path}
         action={
-          <div className="workspace-actions">
-            <button
+          <Actions className="workspace-actions">
+            <Button
               type="button"
               className="secondary-button"
               onClick={() => void run(() => openInBrowser(projectOpeningUrl(domain, values, project.ssl)))}
             >
               <ArrowUpRight size={15} />
               {t('projects.open')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="secondary-button"
               onClick={() => void run(() => openProjectFolder(project.path))}
             >
               <FolderOpen size={15} />
               {t('projects.menuOpenFolder')}
-            </button>
-          </div>
+            </Button>
+          </Actions>
         }
       />
-      <div className="workspace-tabs" role="tablist" aria-label={t('workspace.sections')} ref={tabsRef}>
+      <Tabs className="workspace-tabs" role="tablist" aria-label={t('workspace.sections')} ref={tabsRef}>
         {tabs.map(([key, Icon], index) => (
-          <button
+          <UITab
             key={key}
             type="button"
             role="tab"
@@ -523,13 +539,13 @@ export function ProjectWorkspace({
           >
             <Icon size={15} />
             {t(`workspace.tab.${key}`)}
-          </button>
+          </UITab>
         ))}
-      </div>
+      </Tabs>
       {error && (
-        <div className="workspace-error" role="alert">
+        <Notice className="workspace-error" role="alert">
           {error}
-        </div>
+        </Notice>
       )}
       <div
         id={tab === 'diagnostics' && !advanced ? `${id}-panel` : undefined}
@@ -540,19 +556,19 @@ export function ProjectWorkspace({
         {diagnosticsVisited && (
           <Suspense
             fallback={
-              <div className="empty-note" role="status">
+              <EmptyState className="empty-note" role="status">
                 {t('common.loading')}
-              </div>
+              </EmptyState>
             }
           >
-            <div className="workspace-section-head">
+            <SectionHeader className="workspace-section-head">
               <div>
                 <h2>{t('workspace.tab.diagnostics')}</h2>
                 <p>{t('workspace.hint.diagnostics')}</p>
               </div>
-              <label className="workspace-domain-select">
+              <Field className="workspace-domain-select">
                 {t('workspace.domain')}
-                <select
+                <Select
                   aria-label={t('workspace.domain')}
                   value={domain}
                   disabled={locked}
@@ -563,9 +579,9 @@ export function ProjectWorkspace({
                       {displayProjectDomain(item.domain)}
                     </option>
                   ))}
-                </select>
-              </label>
-            </div>
+                </Select>
+              </Field>
+            </SectionHeader>
             <ProjectDiagnostics
               project={project}
               domain={domain}
@@ -587,14 +603,14 @@ export function ProjectWorkspace({
       </div>
       <div hidden={tab === 'diagnostics' && !advanced}>
         {!doc ? (
-          <div className="empty-note" role="status">
+          <EmptyState className="empty-note" role="status">
             {busy ? t('common.loading') : t('workspace.failed')}
             {!busy && (
-              <button type="button" className="secondary-button" onClick={() => void load()}>
+              <Button type="button" className="secondary-button" onClick={() => void load()}>
                 {t('workspace.reload')}
-              </button>
+              </Button>
             )}
-          </div>
+          </EmptyState>
         ) : (
           <>
             <div
@@ -607,15 +623,15 @@ export function ProjectWorkspace({
                 codeEditor
               ) : (
                 <>
-                  <div className="workspace-section-head">
+                  <SectionHeader className="workspace-section-head">
                     <div>
                       <h2>{t(`workspace.tab.${tab}`)}</h2>
                       <p>{t(`workspace.hint.${tab}`)}</p>
                     </div>
                     {!['overview', 'domains', 'menu'].includes(tab) && (
-                      <label className="workspace-domain-select">
+                      <Field className="workspace-domain-select">
                         {t('workspace.domain')}
-                        <select
+                        <Select
                           aria-label={t('workspace.domain')}
                           value={domain}
                           disabled={locked}
@@ -626,10 +642,10 @@ export function ProjectWorkspace({
                               {displayProjectDomain(item.domain)}
                             </option>
                           ))}
-                        </select>
-                      </label>
+                        </Select>
+                      </Field>
                     )}
-                  </div>
+                  </SectionHeader>
                   {tab === 'overview' && (
                     <>
                       {Object.keys(doc?.installers ?? {}).map((starterId) => (
@@ -657,7 +673,7 @@ export function ProjectWorkspace({
                         />
                       ))}
                       <div className="workspace-overview-grid">
-                        <div className="workspace-card">
+                        <Panel className="workspace-card">
                           <h3>
                             <SlidersHorizontal size={15} />
                             {t('workspace.tab.environment')}
@@ -676,16 +692,17 @@ export function ProjectWorkspace({
                               <dd>{inherited('node_engine', globals?.nodeEngine)}</dd>
                             </div>
                           </dl>
-                          <button
+                          <Button
+                            variant="ghost"
                             className="text-button"
                             type="button"
                             disabled={installingApplication}
                             onClick={() => setTab('environment')}
                           >
                             {t('workspace.configure')}
-                          </button>
-                        </div>
-                        <div className="workspace-card">
+                          </Button>
+                        </Panel>
+                        <Panel className="workspace-card">
                           <h3>
                             <FolderOpen size={15} />
                             {t('workspace.paths')}
@@ -707,7 +724,8 @@ export function ProjectWorkspace({
                               <div>
                                 <dt>{t('workspace.readme')}</dt>
                                 <dd>
-                                  <button
+                                  <Button
+                                    variant="ghost"
                                     type="button"
                                     className="text-button"
                                     title={t('workspace.openReadme')}
@@ -722,27 +740,30 @@ export function ProjectWorkspace({
                                   >
                                     {doc.readme}
                                     <ArrowUpRight size={13} />
-                                  </button>
+                                  </Button>
                                 </dd>
                               </div>
                             )}
                           </dl>
-                        </div>
+                        </Panel>
                       </div>
-                      <div className="workspace-section-head workspace-spaced">
+                      <SectionHeader className="workspace-section-head workspace-spaced">
                         <h2>{t('workspace.tab.domains')}</h2>
-                        <button
+                        <Button
+                          variant="ghost"
                           className="text-button"
                           type="button"
                           disabled={installingApplication}
                           onClick={() => setTab('domains')}
                         >
                           {t('workspace.configure')}
-                        </button>
-                      </div>
-                      <div className="workspace-card workspace-domain-list">
+                        </Button>
+                      </SectionHeader>
+                      <Panel className="workspace-card workspace-domain-list">
                         {domains.map((item) => (
-                          <button
+                          <Button
+                            layout="row"
+                            variant="ghost"
                             type="button"
                             className="workspace-domain-row"
                             disabled={installingApplication}
@@ -762,16 +783,19 @@ export function ProjectWorkspace({
                             <span>
                               {item.values.php_engine || inherited('php_engine', globals?.phpEngine)}
                             </span>
-                          </button>
+                          </Button>
                         ))}
-                      </div>
+                      </Panel>
                     </>
                   )}
                   {tab === 'domains' && (
                     <>
-                      <div className="workspace-card workspace-domain-list">
+                      <Panel className="workspace-card workspace-domain-list">
                         {domains.map((item) => (
-                          <button
+                          <Button
+                            layout="row"
+                            selected={Boolean(domain === item.domain)}
+                            variant="ghost"
                             type="button"
                             className={`workspace-domain-row ${domain === item.domain ? 'selected' : ''}`}
                             key={item.domain}
@@ -785,9 +809,9 @@ export function ProjectWorkspace({
                               <span className="workspace-badge">{t('workspace.primary')}</span>
                             )}
                             {domain === item.domain && <Check size={15} />}
-                          </button>
+                          </Button>
                         ))}
-                      </div>
+                      </Panel>
                       <form
                         className="workspace-add-domain"
                         onSubmit={(event) => {
@@ -801,42 +825,43 @@ export function ProjectWorkspace({
                           }
                         }}
                       >
-                        <input
+                        <Input
                           aria-label={t('workspace.newDomain')}
                           placeholder="admin.project.test"
                           value={newDomain}
                           disabled={locked}
                           onChange={(event) => setNewDomain(event.target.value)}
                         />
-                        <button
+                        <Button
                           type="submit"
                           className="secondary-button"
                           disabled={locked || !normalizeProjectDomain(newDomain)}
                         >
                           <Plus size={15} />
                           {t('workspace.addDomain')}
-                        </button>
+                        </Button>
                       </form>
                       <h3 className="workspace-selected-domain">{selectedDomain}</h3>
-                      <div className="workspace-card workspace-settings">
+                      <Panel className="workspace-card workspace-settings">
                         {text('server_aliases', 'www.{host}')}
                         {choice('primary_domain', ['on', 'off'])}
                         {choice('project_enabled', ['on', 'off'])}
                         {text('project_category')}
-                      </div>
+                      </Panel>
                     </>
                   )}
                   {tab === 'environment' && (
                     <>
-                      <div className="workspace-card workspace-settings">
+                      <Panel className="workspace-card workspace-settings">
                         {choice('http_engine', options?.httpEngines ?? [], globals?.httpEngine)}
                         {choice('php_engine', options?.phpEngines ?? [], globals?.phpEngine)}
                         {choice('node_engine', options?.nodeEngines ?? [], globals?.nodeEngine)}
                         {text('environment', 'System')}
                         {text('app_start_command')}
                         {text('terminal_codepage', '65001')}
-                      </div>
-                      <button
+                      </Panel>
+                      <Button
+                        variant="ghost"
                         type="button"
                         className="text-button workspace-spaced"
                         disabled={locked}
@@ -846,13 +871,13 @@ export function ProjectWorkspace({
                         }}
                       >
                         {t('workspace.phpSettings')}
-                      </button>
+                      </Button>
                       <h3 className="workspace-selected-domain">{t('workspace.variables')}</h3>
                       {codeEditor}
                     </>
                   )}
                   {tab === 'web' && (
-                    <div className="workspace-card workspace-settings">
+                    <Panel className="workspace-card workspace-settings">
                       {text('project_root', '{base_dir}')}
                       {text('web_root', '{base_dir}\\public')}
                       {text('base_url', '{host_scheme}://{host_decoded}{scheme_port}')}
@@ -865,13 +890,15 @@ export function ProjectWorkspace({
                       {choice('backend_enabled', ['on', 'off'])}
                       {text('backend_ip', '127.0.0.1')}
                       {text('backend_port', '3000', 'number')}
-                    </div>
+                    </Panel>
                   )}
                   {tab === 'application' && (
                     <>
                       <div className="workspace-file-tabs">
                         {applicationFiles.map((path) => (
-                          <button
+                          <Button
+                            selected={Boolean(selectedApplicationFile === path)}
+                            variant="ghost"
                             type="button"
                             className={selectedApplicationFile === path ? 'selected' : ''}
                             aria-pressed={selectedApplicationFile === path}
@@ -880,7 +907,7 @@ export function ProjectWorkspace({
                             onClick={() => setApplicationFile(path)}
                           >
                             {path}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                       {codeEditor}
@@ -890,7 +917,9 @@ export function ProjectWorkspace({
                     <>
                       <div className="workspace-file-tabs">
                         {['nginx', 'apache', 'caddy', 'php'].map((name) => (
-                          <button
+                          <Button
+                            selected={Boolean(engine === name)}
+                            variant="ghost"
                             type="button"
                             className={engine === name ? 'selected' : ''}
                             key={name}
@@ -905,15 +934,16 @@ export function ProjectWorkspace({
                                 : name === 'php'
                                   ? 'PHP'
                                   : 'Caddy'}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                       {engine === 'php' && (
                         <>
-                          <h3>{t('workspace.phpTitle')}</h3>
-                          <div className="workspace-file-tabs">
+                          <div className="workspace-file-tabs workspace-php-files">
                             {phpFiles.map((path) => (
-                              <button
+                              <Button
+                                selected={Boolean(selectedPhpFile === path)}
+                                variant="ghost"
                                 type="button"
                                 key={path}
                                 disabled={locked}
@@ -922,14 +952,14 @@ export function ProjectWorkspace({
                                 onClick={() => setPhpFile(path)}
                               >
                                 {path}
-                              </button>
+                              </Button>
                             ))}
                           </div>
                           <p className="workspace-hint">
                             <PathText text={t('workspace.phpScope')} />
                           </p>
                           {domains.length > 1 && (
-                            <p className="workspace-error" role="note">
+                            <NoticeText className="workspace-error" role="note">
                               <PathText
                                 text={t('workspace.phpShared', {
                                   domains: domains
@@ -937,7 +967,7 @@ export function ProjectWorkspace({
                                     .join(', '),
                                 })}
                               />
-                            </p>
+                            </NoticeText>
                           )}
                         </>
                       )}
@@ -952,15 +982,15 @@ export function ProjectWorkspace({
                   )}
                   {tab === 'tasks' &&
                     (fileBusy ? (
-                      <div className="empty-note" role="status">
+                      <EmptyState className="empty-note" role="status">
                         {t('common.loading')}
-                      </div>
+                      </EmptyState>
                     ) : files['tasks.ini'] && tasks ? (
                       <Suspense
                         fallback={
-                          <div className="empty-note" role="status">
+                          <EmptyState className="empty-note" role="status">
                             {t('common.loading')}
-                          </div>
+                          </EmptyState>
                         }
                       >
                         <div className="workspace-file-head">
@@ -968,7 +998,8 @@ export function ProjectWorkspace({
                             <FileCode2 size={15} />
                             <b>.osp/tasks.ini</b>
                           </div>
-                          <button
+                          <Button
+                            variant="ghost"
                             type="button"
                             className="text-button"
                             disabled={locked || files['tasks.ini'].original === null}
@@ -977,7 +1008,7 @@ export function ProjectWorkspace({
                             }
                           >
                             {t('configs.open')}
-                          </button>
+                          </Button>
                         </div>
                         <ProjectTasksEditor
                           document={tasksDocument}
@@ -991,14 +1022,14 @@ export function ProjectWorkspace({
                         )}
                       </Suspense>
                     ) : (
-                      <button
+                      <Button
                         type="button"
                         className="secondary-button"
                         disabled={locked}
                         onClick={() => setFileRetry((value) => value + 1)}
                       >
                         {t('workspace.reload')}
-                      </button>
+                      </Button>
                     ))}
                 </>
               )}
@@ -1006,9 +1037,9 @@ export function ProjectWorkspace({
                 <div hidden={advanced || tab !== 'menu'}>
                   <Suspense
                     fallback={
-                      <div className="empty-note" role="status">
+                      <EmptyState className="empty-note" role="status">
                         {t('common.loading')}
-                      </div>
+                      </EmptyState>
                     }
                   >
                     <ProjectMenuEditor
@@ -1042,20 +1073,26 @@ export function ProjectWorkspace({
                       : t('workspace.unchanged')}
                 </span>
                 <div className="workspace-footer-links">
-                  <button type="button" className="text-button" onClick={() => setAdvanced(!advanced)}>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    className="text-button"
+                    onClick={() => setAdvanced(!advanced)}
+                  >
                     {t(advanced ? 'workspace.form' : 'workspace.advanced')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="text-button"
                     onClick={() => void run(() => openFileExternally(`${project.path}\\.osp\\project.ini`))}
                   >
                     {t('configs.open')}
-                  </button>
+                  </Button>
                 </div>
               </div>
-              <div className="workspace-actions">
-                <button
+              <Actions className="workspace-actions">
+                <Button
                   className="secondary-button"
                   type="button"
                   disabled={locked}
@@ -1071,8 +1108,9 @@ export function ProjectWorkspace({
                 >
                   <RefreshCw size={14} />
                   {t('workspace.reload')}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
                   className="primary-button"
                   type="button"
                   disabled={locked || !dirty || fileBusy}
@@ -1080,8 +1118,8 @@ export function ProjectWorkspace({
                 >
                   <Save size={15} />
                   {t('common.save')}
-                </button>
-              </div>
+                </Button>
+              </Actions>
             </footer>
             <div className="workspace-safety">
               <ShieldCheck size={14} />

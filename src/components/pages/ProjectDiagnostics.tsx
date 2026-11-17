@@ -20,6 +20,7 @@ import {
   type ProjectDiagnosticReport,
 } from '../../projectDiagnostics';
 import type { Notify } from '../shared';
+import { Button, EmptyState, Notice, Panel, Toolbar } from '../ui';
 import { PathText } from '../widgets/PathText';
 import './projectDiagnostics.css';
 
@@ -90,12 +91,13 @@ export function ProjectDiagnostics({
   const StatusIcon = ICONS[status];
   return (
     <div className="project-diagnostics">
-      <div className="diagnostic-toolbar">
+      <Toolbar className="diagnostic-toolbar">
         <p className="workspace-hint">
           <ShieldAlert size={15} />
           <span className="diagnostic-scope-text">{t('diag.scope')}</span>
         </p>
-        <button
+        <Button
+          variant="primary"
           type="button"
           className="primary-button"
           disabled={busy || blocked || !savedDomain}
@@ -103,8 +105,8 @@ export function ProjectDiagnostics({
         >
           {report ? <RefreshCw size={15} /> : <Play size={15} />}
           {t(busy ? 'diag.running' : report ? 'diag.rerun' : 'diag.run')}
-        </button>
-      </div>
+        </Button>
+      </Toolbar>
       {!isDesktopApp() && (
         <p className="workspace-hint">
           <Info size={15} />
@@ -112,14 +114,14 @@ export function ProjectDiagnostics({
         </p>
       )}
       {(!savedDomain || dirty || (report && checkedRevision !== revision)) && (
-        <div className="diagnostic-notice" role="status">
+        <Notice className="diagnostic-notice" role="status">
           {t(!savedDomain ? 'diag.saveDomain' : dirty ? 'diag.draft' : 'diag.stale')}
-        </div>
+        </Notice>
       )}
       {error && (
-        <div className="workspace-error" role="alert">
+        <Notice className="workspace-error" role="alert">
           {error}
-        </div>
+        </Notice>
       )}
       {busy && (
         <div className="diagnostic-progress" role="status" aria-live="polite">
@@ -128,7 +130,7 @@ export function ProjectDiagnostics({
       )}
       {report ? (
         <>
-          <div className={`workspace-card diagnostic-summary ${status}`} role="status">
+          <Panel className={`workspace-card diagnostic-summary ${status}`} role="status">
             <StatusIcon size={25} />
             <div>
               <strong>{t(`diag.summary.${status}`)}</strong>
@@ -150,24 +152,26 @@ export function ProjectDiagnostics({
                 </span>
               ))}
             </div>
-          </div>
+          </Panel>
           <fieldset className="diagnostic-filters" aria-label={t('diag.filter')}>
-            <button
+            <Button
+              selected={Boolean(filter === 'all')}
               type="button"
               className={`secondary-button${filter === 'all' ? ' active' : ''}`}
               aria-pressed={filter === 'all'}
               onClick={() => setFilter('all')}
             >
               {t('diag.all')}
-            </button>
-            <button
+            </Button>
+            <Button
+              selected={Boolean(filter === 'issues')}
               type="button"
               className={`secondary-button${filter === 'issues' ? ' active' : ''}`}
               aria-pressed={filter === 'issues'}
               onClick={() => setFilter('issues')}
             >
               {t('diag.issues')}
-            </button>
+            </Button>
           </fieldset>
           {GROUPS.map((group) => {
             const checks = report.checks.filter(
@@ -179,7 +183,7 @@ export function ProjectDiagnostics({
               checks.length > 0 && (
                 <section key={group} className="diagnostic-group">
                   <h3>{t(`diag.group.${group}`)}</h3>
-                  <div className="workspace-card">
+                  <Panel className="workspace-card">
                     {checks.map((check) => {
                       const Icon = ICONS[check.status];
                       return (
@@ -200,7 +204,8 @@ export function ProjectDiagnostics({
                             )}
                             <div className="diagnostic-actions">
                               {check.tab && (
-                                <button
+                                <Button
+                                  variant="ghost"
                                   type="button"
                                   className="text-button"
                                   disabled={blocked}
@@ -208,10 +213,11 @@ export function ProjectDiagnostics({
                                 >
                                   {t('diag.configure', { section: t(`workspace.tab.${check.tab}`) })}
                                   <ChevronRight size={13} />
-                                </button>
+                                </Button>
                               )}
                               {check.filePath && (
-                                <button
+                                <Button
+                                  variant="ghost"
                                   type="button"
                                   className="text-button"
                                   disabled={blocked}
@@ -223,40 +229,41 @@ export function ProjectDiagnostics({
                                 >
                                   <FileText size={13} />
                                   {t('configs.open')}
-                                </button>
+                                </Button>
                               )}
                               {check.id === 'applied' && check.status === 'warning' && (
-                                <button
+                                <Button
+                                  variant="ghost"
                                   type="button"
                                   className="text-button"
                                   disabled={blocked || dirty}
                                   onClick={onRestart}
                                 >
                                   {t('projects.restartPanel')}
-                                </button>
+                                </Button>
                               )}
                             </div>
                           </div>
                         </article>
                       );
                     })}
-                  </div>
+                  </Panel>
                 </section>
               )
             );
           })}
           {filter === 'issues' && !counts.warning && !counts.error && (
-            <div className="empty-note">{t('diag.noIssues')}</div>
+            <EmptyState className="empty-note">{t('diag.noIssues')}</EmptyState>
           )}
         </>
       ) : (
         !busy && (
-          <div className="workspace-card diagnostic-empty">
+          <Panel className="workspace-card diagnostic-empty">
             <CheckCircle2 size={30} />
             <p>
               <PathText text={t('diag.empty')} />
             </p>
-          </div>
+          </Panel>
         )
       )}
     </div>

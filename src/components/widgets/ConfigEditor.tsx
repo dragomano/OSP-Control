@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { highlightConfig } from '../../highlight';
+import { Textarea } from '../ui';
 import './configEditor.css';
 
 export function ConfigEditor({
@@ -26,7 +27,8 @@ export function ConfigEditor({
           dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }}
         />
       </pre>
-      <textarea
+      <Textarea
+        code
         aria-label={label}
         value={value}
         disabled={disabled}

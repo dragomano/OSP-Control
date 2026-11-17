@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { SectionHeader } from '../ui';
 
 export function PageHeader({
   eyebrow,
@@ -12,13 +13,13 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="page-header">
+    <SectionHeader className="page-header">
       <div className="page-header-copy">
         <div className="eyebrow">{eyebrow}</div>
         <h1>{heading}</h1>
         <p>{description}</p>
       </div>
       {action}
-    </div>
+    </SectionHeader>
   );
 }

@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { components, type GroupBase, type MultiValueRemoveProps } from 'react-select';
+import { components, type GroupBase, type MenuProps, type MultiValueRemoveProps } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { useI18n } from '../../i18n';
 import {
@@ -9,8 +9,21 @@ import {
   projectTagAppearance,
   projectTagKey,
 } from '../../projectTags';
+import { Button, cx } from '../ui';
 
 type TagOption = { value: string; label: string };
+
+function InlineMenu(props: MenuProps<TagOption, true, GroupBase<TagOption>>) {
+  const { t } = useI18n();
+  return (
+    <components.Menu {...props}>
+      <div className="tag-select-menu-caption" aria-hidden="true">
+        {t('projects.tagsAvailable')}
+      </div>
+      {props.children}
+    </components.Menu>
+  );
+}
 
 function RemoveTag(props: MultiValueRemoveProps<TagOption, true, GroupBase<TagOption>>) {
   const { t } = useI18n();
@@ -30,6 +43,7 @@ export function ProjectTagSelect({
   ariaLabel,
   autoFocus = false,
   onColorSelect,
+  inlineMenu = false,
 }: {
   value: string[];
   available: string[];
@@ -38,6 +52,7 @@ export function ProjectTagSelect({
   ariaLabel: string;
   autoFocus?: boolean;
   onColorSelect?: (tag: string) => void;
+  inlineMenu?: boolean;
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -47,7 +62,7 @@ export function ProjectTagSelect({
     <CreatableSelect<TagOption, true>
       instanceId={id}
       inputId={`${id}-input`}
-      className="project-tag-select"
+      className={cx('project-tag-select', inlineMenu && 'project-tag-select-inline')}
       classNamePrefix="tag-select"
       unstyled
       isMulti
@@ -55,6 +70,9 @@ export function ProjectTagSelect({
       closeMenuOnSelect={false}
       blurInputOnSelect={false}
       openMenuOnFocus
+      menuShouldScrollIntoView={inlineMenu ? false : undefined}
+      captureMenuScroll={inlineMenu ? false : undefined}
+      maxMenuHeight={inlineMenu ? 160 : undefined}
       autoFocus={autoFocus}
       aria-label={ariaLabel}
       placeholder={t('projects.tagsPlaceholder')}
@@ -73,7 +91,11 @@ export function ProjectTagSelect({
       options={[...catalog.values()].map(option)}
       value={value.map(option)}
       onChange={(tags) => onChange(tags.map((tag) => tag.value))}
-      components={{ MultiValueRemove: RemoveTag, IndicatorSeparator: null }}
+      components={{
+        MultiValueRemove: RemoveTag,
+        IndicatorSeparator: null,
+        ...(inlineMenu ? { Menu: InlineMenu } : {}),
+      }}
       ariaLiveMessages={{
         guidance: () => t('projects.tagsSelectHelp'),
         onChange: ({ labels }) => t('projects.tagsSelection', { tags: labels?.join(', ') ?? '' }),
@@ -82,16 +104,19 @@ export function ProjectTagSelect({
       }}
       screenReaderStatus={({ count }) => t('projects.tagsOptions', { count })}
       styles={{
+        menu: (base) => (inlineMenu ? { ...base, position: 'static' } : base),
         multiValue: (base, { data }) => ({ ...base, ...projectTagAppearance(colors, data.value).style }),
         option: (base, { data }) => ({ ...base, ...projectTagAppearance(colors, data.value).style }),
       }}
       classNames={{
         multiValue: ({ data }) => projectTagAppearance(colors, data.value).className,
-        option: ({ data }) => projectTagAppearance(colors, data.value).className,
+        option: ({ data, isFocused }) =>
+          cx(projectTagAppearance(colors, data.value).className, isFocused && 'tag-select-option-focused'),
       }}
       formatOptionLabel={(data, { context }) =>
         context === 'value' && onColorSelect ? (
-          <button
+          <Button
+            variant="ghost"
             type="button"
             className="tag-select-color"
             aria-label={t('projects.tagsColorFor', { tag: data.value })}
@@ -105,7 +130,7 @@ export function ProjectTagSelect({
             }}
           >
             {data.value}
-          </button>
+          </Button>
         ) : (
           data.label
         )

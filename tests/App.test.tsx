@@ -4,6 +4,7 @@ import App from '../src/App';
 import { APP_NAME } from '../src/brand';
 import { embeddedDict } from '../src/i18n';
 import type { OsPanelSnapshot } from '../src/ospanel';
+import { selectOption } from './selectOption';
 
 // discoverOsPanel is mocked file-wide but delegates to the real adapter: the browser
 // branch serves demo data on its own, and only the failure test overrides the result.
@@ -124,8 +125,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Язык интерфейса' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
+    selectOption(await screen.findByRole('combobox', { name: 'Язык интерфейса' }), 'English');
     expect(await screen.findByRole('link', { name: 'OSPanel documentation' })).toHaveAttribute(
       'href',
       'https://github.com/OSPanel/OpenServerPanel/wiki',
@@ -158,8 +158,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
-      fireEvent.click(await screen.findByRole('button', { name: 'Язык интерфейса' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
+      selectOption(await screen.findByRole('combobox', { name: 'Язык интерфейса' }), 'English');
       await waitFor(() => expect(document.documentElement.lang).toBe('en'));
     });
   });
@@ -396,12 +395,12 @@ describe('App (browser mode: adapter serves mocks)', () => {
 
       const shell = () => document.querySelector('.app-shell');
       const chooseTheme = (mode: keyof typeof labels) => {
-        fireEvent.click(screen.getByRole('button', { name: 'Переключить тему' }));
+        const control = screen.getByRole('combobox', { name: 'Переключить тему' });
         for (const label of Object.values(labels)) {
-          expect(screen.getByRole('menuitem', { name: label })).toBeInTheDocument();
+          expect(within(control).getByRole('option', { name: label })).toBeInTheDocument();
         }
-        fireEvent.click(screen.getByRole('menuitem', { name: labels[mode] }));
-        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+        selectOption(control, labels[mode]);
+        expect(control).toHaveValue(mode);
         expect(localStorage.getItem('ospanel.theme')).toBe(mode);
       };
       const changeSystem = (matches: boolean) => {
@@ -411,7 +410,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
 
       it('defaults to the system theme on first launch and follows OS changes', () => {
         render(<App />);
-        expect(screen.getByRole('button', { name: 'Переключить тему' })).toHaveAttribute(
+        expect(screen.getByRole('combobox', { name: 'Переключить тему' })).toHaveAttribute(
           'title',
           labels.system,
         );
@@ -425,7 +424,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       it.each(['system', 'dark', 'light'] as const)('restores the saved %s mode', (mode) => {
         localStorage.setItem('ospanel.theme', mode);
         render(<App />);
-        expect(screen.getByRole('button', { name: 'Переключить тему' })).toHaveAttribute(
+        expect(screen.getByRole('combobox', { name: 'Переключить тему' })).toHaveAttribute(
           'title',
           labels[mode],
         );
@@ -457,7 +456,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
         expect(screen.getByRole('button', { name: labels.dark })).toHaveClass('selected');
         fireEvent.click(screen.getByRole('button', { name: labels.system }));
         expect(localStorage.getItem('ospanel.theme')).toBe('system');
-        expect(screen.getByRole('button', { name: 'Переключить тему' })).toHaveAttribute(
+        expect(screen.getByRole('combobox', { name: 'Переключить тему' })).toHaveAttribute(
           'title',
           labels.system,
         );
@@ -484,8 +483,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Синяя' }));
       await waitFor(() => expect(localStorage.getItem('ospanel.accent')).toBe('blue'));
 
-      fireEvent.click(screen.getByRole('button', { name: 'Шрифт интерфейса' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Consolas (моноширинный)' }));
+      selectOption(screen.getByRole('combobox', { name: 'Шрифт интерфейса' }), 'Consolas (моноширинный)');
       await waitFor(() => expect(localStorage.getItem('ospanel.font')).toBe('consolas'));
 
       fireEvent.change(screen.getByRole('slider', { name: 'Размер шрифта' }), { target: { value: '120' } });
@@ -520,8 +518,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Язык интерфейса' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'English' }));
+      selectOption(await screen.findByRole('combobox', { name: 'Язык интерфейса' }), 'English');
 
       expect(await screen.findByRole('button', { name: 'Modules' })).toBeInTheDocument();
       expect(localStorage.getItem('ospanel.lang')).toBe('en');

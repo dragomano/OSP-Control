@@ -15,6 +15,16 @@ import {
 } from '../../ospanel';
 import { displayProjectDomain } from '../../projectDomain';
 import { type Notify, useDismiss } from '../shared';
+import {
+  Actions,
+  Button,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPanel,
+  EmptyState,
+} from '../ui';
 import { PathText } from '../widgets/PathText';
 import { defaultEngineLabel, ModuleSelect } from './ModuleSelect';
 
@@ -127,28 +137,35 @@ export function ProjectModulesDialog({
   };
 
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
         className="modal-window"
         role="dialog"
         aria-modal="true"
         aria-label={t('projects.menuModules')}
         ref={windowRef}
       >
-        <div className="modal-head">
+        <DialogHeader className="modal-head">
           <div>
             <span className="eyebrow">{t('projects.menuModules')}</span>
             <h3 className="modal-title">{displayProjectDomain(project.domain)}</h3>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
+          <Button
+            variant="ghost"
+            square
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label={t('common.close')}
+          >
             <X size={16} />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
         <p className="modal-hint">
           <PathText text={t('projects.modulesHint')} />
         </p>
         {options && draft ? (
-          <div className="modal-body">
+          <DialogBody className="modal-body">
             <ModuleSelect
               label={t('projects.modulesHttpEngine')}
               value={draft.httpEngine}
@@ -173,39 +190,40 @@ export function ProjectModulesDialog({
               globalHint={hintFor(globalEngines?.nodeEngine)}
               onChange={(value) => setDraft({ ...draft, nodeEngine: value })}
             />
-          </div>
+          </DialogBody>
         ) : (
-          <div className="empty-note">{t('common.loading')}</div>
+          <EmptyState className="empty-note">{t('common.loading')}</EmptyState>
         )}
-        <div className="modal-foot">
+        <DialogFooter className="modal-foot">
           <span className="modal-path">
             {saved?.fileExists ? (
               <>
                 {noteBefore}
-                <button type="button" className="path-link" onClick={() => void openIni()}>
+                <Button variant="ghost" type="button" className="path-link" onClick={() => void openIni()}>
                   {'.osp\\project.ini'}
-                </button>
+                </Button>
                 {noteAfter}
               </>
             ) : (
               t('projects.modulesFileNew')
             )}
           </span>
-          <div className="row-actions">
-            <button type="button" className="secondary-button" onClick={onClose}>
+          <Actions className="row-actions">
+            <Button type="button" className="secondary-button" onClick={onClose}>
               {t('common.close')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
               type="button"
               className="primary-button"
               disabled={!dirty || busy || !draft}
               onClick={() => void save()}
             >
               {t('common.save')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Button>
+          </Actions>
+        </DialogFooter>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

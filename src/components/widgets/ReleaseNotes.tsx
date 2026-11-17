@@ -1,6 +1,7 @@
 import { lexer, type Token, type Tokens } from 'marked';
 import { createElement, Fragment, type ReactNode } from 'react';
 import { openInBrowser } from '../../ospanel';
+import { Input, Table } from '../ui';
 
 const repository = 'https://github.com/dragomano/OSP-Control/';
 
@@ -48,7 +49,7 @@ function renderToken(token: Token, onLinkError: (error: unknown) => void): React
             return (
               // biome-ignore lint/suspicious/noArrayIndexKey: list items keep their source order — index is the only stable key.
               <li key={index}>
-                {item.task && <input type="checkbox" checked={item.checked} disabled />}
+                {item.task && <Input type="checkbox" checked={item.checked} disabled />}
                 {renderInline(item.tokens, onLinkError)}
               </li>
             );
@@ -98,7 +99,7 @@ function renderToken(token: Token, onLinkError: (error: unknown) => void): React
       const { header, rows } = token as Tokens.Table;
       return (
         <div className="app-update-table">
-          <table>
+          <Table>
             <thead>
               <tr>
                 {header.map((cell, index) => {
@@ -124,7 +125,7 @@ function renderToken(token: Token, onLinkError: (error: unknown) => void): React
                 );
               })}
             </tbody>
-          </table>
+          </Table>
         </div>
       );
     }

@@ -1,6 +1,7 @@
 import { useI18n } from '../../i18n';
 import { ModuleUpdateAction, useModuleUpdates } from '../../moduleUpdates';
 import { type Notify, type Service, serviceMenuEntries, stopStartAction } from '../shared';
+import { Panel, Toggle } from '../ui';
 import { RowMenu } from './RowMenu';
 import { StatusDot } from './StatusDot';
 
@@ -31,7 +32,7 @@ export function ServiceCard({
   const toggleDisabled = toggle.disabled || busy || updates.busy || controlsDisabled;
 
   return (
-    <div className={`service-card ${busy ? 'busy' : ''}`} aria-busy={busy}>
+    <Panel className={`service-card ${busy ? 'busy' : ''}`} aria-busy={busy}>
       <div className="service-card-top">
         <div className="service-icon">
           <Icon size={18} />
@@ -50,7 +51,8 @@ export function ServiceCard({
         <span>
           {updates.versions[service.name] ?? service.version} <i>·</i> {service.port}
         </span>
-        <button
+        <Toggle
+          checked={service.status === 'running'}
           type="button"
           className={`mini-toggle ${service.status === 'running' ? 'on' : ''} ${toggle.disabled ? 'unknown' : ''}`}
           disabled={toggleDisabled}
@@ -61,9 +63,9 @@ export function ServiceCard({
           title={busy ? (busyLabel ?? t('services.pendingAction')) : undefined}
         >
           <span />
-        </button>
+        </Toggle>
       </div>
       <ModuleUpdateAction name={service.name} disabled={externallyBusy} />
-    </div>
+    </Panel>
   );
 }

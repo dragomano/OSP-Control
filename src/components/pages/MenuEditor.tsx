@@ -66,6 +66,22 @@ import {
 import { MENU_TREE_KEY, settingsStorage } from '../../settingsStorage';
 import { MenuIconPicker } from '../dialogs/MenuIconPicker';
 import { type Notify, useDismiss } from '../shared';
+import {
+  Actions,
+  Button,
+  DialogBody,
+  DialogFooter,
+  DialogForm,
+  DialogHeader,
+  DialogOverlay,
+  EmptyState,
+  Field,
+  Input,
+  MenuItem,
+  Notice,
+  Select,
+  Toolbar,
+} from '../ui';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
 import { SearchField } from '../widgets/SearchField';
@@ -441,7 +457,9 @@ export function MenuEditor({
           className={`menu-category-heading ${selection.kind === 'category' && selection.path === path ? 'selected' : ''} ${drag?.category === path && !drag.before ? 'drop-target' : ''}`}
           data-menu-drop={path}
         >
-          <button
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button menu-collapse"
             aria-label={t(closed ? 'menu.expand' : 'menu.collapse', { name: categoryLabel(path, t) })}
@@ -454,13 +472,20 @@ export function MenuEditor({
             }}
           >
             {closed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-          </button>
-          <button type="button" className="menu-category-label" onClick={() => chooseCategory(path)}>
+          </Button>
+          <Button
+            variant="ghost"
+            type="button"
+            className="menu-category-label"
+            onClick={() => chooseCategory(path)}
+          >
             {path ? <Folder size={15} /> : <ListTree size={15} />}
             <span>{nested ? path.split('\\')[1] : categoryLabel(path, t)}</span>
             <small>{count}</small>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button"
             title={t('menu.addItemHere')}
@@ -468,7 +493,7 @@ export function MenuEditor({
             onClick={() => addItem(path)}
           >
             <Plus size={14} />
-          </button>
+          </Button>
         </div>
         {!closed && (
           <ul className="menu-tree-children">
@@ -479,7 +504,8 @@ export function MenuEditor({
                 data-menu-drop={path}
                 className={`menu-tree-item ${selection.kind === 'item' && selection.id === entry.id ? 'selected' : ''} ${entry.fields.enabled === 'off' ? 'muted' : ''} ${drag?.before === entry.id && drag.category === path ? 'drop-before' : ''} ${drag?.id === entry.id ? 'dragging' : ''}`}
               >
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   className="menu-drag-handle"
                   aria-label={t('menu.dragItem', { name: menuCaption(entry, t) })}
@@ -490,8 +516,8 @@ export function MenuEditor({
                   onPointerCancel={(event) => endDrag(event, true)}
                 >
                   <GripVertical size={14} />
-                </button>
-                <button type="button" className="menu-item-main" onClick={() => selectItem(entry.id)}>
+                </Button>
+                <MenuItem type="button" className="menu-item-main" onClick={() => selectItem(entry.id)}>
                   <span className="menu-item-symbol">
                     <MenuIcon name={entry.fields.icon} />
                   </span>
@@ -501,7 +527,7 @@ export function MenuEditor({
                       —
                     </span>
                   ) : null}
-                </button>
+                </MenuItem>
                 <ChevronRight size={13} aria-hidden="true" />
               </li>
             ))}
@@ -516,9 +542,9 @@ export function MenuEditor({
   };
 
   const field = (key: string, label: string, monospace = false) => (
-    <label className="menu-field" key={key}>
+    <Field className="menu-field" key={key}>
       <span>{t(label)}</span>
-      <input
+      <Input
         className={monospace ? 'menu-monospace' : undefined}
         value={item?.fields[key] ?? ''}
         onChange={(event) => setField(key, event.target.value, `${item?.id}:${key}`)}
@@ -526,17 +552,17 @@ export function MenuEditor({
           editBatchRef.current = '';
         }}
       />
-    </label>
+    </Field>
   );
   const toggle = (key: string, label: string, defaultOn = false) => (
-    <label className="menu-check" key={key}>
-      <input
+    <Field className="menu-check" key={key}>
+      <Input
         type="checkbox"
         checked={item?.fields[key] === 'on' || (defaultOn && item?.fields[key] !== 'off')}
         onChange={(event) => setField(key, event.target.checked ? 'on' : 'off')}
       />
       <span>{t(label)}</span>
-    </label>
+    </Field>
   );
   const peers = item ? draft.items.filter((entry) => categoryOf(entry) === categoryOf(item)) : [];
   const position = peers.findIndex((entry) => entry.id === item?.id);
@@ -580,7 +606,7 @@ export function MenuEditor({
           description={t('menu.subtitle')}
           action={
             <div className="menu-header-actions">
-              <button
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={busy || blocked}
@@ -588,8 +614,9 @@ export function MenuEditor({
               >
                 <Copy size={16} />
                 {t('nav.backups')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 type="button"
                 className="primary-button"
                 disabled={!dirty || disabled || !!loadError}
@@ -597,16 +624,16 @@ export function MenuEditor({
               >
                 <Check size={16} />
                 {t('common.save')}
-              </button>
+              </Button>
             </div>
           }
         />
       )}
       {!project && !isDesktopApp() && (
-        <div className="menu-notice">
+        <Notice className="menu-notice">
           <Info size={15} />
           <span>{t('menu.browserNotice')}</span>
-        </div>
+        </Notice>
       )}
       {saveError && (
         <div className="backup-load-error" role="alert">
@@ -616,17 +643,17 @@ export function MenuEditor({
       {loadError ? (
         <div className="backup-load-error" role="alert">
           <span>{loadError}</span>
-          <button type="button" className="text-button" onClick={() => void load()}>
+          <Button variant="ghost" type="button" className="text-button" onClick={() => void load()}>
             {t('menu.reload')}
-          </button>
+          </Button>
         </div>
       ) : loading ? (
-        <div className="empty-note" role="status">
+        <EmptyState className="empty-note" role="status">
           {t('common.loading')}
-        </div>
+        </EmptyState>
       ) : (
         <fieldset className="menu-editor-fields" disabled={disabled}>
-          <div className="menu-toolbar">
+          <Toolbar className="menu-toolbar">
             <SearchField
               value={query}
               onChange={setQuery}
@@ -634,7 +661,9 @@ export function MenuEditor({
               placeholder={t('menu.search')}
             />
             <div className="menu-history">
-              <button
+              <Button
+                variant="ghost"
+                square
                 type="button"
                 className="icon-button"
                 disabled={!history.past.length}
@@ -643,8 +672,10 @@ export function MenuEditor({
                 onClick={() => undo()}
               >
                 <Undo2 size={16} />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                square
                 type="button"
                 className="icon-button"
                 disabled={!history.future.length}
@@ -653,9 +684,9 @@ export function MenuEditor({
                 onClick={() => undo(true)}
               >
                 <Redo2 size={16} />
-              </button>
+              </Button>
             </div>
-            <button
+            <Button
               type="button"
               className="secondary-button"
               onClick={() => {
@@ -668,12 +699,14 @@ export function MenuEditor({
             >
               <FolderPlus size={15} />
               {t('menu.addCategory')}
-            </button>
-            <button type="button" className="secondary-button" onClick={() => addItem()}>
+            </Button>
+            <Button type="button" className="secondary-button" onClick={() => addItem()}>
               <Plus size={15} />
               {t('menu.addItem')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              square
               type="button"
               className="icon-button"
               aria-label={t('menu.reload')}
@@ -686,8 +719,8 @@ export function MenuEditor({
               }
             >
               <RefreshCw size={15} />
-            </button>
-          </div>
+            </Button>
+          </Toolbar>
           <div className="menu-editor-layout">
             <section className="menu-tree-panel" aria-label={t('menu.structure')}>
               <div className="menu-panel-head">
@@ -698,8 +731,8 @@ export function MenuEditor({
                   </strong>
                   <span>{t('menu.itemCount', { n: draft.items.length })}</span>
                 </div>
-                <div className="menu-tree-actions">
-                  <button
+                <Actions className="menu-tree-actions">
+                  <Button
                     type="button"
                     className="secondary-button"
                     onClick={() => {
@@ -709,8 +742,8 @@ export function MenuEditor({
                   >
                     <ChevronsDownUp size={14} aria-hidden="true" />
                     <span>{t('menu.collapseAll')}</span>
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className="secondary-button"
                     onClick={() => {
@@ -720,8 +753,8 @@ export function MenuEditor({
                   >
                     <ChevronsUpDown size={14} aria-hidden="true" />
                     <span>{t('menu.expandAll')}</span>
-                  </button>
-                </div>
+                  </Button>
+                </Actions>
               </div>
               <ul className="menu-tree">
                 {categories
@@ -736,13 +769,14 @@ export function MenuEditor({
                 !draft.items.some((entry) => menuMatches(entry, query, t)) &&
                 !categories.some((path) =>
                   categoryLabel(path, t).toLowerCase().includes(query.toLowerCase()),
-                ) && <div className="empty-note">{t('common.empty')}</div>}
+                ) && <EmptyState className="empty-note">{t('common.empty')}</EmptyState>}
             </section>
             <aside className="menu-inspector" aria-label={t('menu.properties')}>
               {item ? (
                 <>
                   <div className="menu-inspector-head">
-                    <button
+                    <Button
+                      variant="ghost"
                       type="button"
                       className="menu-icon-choice"
                       title={t('menu.chooseIcon')}
@@ -750,28 +784,28 @@ export function MenuEditor({
                       onClick={() => setIconOpen(true)}
                     >
                       {item.fields.icon ? <MenuIcon name={item.fields.icon} /> : <Plus size={20} />}
-                    </button>
+                    </Button>
                     <div>
                       <span className="menu-inspector-kicker">{t('menu.properties')}</span>
                       <strong>{menuCaption(item, t)}</strong>
                     </div>
                   </div>
                   {field('caption', 'menu.name')}
-                  <label className="menu-field">
+                  <Field className="menu-field">
                     <span>{t('menu.category')}</span>
-                    <select value={categoryOf(item)} onChange={(event) => move(item.id, event.target.value)}>
+                    <Select value={categoryOf(item)} onChange={(event) => move(item.id, event.target.value)}>
                       {categories.map((path) => (
                         <option key={path} value={path}>
                           {categoryLabel(path, t)}
                         </option>
                       ))}
-                    </select>
-                  </label>
+                    </Select>
+                  </Field>
                   {field('command', 'menu.command', true)}
                   {!item.fields.command?.trim() && <p className="menu-warning">{t('menu.noCommand')}</p>}
                   {toggle('enabled', 'menu.visible', true)}
                   <div className="menu-item-actions">
-                    <button
+                    <Button
                       type="button"
                       className="secondary-button"
                       disabled={position <= 0}
@@ -779,8 +813,8 @@ export function MenuEditor({
                     >
                       <ArrowUp size={14} />
                       {t('menu.up')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       className="secondary-button"
                       disabled={position >= peers.length - 1}
@@ -788,8 +822,10 @@ export function MenuEditor({
                     >
                       <ArrowDown size={14} />
                       {t('menu.down')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      square
                       type="button"
                       className="icon-button"
                       aria-label={t('menu.duplicate')}
@@ -812,8 +848,10 @@ export function MenuEditor({
                       }}
                     >
                       <Copy size={15} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      square
                       type="button"
                       className="icon-button menu-remove"
                       aria-label={t('menu.deleteItem')}
@@ -824,53 +862,53 @@ export function MenuEditor({
                       }}
                     >
                       <Trash2 size={15} />
-                    </button>
+                    </Button>
                   </div>
                   <details className="menu-advanced">
                     <summary>{t('menu.advanced')}</summary>
                     <div className="menu-advanced-body">
-                      <label className="menu-field">
+                      <Field className="menu-field">
                         <span>{t('menu.iconName')}</span>
-                        <input
+                        <Input
                           value={item.fields.icon ?? ''}
                           onChange={(event) => setField('icon', event.target.value, `${item.id}:icon`)}
                           onBlur={() => {
                             editBatchRef.current = '';
                           }}
                         />
-                      </label>
+                      </Field>
                       {field('work_directory', 'menu.workDirectory', true)}
                       {toggle('hide', 'menu.hideWindow')}
                       {toggle('hr_before', 'menu.separatorBefore')}
                       {toggle('hr_after', 'menu.separatorAfter')}
                       {MENU_CONDITIONS.map((key) => (
-                        <label className="menu-field" key={key}>
+                        <Field className="menu-field" key={key}>
                           <span>
                             {t(`menu.condition.${key}`)}
                             <code>{key}</code>
                           </span>
-                          <select
+                          <Select
                             value={item.fields[key] ?? ''}
                             onChange={(event) => setField(key, event.target.value)}
                           >
                             <option value="">{t('menu.conditionAny')}</option>
                             <option value="on">{t('menu.conditionYes')}</option>
                             <option value="off">{t('menu.conditionNo')}</option>
-                          </select>
-                        </label>
+                          </Select>
+                        </Field>
                       ))}
                       {field('need_category', 'menu.needCategory')}
                       {unknown.map((key) => (
-                        <label className="menu-field" key={key}>
+                        <Field className="menu-field" key={key}>
                           <span>{key}</span>
-                          <input
+                          <Input
                             value={item.fields[key]}
                             onChange={(event) => setField(key, event.target.value, `${item.id}:${key}`)}
                             onBlur={() => {
                               editBatchRef.current = '';
                             }}
                           />
-                        </label>
+                        </Field>
                       ))}
                       <p className="menu-muted">{t('menu.sectionId', { id: item.id })}</p>
                     </div>
@@ -899,19 +937,19 @@ export function MenuEditor({
                           chooseCategory(categoryEdit);
                         }}
                       >
-                        <label className="menu-field">
+                        <Field className="menu-field">
                           <span>{t('menu.categoryPath')}</span>
-                          <input
+                          <Input
                             value={categoryEdit}
                             onChange={(event) => setCategoryEdit(event.target.value)}
                           />
-                        </label>
-                        <button type="submit" className="secondary-button" disabled={!renameValid}>
+                        </Field>
+                        <Button type="submit" className="secondary-button" disabled={!renameValid}>
                           {t('menu.renameCategory')}
-                        </button>
+                        </Button>
                       </form>
                       <p className="menu-muted">{t('menu.categoryHelp')}</p>
-                      <button
+                      <Button
                         type="button"
                         className="secondary-button"
                         disabled={
@@ -927,16 +965,16 @@ export function MenuEditor({
                       >
                         <Trash2 size={14} />
                         {t('menu.deleteCategory')}
-                      </button>
+                      </Button>
                     </>
                   )}
                   <p className="menu-muted">
                     {t(categoryUsed ? 'menu.moveItemsFirst' : 'menu.emptyCategoryHint')}
                   </p>
-                  <button type="button" className="secondary-button" onClick={() => addItem()}>
+                  <Button type="button" className="secondary-button" onClick={() => addItem()}>
                     <Plus size={14} />
                     {t('menu.addItemHere')}
-                  </button>
+                  </Button>
                 </>
               )}
             </aside>
@@ -952,12 +990,18 @@ export function MenuEditor({
             {!project && (
               <>
                 <Info size={14} />
-                <button type="button" className="text-button menu-backup-hint" onClick={onOpenBackups}>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className="text-button menu-backup-hint"
+                  onClick={onOpenBackups}
+                >
                   <PathText text={t('menu.saveHint')} />
-                </button>
+                </Button>
               </>
             )}
-            <button
+            <Button
+              variant="ghost"
               type="button"
               className="text-button"
               disabled={!isDesktopApp()}
@@ -969,7 +1013,7 @@ export function MenuEditor({
             >
               <FileCode2 size={13} />
               {project ? '.osp/menu.ini' : 'system/menu.dat'}
-            </button>
+            </Button>
           </p>
         </fieldset>
       )}
@@ -984,8 +1028,8 @@ export function MenuEditor({
         />
       )}
       {categoryDialog && active && (
-        <div className="modal-overlay">
-          <form
+        <DialogOverlay className="modal-overlay">
+          <DialogForm
             ref={categoryDialogRef}
             className="modal-window"
             role="dialog"
@@ -1017,31 +1061,33 @@ export function MenuEditor({
               setQuery('');
             }}
           >
-            <div className="modal-head">
+            <DialogHeader className="modal-head">
               <h2 className="modal-title">{t('menu.newCategory')}</h2>
-              <button
+              <Button
+                variant="ghost"
+                square
                 type="button"
                 className="icon-button"
                 aria-label={t('common.close')}
                 onClick={() => setCategoryDialog(false)}
               >
                 <X size={17} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <label className="menu-field">
+              </Button>
+            </DialogHeader>
+            <DialogBody className="modal-body">
+              <Field className="menu-field">
                 <span>{t('menu.name')}</span>
-                <input
+                <Input
                   ref={categoryInputRef}
                   value={categoryName}
                   maxLength={100}
                   required
                   onChange={(event) => setCategoryName(event.target.value)}
                 />
-              </label>
-              <label className="menu-field">
+              </Field>
+              <Field className="menu-field">
                 <span>{t('menu.parentCategory')}</span>
-                <select value={categoryParent} onChange={(event) => setCategoryParent(event.target.value)}>
+                <Select value={categoryParent} onChange={(event) => setCategoryParent(event.target.value)}>
                   {categories
                     .filter((path) => !path.includes('\\'))
                     .map((path) => (
@@ -1049,13 +1095,14 @@ export function MenuEditor({
                         {categoryLabel(path, t)}
                       </option>
                     ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
               <p className="menu-muted">{t('menu.categoryHelp')}</p>
-            </div>
-            <div className="modal-foot">
+            </DialogBody>
+            <DialogFooter className="modal-foot">
               <span className="menu-muted">{t('menu.emptyCategoryHint')}</span>
-              <button
+              <Button
+                variant="primary"
                 type="submit"
                 className="primary-button"
                 disabled={
@@ -1070,10 +1117,10 @@ export function MenuEditor({
               >
                 <FolderPlus size={15} />
                 {t('menu.createCategory')}
-              </button>
-            </div>
-          </form>
-        </div>
+              </Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogOverlay>
       )}
       {drag?.moved && (
         <div

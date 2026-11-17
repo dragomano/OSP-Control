@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmDialog } from '../src/components/dialogs/ConfirmDialog';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
-import { askConfirm } from '../src/ospanel';
+import { askConfirm, requestAppConfirm } from '../src/ospanel';
 
 const t = makeTranslator(embeddedDict('en'), embeddedDict('en'));
 const plural = makePlural(t, 'en', embeddedDict('en'));
@@ -41,6 +41,21 @@ afterEach(() => {
 });
 
 describe('ConfirmDialog', () => {
+  it('uses the same app dialog for workshop requests without the desktop flag', async () => {
+    delete tauriFlag().__TAURI_INTERNALS__;
+    const nativeConfirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<Harness />);
+    let answer = Promise.resolve(true);
+    await act(async () => {
+      answer = requestAppConfirm('Restore the sample backup?', 'Confirmation');
+    });
+    expect(screen.getByRole('dialog', { name: 'Confirmation' })).toHaveClass('ui-dialog-panel');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(await answer).toBe(false);
+    expect(nativeConfirm).not.toHaveBeenCalled();
+    nativeConfirm.mockRestore();
+  });
+
   it('shows the title and the question of the request', async () => {
     render(<Harness />);
     await ask('Delete the copy dated 2023?');

@@ -12,6 +12,7 @@ import {
   taskPreset,
   uniqueTaskName,
 } from '../../projectTasks';
+import { Button, EmptyState, Field, Input, Notice, SectionPanel, Select, Textarea, Toolbar } from '../ui';
 import { SearchField } from '../widgets/SearchField';
 import '../widgets/formControls.css';
 import './projectTasksEditor.css';
@@ -77,24 +78,24 @@ export function ProjectTasksEditor({
   return (
     <fieldset className="tasks-editor" disabled={disabled || document.errors.length > 0}>
       {document.errors.length > 0 && (
-        <div className="workspace-error" role="alert">
+        <Notice className="workspace-error" role="alert">
           {t('tasks.parseError', { lines: document.errors.join(', ') })}
-        </div>
+        </Notice>
       )}
-      <div className="tasks-toolbar">
+      <Toolbar className="tasks-toolbar">
         <SearchField
           value={query}
           onChange={setQuery}
           ariaLabel={t('tasks.search')}
           placeholder={t('tasks.search')}
         />
-        <button type="button" className="secondary-button" onClick={() => add()}>
+        <Button type="button" className="secondary-button" onClick={() => add()}>
           <Plus size={15} />
           {t('tasks.add')}
-        </button>
-      </div>
+        </Button>
+      </Toolbar>
       <div className="tasks-editor-layout">
-        <section className="workspace-card tasks-list-panel" aria-label={t('tasks.list')}>
+        <SectionPanel className="workspace-card tasks-list-panel" aria-label={t('tasks.list')}>
           <div className="tasks-panel-head">
             <strong>
               <Clock3 size={16} />
@@ -104,7 +105,9 @@ export function ProjectTasksEditor({
           </div>
           <div className="tasks-list">
             {visible.map((item) => (
-              <button
+              <Button
+                selected={Boolean(item.id === task?.id)}
+                variant="ghost"
                 type="button"
                 key={item.id}
                 className={`tasks-list-item${item.id === task?.id ? ' selected' : ''}`}
@@ -125,14 +128,16 @@ export function ProjectTasksEditor({
                 {taskErrors(item, tasks).length > 0 && (
                   <TriangleAlert className="tasks-invalid-mark" size={15} aria-label={t('tasks.fixErrors')} />
                 )}
-              </button>
+              </Button>
             ))}
             {!visible.length && (
-              <div className="empty-note">{t(entries.length ? 'common.empty' : 'tasks.empty')}</div>
+              <EmptyState className="empty-note">
+                {t(entries.length ? 'common.empty' : 'tasks.empty')}
+              </EmptyState>
             )}
           </div>
-        </section>
-        <section className="workspace-card tasks-inspector" aria-label={t('tasks.properties')}>
+        </SectionPanel>
+        <SectionPanel className="workspace-card tasks-inspector" aria-label={t('tasks.properties')}>
           {task ? (
             <>
               <div className="tasks-inspector-head">
@@ -143,7 +148,9 @@ export function ProjectTasksEditor({
                   <span>{t('tasks.properties')}</span>
                   <strong>{task.name || t('tasks.newName')}</strong>
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  square
                   type="button"
                   className="icon-button"
                   aria-label={t('tasks.duplicate')}
@@ -151,8 +158,10 @@ export function ProjectTasksEditor({
                   onClick={() => add(task)}
                 >
                   <Copy size={16} />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  square
                   type="button"
                   className="icon-button danger"
                   aria-label={t('tasks.delete')}
@@ -170,11 +179,11 @@ export function ProjectTasksEditor({
                   }
                 >
                   <Trash2 size={16} />
-                </button>
+                </Button>
               </div>
-              <label className="tasks-field">
+              <Field className="tasks-field">
                 <span>{t('tasks.name')}</span>
-                <input
+                <Input
                   aria-label={t('tasks.name')}
                   aria-describedby={errorId('name') ?? errorId('duplicateName')}
                   value={task.name}
@@ -183,19 +192,19 @@ export function ProjectTasksEditor({
                 />
                 {error('name')}
                 {error('duplicateName')}
-              </label>
-              <label className="tasks-enabled">
-                <input
+              </Field>
+              <Field className="tasks-enabled">
+                <Input
                   type="checkbox"
                   checked={task.enabled !== '0'}
                   onChange={(event) => update({ enabled: event.target.checked ? '1' : '0' })}
                 />
                 {t('tasks.enabled')}
-              </label>
+              </Field>
               {error('enabled')}
-              <label className="tasks-field">
+              <Field className="tasks-field">
                 <span>{t('tasks.schedule')}</span>
-                <select
+                <Select
                   value={taskPreset(task)}
                   onChange={(event) => {
                     if (event.target.value !== 'custom')
@@ -208,13 +217,13 @@ export function ProjectTasksEditor({
                       {t(`tasks.preset.${key}`)}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
               <div className="tasks-cron-fields">
                 {TASK_CRON_FIELDS.map((key, index) => (
-                  <label className="tasks-field" key={key}>
+                  <Field className="tasks-field" key={key}>
                     <span>{t(`tasks.${key}`)}</span>
-                    <input
+                    <Input
                       aria-label={t(`tasks.${key}`)}
                       aria-describedby={errorId(key)}
                       value={task.schedule[index] ?? ''}
@@ -229,25 +238,25 @@ export function ProjectTasksEditor({
                       }
                     />
                     {error(key)}
-                  </label>
+                  </Field>
                 ))}
               </div>
               <p className="tasks-help">{t('tasks.cronHint')}</p>
               <div className="tasks-limit-fields">
-                <label className="tasks-field">
+                <Field className="tasks-field">
                   <span>{t('tasks.limit')}</span>
-                  <select
+                  <Select
                     value={['*', '0'].includes(task.limit) ? 'unlimited' : 'limited'}
                     onChange={(event) => update({ limit: event.target.value === 'unlimited' ? '*' : '1' })}
                   >
                     <option value="unlimited">{t('tasks.unlimited')}</option>
                     <option value="limited">{t('tasks.limited')}</option>
-                  </select>
-                </label>
+                  </Select>
+                </Field>
                 {!['*', '0'].includes(task.limit) && (
-                  <label className="tasks-field">
+                  <Field className="tasks-field">
                     <span>{t('tasks.launchCount')}</span>
-                    <input
+                    <Input
                       aria-label={t('tasks.launchCount')}
                       aria-describedby={errorId('limit')}
                       type="number"
@@ -258,12 +267,12 @@ export function ProjectTasksEditor({
                       onChange={(event) => update({ limit: event.target.value })}
                     />
                     {error('limit')}
-                  </label>
+                  </Field>
                 )}
               </div>
-              <label className="tasks-field">
+              <Field className="tasks-field">
                 <span>{t('tasks.command')}</span>
-                <textarea
+                <Textarea
                   aria-label={t('tasks.command')}
                   aria-describedby={errorId('command')}
                   rows={3}
@@ -273,7 +282,7 @@ export function ProjectTasksEditor({
                   onChange={(event) => update({ command: event.target.value })}
                 />
                 {error('command')}
-              </label>
+              </Field>
               <p className="tasks-help">{t('tasks.commandHint')}</p>
             </>
           ) : (
@@ -282,7 +291,7 @@ export function ProjectTasksEditor({
               <p>{t('tasks.select')}</p>
             </div>
           )}
-        </section>
+        </SectionPanel>
       </div>
       <p className="workspace-hint">{t('tasks.applyHint')}</p>
     </fieldset>

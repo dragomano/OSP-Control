@@ -4,6 +4,7 @@
     "includes": [
       "**",
       "!dist",
+      "!dist-demo",
       "!dist-portable",
       "!coverage",
       "!.sharrowkin",
@@ -22,6 +23,12 @@
       "quoteStyle": "single"
     }
   },
+  "overrides": [
+    {
+      "includes": ["src/demo/*.css", "src/components/ui/*.css"],
+      "css": { "parser": { "tailwindDirectives": true } }
+    }
+  ],
   "linter": {
     "enabled": true,
     "rules": {

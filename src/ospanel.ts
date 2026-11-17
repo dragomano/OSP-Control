@@ -882,13 +882,14 @@ export function registerConfirmHost(handler: ((request: ConfirmRequest) => void)
   confirmHost = handler;
 }
 
-export async function askConfirm(message: string, title?: string): Promise<boolean> {
-  if (isTauri()) {
-    const host = confirmHost;
-    if (!host) return false;
+export async function requestAppConfirm(message: string, title?: string): Promise<boolean> {
+  const host = confirmHost;
+  if (!host) return false;
+  return new Promise<boolean>((resolve) => host({ message, title: title ?? '', resolve }));
+}
 
-    return new Promise<boolean>((resolve) => host({ message, title: title ?? '', resolve }));
-  }
+export async function askConfirm(message: string, title?: string): Promise<boolean> {
+  if (isTauri()) return requestAppConfirm(message, title);
 
   return window.confirm(message);
 }

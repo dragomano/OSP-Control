@@ -591,7 +591,6 @@
   "backups.filteredNone": "Копий этого типа пока нет",
   "settings.backupsMenuTitle": "Резервные копии меню",
   "settings.backupsMenuText": "Точная копия system/menu.dat. Перед восстановлением текущий файл сохраняется автоматически.",
-  "settings.backupsMenuCreate": "Создать копию меню",
   "settings.backupsMenuCreated": "Резервная копия меню создана",
   "settings.backupsKindMenu": "Меню OSPanel",
   "settings.backupsConfirmMenu": "Восстановить меню из копии от {date}? Перед заменой system/menu.dat текущий файл сохраняется автоматически.",
@@ -623,7 +622,6 @@
   "settings.backupsDbTitle": "Дампы баз данных",
   "settings.backupsDbText": "Логический SQL-дамп запущенного модуля БД (MySQL, MariaDB, PostgreSQL). Перед восстановлением текущее состояние сохраняется автоматически.",
   "settings.backupsDbNone": "Запущенных модулей БД нет",
-  "settings.backupsDbCreate": "Создать дамп",
   "settings.backupsDbCreated": "Дамп базы данных сохранён: {module}",
   "settings.backupsDbCreatedCount": {
     "one": "Создан {count} дамп",
@@ -634,7 +632,6 @@
   "settings.backupsProjectTitle": "Резервные копии проектов",
   "settings.backupsProjectText": "ZIP-архив каталога проекта; папки node_modules и vendor исключаются. Перед восстановлением текущая папка сохраняется автоматически.",
   "settings.backupsProjectNone": "Проектов нет",
-  "settings.backupsProjectCreate": "Создать архив",
   "settings.backupsProjectCreated": "Архив проекта сохранён: {domain}",
   "settings.backupsProjectCreatedCount": {
     "one": "Создан {count} архив",
@@ -915,6 +912,7 @@
   "projects.tagsCreate": "Создать метку «{tag}»",
   "projects.tagsSelectHelp": "Введите текст для поиска или создания метки. Используйте стрелки для навигации и Enter для выбора. Backspace удаляет выбранную метку.",
   "projects.tagsSelection": "Выбранные метки: {tags}",
+  "projects.tagsAvailable": "Доступные метки",
   "projects.tagsOptions": "Доступно меток: {count}",
   "projects.tagsAdd": "Добавить",
   "projects.tagsDone": "Готово",
@@ -927,6 +925,7 @@
   "projects.tagsEdit": "Изменить метки",
   "projects.tagsTag": "метка",
   "projects.tagsColumn": "Метки",
+  "projects.tagsMore": "Скрытые метки проекта {domain} ({count})",
   "projects.tagsBulk": "Массовые действия с метками",
   "projects.tagsSelected": "Выбрано: {count}",
   "projects.tagsBulkName": "Метка для выбранных проектов",
@@ -1299,11 +1298,16 @@
   "err.installFailed": "Установка завершилась ошибкой. Проверьте вывод команды. Заготовка сохранена, если не показано отдельное сообщение о восстановлении.",
   "err.installTimeout": "Установка превысила лимит в 15 минут. Заготовка сохранена; проверьте соединение и повторите попытку.",
   "err.installPayload": "Установка не создала полноценное приложение. Заготовка сохранена.",
-"err.installPayloadFile": "Установка не создала полноценное приложение: отсутствует {path}. Заготовка сохранена.",
+  "err.installPayloadFile": "Установка не создала полноценное приложение: отсутствует {path}. Заготовка сохранена.",
   "err.installPayloadName": "Загруженный пакет — {actual}, ожидался {name}. Заготовка сохранена.",
   "err.installRecovery": "Не удалось завершить перенос проекта или автоматически восстановить его. Исходные файлы: {path}. Подготовленное приложение и сведения для восстановления: {staging}.",
   "err.installDownload": "Не удалось загрузить архив. Проверьте соединение и доступность источника, затем повторите попытку. Заготовка сохранена.",
   "err.installChecksum": "Загруженный архив не совпадает с опубликованной контрольной суммой. Заготовка сохранена; проверьте источник загрузки и повторите попытку.",
   "err.installArchive": "Загруженный архив не является ожидаемым пакетом приложения. Заготовка сохранена.",
-  "starters.static.ready": "Локальный сайт готов. Замените эту страницу файлами своего проекта."
+  "starters.static.ready": "Локальный сайт готов. Замените эту страницу файлами своего проекта.",
+  "settings.paletteTitle": "Тема оформления",
+  "settings.paletteText": "Цвета интерфейса. Каждая тема поддерживает светлый, тёмный и системный режимы.",
+  "settings.backupsFolderPreview": "Демонстрация открытия папки резервных копий.",
+  "settings.accentOriginal": "Исходный акцент темы",
+  "settings.accentVariant": "Акцент {number}"
 }

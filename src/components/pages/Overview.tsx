@@ -18,6 +18,7 @@ import { ModuleUpdateToolbar } from '../../moduleUpdates';
 import type { OverviewMetrics } from '../../ospanel';
 import { formatRam, type Notify, type Page, type Service, type SettingsTab } from '../shared';
 import { buildActivityRows, logAliasesFromTranslator } from '../tables/Logs';
+import { Button, Panel } from '../ui';
 import { ActivityRow } from '../widgets/ActivityRow';
 import { Metric } from '../widgets/Metric';
 import { PageHeader } from '../widgets/PageHeader';
@@ -96,7 +97,8 @@ export function Overview({
         heading={t(greetingKey, { name: userName })}
         description={t('overview.subtitle')}
         action={
-          <button
+          <Button
+            variant="primary"
             type="button"
             className="primary-button"
             disabled={syncing}
@@ -111,7 +113,7 @@ export function Overview({
           >
             <RefreshCw size={16} />
             {t('overview.sync')}
-          </button>
+          </Button>
         }
       />
       <ModuleUpdateToolbar />
@@ -128,13 +130,23 @@ export function Overview({
           </h2>
           <p>{t(panelOnline ? 'overview.heroText' : 'overview.heroTextOffline')}</p>
           <div className="hero-actions">
-            <button type="button" className="hero-button" onClick={() => onNavigate('services')}>
+            <Button
+              variant="primary"
+              type="button"
+              className="hero-button"
+              onClick={() => onNavigate('services')}
+            >
               <Power size={16} />
               {t('overview.heroServices')}
-            </button>
-            <button type="button" className="ghost-button" onClick={() => onNavigate('projects')}>
+            </Button>
+            <Button
+              variant="ghost"
+              type="button"
+              className="ghost-button"
+              onClick={() => onNavigate('projects')}
+            >
               {t('overview.heroProjects')} <ArrowUpRight size={15} />
-            </button>
+            </Button>
           </div>
         </div>
         <div className={`hero-orb${panelOnline ? '' : ' offline'}`}>
@@ -190,9 +202,9 @@ export function Overview({
           <h3>{t('overview.quickTitle')}</h3>
           <span>{t('overview.quickSubtitle')}</span>
         </div>
-        <button type="button" className="text-button" onClick={() => onNavigate('services')}>
+        <Button variant="ghost" type="button" className="text-button" onClick={() => onNavigate('services')}>
           {t('overview.allServices')} <ChevronRight size={15} />
-        </button>
+        </Button>
       </div>
       <div className="service-grid">
         {services.map((service, index) => {
@@ -218,13 +230,15 @@ export function Overview({
         })}
       </div>
       <div className="lower-grid">
-        <div className="activity-panel">
+        <Panel className="activity-panel">
           <div className="panel-heading">
             <div>
               <h3>{t('overview.activity')}</h3>
               <span>{t('overview.activitySubtitle')}</span>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              square
               type="button"
               className="icon-button"
               onClick={() => onNavigate('logs')}
@@ -232,7 +246,7 @@ export function Overview({
               title={t('overview.activityOpenLogs')}
             >
               <MoreHorizontal size={17} />
-            </button>
+            </Button>
           </div>
           {activityLines === null ? null : activityRows.length === 0 ? (
             <p className="empty-note">{t('overview.activityEmpty')}</p>
@@ -253,19 +267,24 @@ export function Overview({
               />
             ))
           )}
-        </div>
-        <div className="tip-panel">
+        </Panel>
+        <Panel className="tip-panel">
           <div className="tip-glow" />
           <Sparkles size={20} className="tip-icon" />
           <div>
             <span className="eyebrow">{t('overview.tipKicker')}</span>
             <h3>{t('overview.tipTitle')}</h3>
             <p>{t('overview.tipText')}</p>
-            <button type="button" className="text-button" onClick={() => onNavigate('settings', 'general')}>
+            <Button
+              variant="ghost"
+              type="button"
+              className="text-button"
+              onClick={() => onNavigate('settings', 'general')}
+            >
               {t('overview.tipSettings')} <ArrowUpRight size={15} />
-            </button>
+            </Button>
           </div>
-        </div>
+        </Panel>
       </div>
     </>
   );

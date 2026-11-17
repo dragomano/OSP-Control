@@ -11,7 +11,6 @@ import {
   Layers,
   Network,
   Pencil,
-  Plus,
   ShieldCheck,
   ShieldOff,
   SlidersHorizontal,
@@ -44,8 +43,7 @@ import {
   matchesProjectTags,
   PROJECT_TAGS_KEY,
   type ProjectSort,
-  type ProjectTagColor,
-  projectTagAppearance,
+  type ProjectTagColorEdits,
   pruneProjectTagColors,
   readProjectTagColors,
   readProjectTags,
@@ -60,11 +58,12 @@ import { CreateProjectDialog } from '../dialogs/CreateProjectDialog';
 import { HostsEditor } from '../dialogs/HostsEditor';
 import { RenameProjectDialog } from '../dialogs/RenameProjectDialog';
 import { copyText, type Notify } from '../shared';
+import { Actions, BadgeButton, Button, DataTable, EmptyState, Toolbar } from '../ui';
 import { FilterFacet, facetValues } from '../widgets/FilterFacet';
 import { MenuSelect } from '../widgets/MenuSelect';
 import { PageHeader } from '../widgets/PageHeader';
 import { ProjectTagSelect } from '../widgets/ProjectTagSelect';
-import { ProjectSelection, ProjectTagEditor, ProjectTagFilter } from '../widgets/ProjectTags';
+import { ProjectSelection, ProjectTagEditor, ProjectTagFilter, ProjectTagList } from '../widgets/ProjectTags';
 import { RowMenu } from '../widgets/RowMenu';
 import { SearchField } from '../widgets/SearchField';
 import { activityDate, groupProjectActivity, useProjectActivity } from './projectActivity';
@@ -273,7 +272,12 @@ function ProjectsContent({
       else next.delete(domain);
       return next;
     });
-  const changeTags = (domains: string[], tags: string[], action: 'add' | 'remove' | 'replace') => {
+  const changeTags = (
+    domains: string[],
+    tags: string[],
+    action: 'add' | 'remove' | 'replace',
+    colorEdits: ProjectTagColorEdits = {},
+  ) => {
     try {
       let next = tagsRef.current;
       if (action === 'replace') {
@@ -286,22 +290,17 @@ function ProjectsContent({
       for (const tag of tags) {
         next = editProjectTags(next, domains, tag, action === 'remove' ? 'remove' : 'add');
       }
-      colorsRef.current = writeProjectTags(tagStorageKey, next, colorsRef.current);
+      const nextColors = Object.entries(colorEdits).reduce(
+        (current, [tag, color]) => setProjectTagColor(current, tag, color),
+        colorsRef.current,
+      );
+      colorsRef.current = writeProjectTags(tagStorageKey, next, nextColors);
       tagsRef.current = next;
       setTagState({ key: tagStorageKey, tags: next, colors: colorsRef.current });
       return true;
     } catch (error) {
       notify(errorText(t, error, 'projects.tagsSaveFailed'));
       return false;
-    }
-  };
-  const changeTagColor = (tag: string, color: ProjectTagColor | null) => {
-    try {
-      const next = setProjectTagColor(colorsRef.current, tag, color);
-      colorsRef.current = writeProjectTags(tagStorageKey, tagsRef.current, next);
-      setTagState({ key: tagStorageKey, tags: tagsRef.current, colors: colorsRef.current });
-    } catch (error) {
-      notify(errorText(t, error, 'projects.tagsSaveFailed'));
     }
   };
   // Editors for "Open in": looked up once when the page opens.
@@ -357,7 +356,7 @@ function ProjectsContent({
 
   if (startersOpen)
     return (
-      <Suspense fallback={<div className="empty-note">{t('common.loading')}</div>}>
+      <Suspense fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}>
         <ProjectStartersWorkspace
           notify={notify}
           onClose={() => {
@@ -373,7 +372,7 @@ function ProjectsContent({
 
   if (modulesFor)
     return (
-      <Suspense fallback={<div className="empty-note">{t('common.loading')}</div>}>
+      <Suspense fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}>
         <ProjectWorkspace
           project={modulesFor}
           notify={notify}
@@ -398,23 +397,28 @@ function ProjectsContent({
         heading={t('nav.projects')}
         description={t('projects.subtitle')}
         action={
-          <div className="projects-header-actions">
-            <button type="button" className="secondary-button" onClick={() => setHostsOpen(true)}>
+          <Actions className="projects-header-actions">
+            <Button type="button" className="secondary-button" onClick={() => setHostsOpen(true)}>
               <Network size={15} />
               {t('hosts.open')}
-            </button>
-            <button type="button" className="secondary-button" onClick={() => setStartersOpen(true)}>
+            </Button>
+            <Button type="button" className="secondary-button" onClick={() => setStartersOpen(true)}>
               <Layers size={15} />
               {t('starter.title')}
-            </button>
-            <button type="button" className="primary-button" onClick={() => setCreateDialogOpen(true)}>
+            </Button>
+            <Button
+              variant="primary"
+              type="button"
+              className="primary-button"
+              onClick={() => setCreateDialogOpen(true)}
+            >
               <span className="plus">+</span>
               {t('projects.new')}
-            </button>
-          </div>
+            </Button>
+          </Actions>
         }
       />
-      <div className="toolbar projects-toolbar">
+      <Toolbar className="toolbar projects-toolbar">
         <SearchField
           value={query}
           onChange={setQuery}
@@ -489,12 +493,12 @@ function ProjectsContent({
           />
         </div>
         {filtersActive && (
-          <button type="button" className="filter-button reset" onClick={resetFilters}>
+          <Button type="button" className="filter-button reset" onClick={resetFilters}>
             <X size={15} />
             {t('projects.filterReset')}
-          </button>
+          </Button>
         )}
-      </div>
+      </Toolbar>
       {selectedDomains.length > 0 && (
         <fieldset className="project-tags-bulk" aria-label={t('projects.tagsBulk')}>
           <strong role="status">{t('projects.tagsSelected', { count: selectedDomains.length })}</strong>
@@ -505,23 +509,25 @@ function ProjectsContent({
             colors={tagColors}
             ariaLabel={t('projects.tagsBulkName')}
           />
-          <button
+          <Button
             type="button"
             className="secondary-button"
             disabled={!bulkTags.length}
             onClick={() => changeTags(selectedDomains, bulkTags, 'add')}
           >
             {t('projects.tagsAssign')}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className="secondary-button"
             disabled={!bulkTags.length}
             onClick={() => changeTags(selectedDomains, bulkTags, 'remove')}
           >
             {t('projects.tagsUnassign')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button"
             aria-label={t('projects.tagsClearSelection')}
@@ -531,10 +537,10 @@ function ProjectsContent({
             }}
           >
             <X size={16} />
-          </button>
+          </Button>
         </fieldset>
       )}
-      <div className="project-table project-activity-table project-tags-table">
+      <DataTable className="project-table project-activity-table project-tags-table">
         <div className="table-head">
           <ProjectSelection
             all
@@ -550,9 +556,9 @@ function ProjectsContent({
           <span>{t('projects.colActions')}</span>
         </div>
         {visibleProjects.length === 0 ? (
-          <div className="empty-note">
+          <EmptyState className="empty-note">
             {filtersActive && matchingProjects.length > 0 ? t('projects.emptyFiltered') : t('projects.empty')}
-          </div>
+          </EmptyState>
         ) : (
           activityGroups.flatMap((group) =>
             group.projects.map((project, index) => {
@@ -582,17 +588,19 @@ function ProjectsContent({
                     <div className="project-activity-identity">
                       <div className="project-activity-title">
                         <b title={project.domain}>
-                          <button
+                          <Button
+                            variant="ghost"
                             type="button"
                             className="project-settings-link"
                             title={t('workspace.settingsFor', { domain: displayDomain })}
                             onClick={() => openSettings(project)}
                           >
                             {displayDomain}
-                          </button>
+                          </Button>
                         </b>
                         {modified && entry.lastFile ? (
-                          <button
+                          <Button
+                            variant="ghost"
                             type="button"
                             className="project-last-change"
                             onClick={() => setExpandedProject(expanded ? null : project.domain)}
@@ -610,7 +618,7 @@ function ProjectsContent({
                               <AlertTriangle size={13} aria-label={t('projects.activityPartial')} />
                             )}
                             <ChevronDown size={12} className={expanded ? 'expanded' : ''} />
-                          </button>
+                          </Button>
                         ) : (
                           <span className="project-activity-unavailable">
                             {t(
@@ -625,40 +633,22 @@ function ProjectsContent({
                       </div>
                       <span className="project-activity-path">{project.path}</span>
                     </div>
-                    <div className="project-tags-cell">
-                      <div className="project-tags-list">
-                        {tagsForProject(projectTags, project.domain).map((tag) => (
-                          <button
-                            type="button"
-                            className={`project-tag-chip ${projectTagAppearance(tagColors, tag).className} ${tagFilters.includes(tag) ? 'active' : ''}`}
-                            style={projectTagAppearance(tagColors, tag).style}
-                            key={tag}
-                            aria-label={t('projects.tagsFilterBy', { tag })}
-                            onClick={() => setTagFilters([tag])}
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className="project-tag-add"
-                          aria-label={t('projects.tagsEditFor', { domain: displayDomain })}
-                          aria-expanded={editingTags === project.domain}
-                          onClick={() =>
-                            setEditingTags(editingTags === project.domain ? null : project.domain)
-                          }
-                        >
-                          <Plus size={12} />
-                          {t('projects.tagsTag')}
-                        </button>
-                      </div>
-                    </div>
+                    <ProjectTagList
+                      domain={displayDomain}
+                      tags={tagsForProject(projectTags, project.domain)}
+                      colors={tagColors}
+                      selected={tagFilters}
+                      editing={editingTags === project.domain}
+                      onEdit={() => setEditingTags(editingTags === project.domain ? null : project.domain)}
+                      onFilter={(tag) => setTagFilters([tag])}
+                    />
                     <div className="project-environment">
                       <b>{isEngineUnset(project.php) ? '' : `PHP ${project.php}`}</b>
                       <span className="table-sub">{isEngineUnset(project.type) ? '' : project.type}</span>
                     </div>
                     <div className="project-ssl-cell">
-                      <button
+                      <BadgeButton
+                        tone={project.ssl ? 'success' : 'default'}
                         type="button"
                         className={`ssl-toggle ${project.ssl ? 'on' : ''}`}
                         onClick={() => onToggleSsl(project.domain, !project.ssl)}
@@ -679,18 +669,18 @@ function ProjectsContent({
                                   ? 'projects.sslOn'
                                   : 'projects.sslOff',
                         )}
-                      </button>
+                      </BadgeButton>
                     </div>
-                    <div className="row-actions">
+                    <Actions className="row-actions">
                       <span className="project-actions-label">{t('projects.colActions')}</span>
-                      <button
+                      <Button
                         type="button"
                         className="secondary-button"
                         onClick={() => void openProject(project)}
                       >
                         <ArrowUpRight size={14} />
                         {t('projects.open')}
-                      </button>
+                      </Button>
                       <RowMenu
                         onOpen={() => loadCustomEditors(project)}
                         entries={[
@@ -758,7 +748,7 @@ function ProjectsContent({
                           },
                         ]}
                       />
-                    </div>
+                    </Actions>
                   </div>
                   {editingTags === project.domain && (
                     <ProjectTagEditor
@@ -766,8 +756,7 @@ function ProjectsContent({
                       tags={tagsForProject(projectTags, project.domain)}
                       available={tagCatalog}
                       colors={tagColors}
-                      onColorChange={changeTagColor}
-                      onChange={(tags) => changeTags([project.domain], tags, 'replace')}
+                      onSave={(tags, colorEdits) => changeTags([project.domain], tags, 'replace', colorEdits)}
                       onClose={() => setEditingTags(null)}
                     />
                   )}
@@ -788,7 +777,7 @@ function ProjectsContent({
             }),
           )
         )}
-      </div>
+      </DataTable>
       {allProjects.length > 0 && (
         <div className="project-activity-footer">
           <span role="status">

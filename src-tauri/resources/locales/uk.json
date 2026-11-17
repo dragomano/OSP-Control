@@ -591,7 +591,6 @@
   "backups.filteredNone": "Копій цього типу поки немає",
   "settings.backupsMenuTitle": "Резервні копії меню",
   "settings.backupsMenuText": "Точна копія system/menu.dat. Перед відновленням поточний файл зберігається автоматично.",
-  "settings.backupsMenuCreate": "Створити копію меню",
   "settings.backupsMenuCreated": "Резервну копію меню створено",
   "settings.backupsKindMenu": "Меню OSPanel",
   "settings.backupsConfirmMenu": "Відновити меню з копії від {date}? Перед заміною system/menu.dat поточний файл зберігається автоматично.",
@@ -623,7 +622,6 @@
   "settings.backupsDbTitle": "Дампи баз даних",
   "settings.backupsDbText": "Логічний SQL-дамп запущеного модуля БД (MySQL, MariaDB, PostgreSQL). Перед відновленням поточний стан зберігається автоматично.",
   "settings.backupsDbNone": "Запущених модулів БД немає",
-  "settings.backupsDbCreate": "Створити дамп",
   "settings.backupsDbCreated": "Дамп бази даних збережено: {module}",
   "settings.backupsDbCreatedCount": {
     "one": "Створено {count} дамп",
@@ -634,7 +632,6 @@
   "settings.backupsProjectTitle": "Резервні копії проєктів",
   "settings.backupsProjectText": "ZIP-архів каталогу проєкту; теки node_modules і vendor виключаються. Перед відновленням поточна тека зберігається автоматично.",
   "settings.backupsProjectNone": "Проєктів немає",
-  "settings.backupsProjectCreate": "Створити архів",
   "settings.backupsProjectCreated": "Архів проєкту збережено: {domain}",
   "settings.backupsProjectCreatedCount": {
     "one": "Створено {count} архів",
@@ -915,6 +912,7 @@
   "projects.tagsCreate": "Створити мітку «{tag}»",
   "projects.tagsSelectHelp": "Введіть текст для пошуку або створення мітки. Стрілки — навігація, Enter — вибір, Backspace — видалення вибраної мітки.",
   "projects.tagsSelection": "Вибрані мітки: {tags}",
+  "projects.tagsAvailable": "Доступні мітки",
   "projects.tagsOptions": "Доступно міток: {count}",
   "projects.tagsAdd": "Додати",
   "projects.tagsDone": "Готово",
@@ -927,6 +925,7 @@
   "projects.tagsEdit": "Змінити мітки",
   "projects.tagsTag": "мітка",
   "projects.tagsColumn": "Мітки",
+  "projects.tagsMore": "Приховані мітки проєкту {domain} ({count})",
   "projects.tagsBulk": "Масові дії з мітками",
   "projects.tagsSelected": "Вибрано: {count}",
   "projects.tagsBulkName": "Мітка для вибраних проєктів",
@@ -1299,11 +1298,16 @@
   "err.installFailed": "Встановлення завершилося помилкою. Перевірте вивід команди. Заготовку збережено, якщо не показано окреме повідомлення про відновлення.",
   "err.installTimeout": "Встановлення перевищило ліміт у 15 хвилин. Заготовку збережено; перевірте з'єднання та повторіть спробу.",
   "err.installPayload": "Встановлення не створило повноцінний застосунок. Заготовку збережено.",
-"err.installPayloadFile": "Встановлення не створило повноцінний застосунок: відсутній {path}. Заготовку збережено.",
+  "err.installPayloadFile": "Встановлення не створило повноцінний застосунок: відсутній {path}. Заготовку збережено.",
   "err.installPayloadName": "Завантажений пакет — {actual}, очікувався {name}. Заготовку збережено.",
   "err.installRecovery": "Не вдалося завершити перенесення проєкту або автоматично відновити його. Вихідні файли: {path}. Підготовлений застосунок і відомості для відновлення: {staging}.",
   "err.installDownload": "Не вдалося завантажити архів. Перевірте з'єднання та доступність джерела, потім повторіть спробу. Заготовку збережено.",
   "err.installChecksum": "Завантажений архів не збігається з опублікованою контрольною сумою. Заготовку збережено; перевірте джерело завантаження та повторіть спробу.",
   "err.installArchive": "Завантажений архів не є очікуваним пакетом застосунку. Заготовку збережено.",
-  "starters.static.ready": "Локальний сайт готовий. Замініть цю сторінку файлами свого проєкту."
+  "starters.static.ready": "Локальний сайт готовий. Замініть цю сторінку файлами свого проєкту.",
+  "settings.paletteTitle": "Тема оформлення",
+  "settings.paletteText": "Кольори інтерфейсу. Кожна тема підтримує світлий, темний і системний режими.",
+  "settings.backupsFolderPreview": "Демонстрація відкриття папки резервних копій.",
+  "settings.accentOriginal": "Початковий акцент теми",
+  "settings.accentVariant": "Акцент {number}"
 }

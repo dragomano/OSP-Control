@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { MenuIcon, menuIcons } from '../../menuIcons';
 import { useDismiss } from '../shared';
+import { Button, DialogFooter, DialogHeader, DialogOverlay, DialogPanel } from '../ui';
 import { SearchField } from '../widgets/SearchField';
 
 const PAGE_SIZE = 60;
@@ -40,8 +41,9 @@ export function MenuIconPicker({
   }, [query, style]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
+        size="xl"
         ref={ref}
         className="modal-window menu-icon-dialog"
         role="dialog"
@@ -62,12 +64,19 @@ export function MenuIconPicker({
           }
         }}
       >
-        <div className="modal-head">
+        <DialogHeader className="modal-head">
           <h2 className="modal-title">{t('menu.iconsTitle')}</h2>
-          <button type="button" className="icon-button" aria-label={t('common.close')} onClick={onClose}>
+          <Button
+            variant="ghost"
+            square
+            type="button"
+            className="icon-button"
+            aria-label={t('common.close')}
+            onClick={onClose}
+          >
             <X size={17} />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
         <SearchField
           className="search-field menu-icon-search"
           value={query}
@@ -81,7 +90,8 @@ export function MenuIconPicker({
         />
         <div className="menu-icon-filters">
           {['all', 'solid', 'regular', 'brands'].map((filter) => (
-            <button
+            <Button
+              selected={Boolean(style === filter)}
               key={filter}
               type="button"
               className={`filter-button ${style === filter ? 'active' : ''}`}
@@ -92,12 +102,14 @@ export function MenuIconPicker({
               }}
             >
               {t(`menu.icons.${filter}`)}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="menu-icon-grid">
           {filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((icon) => (
-            <button
+            <Button
+              selected={Boolean(value === icon.value)}
+              variant="ghost"
               type="button"
               key={icon.value}
               className={`menu-icon-tile ${value === icon.value ? 'selected' : ''}`}
@@ -108,19 +120,21 @@ export function MenuIconPicker({
             >
               <MenuIcon name={icon.value} />
               <span>{icon.value.replace(/^regular-/, '')}</span>
-            </button>
+            </Button>
           ))}
         </div>
         {filtered.length === 0 && <p className="empty-note">{t('common.empty')}</p>}
-        <div className="modal-foot">
-          <button type="button" className="text-button" onClick={() => onSelect('')}>
+        <DialogFooter className="modal-foot">
+          <Button variant="ghost" type="button" className="text-button" onClick={() => onSelect('')}>
             {t('menu.noIcon')}
-          </button>
+          </Button>
           <span className="menu-muted" aria-live="polite">
             {t('menu.iconCount', { n: filtered.length })}
           </span>
           <div className="menu-pager">
-            <button
+            <Button
+              variant="ghost"
+              square
               type="button"
               className="icon-button"
               disabled={page === 0}
@@ -128,11 +142,13 @@ export function MenuIconPicker({
               onClick={() => setPage(page - 1)}
             >
               <ChevronLeft size={16} />
-            </button>
+            </Button>
             <span>
               {page + 1} / {pages}
             </span>
-            <button
+            <Button
+              variant="ghost"
+              square
               type="button"
               className="icon-button"
               disabled={page >= pages - 1}
@@ -140,10 +156,10 @@ export function MenuIconPicker({
               onClick={() => setPage(page + 1)}
             >
               <ChevronRight size={16} />
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

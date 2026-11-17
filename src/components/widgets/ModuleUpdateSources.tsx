@@ -15,6 +15,17 @@ import {
 import { useModuleUpdates } from '../../moduleUpdates';
 import { flushSettings, settingsFailure, settingsStorage } from '../../settingsStorage';
 import { type Notify, useDismiss } from '../shared';
+import {
+  Button,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPanel,
+  Field,
+  Tab,
+  Tabs,
+  Textarea,
+} from '../ui';
 
 export function ModuleUpdateSources({ notify }: { notify: Notify }) {
   const { t, plural } = useI18n();
@@ -45,7 +56,7 @@ export function ModuleUpdateSources({ notify }: { notify: Notify }) {
             <span>{sourceSummary(sources[family]) || t('settings.sourcesEmpty')}</span>
             <small>{plural('settings.sourcesCount', sources[family].length)}</small>
           </div>
-          <button
+          <Button
             type="button"
             className="secondary-button"
             disabled={disabled}
@@ -54,7 +65,7 @@ export function ModuleUpdateSources({ notify }: { notify: Notify }) {
           >
             {t('settings.sourcesConfigure')}
             <ChevronRight size={14} />
-          </button>
+          </Button>
         </div>
       ))}
       {editing && (
@@ -124,8 +135,8 @@ function SourcesDialog({
     }
   };
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
         className="modal-window module-sources-dialog"
         role="dialog"
         aria-modal="true"
@@ -148,14 +159,16 @@ function SourcesDialog({
           }
         }}
       >
-        <div className="modal-head">
+        <DialogHeader className="modal-head">
           <div>
             <h3 className="modal-title" id="module-sources-title">
               {t('settings.sourcesTitle')}
             </h3>
             <p className="modal-hint">{t('settings.sourcesHint')}</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button"
             disabled={busy}
@@ -163,15 +176,15 @@ function SourcesDialog({
             aria-label={t('common.close')}
           >
             <X size={16} />
-          </button>
-        </div>
-        <div
+          </Button>
+        </DialogHeader>
+        <Tabs
           className="settings-nav module-source-tabs"
           role="tablist"
           aria-label={t('settings.sourcesModule')}
         >
           {MODULE_FAMILIES.map((key) => (
-            <button
+            <Tab
               type="button"
               key={key}
               role="tab"
@@ -187,15 +200,15 @@ function SourcesDialog({
             >
               {MODULE_LABELS[key]}
               <span>{sourceLines(draft[key]).length}</span>
-            </button>
+            </Tab>
           ))}
-        </div>
+        </Tabs>
         <div id="module-source-panel" role="tabpanel" aria-labelledby={`source-tab-${family}`}>
           <div className="module-source-label">
-            <label htmlFor="module-source-urls">{MODULE_LABELS[family]}</label>
+            <Field htmlFor="module-source-urls">{MODULE_LABELS[family]}</Field>
             <small>{plural('settings.sourcesCount', sourceLines(draft[family]).length)}</small>
           </div>
-          <textarea
+          <Textarea
             id="module-source-urls"
             ref={textarea}
             value={draft[family]}
@@ -220,20 +233,21 @@ function SourcesDialog({
         <p className="module-source-error" id="module-source-error" role={error ? 'alert' : 'status'}>
           {error || t('settings.sourcesSaveHint')}
         </p>
-        <div className="modal-foot">
-          <button type="button" className="secondary-button" disabled={busy} onClick={onClose}>
+        <DialogFooter className="modal-foot">
+          <Button type="button" className="secondary-button" disabled={busy} onClick={onClose}>
             {t('common.cancel')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
             type="button"
             className="primary-button"
             disabled={busy || disabled}
             onClick={() => void save()}
           >
             {t('common.save')}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

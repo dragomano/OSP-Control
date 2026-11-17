@@ -1,4 +1,5 @@
-// Settings-style on/off switch; visual rules live with the other toggles in styles.css.
+import { Toggle } from '../ui';
+// Settings switch behavior is shared by both visual themes through the UI primitive.
 export function ToggleSwitch({
   checked,
   label,
@@ -11,7 +12,8 @@ export function ToggleSwitch({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <button
+    <Toggle
+      checked={checked}
       type="button"
       role="switch"
       aria-checked={checked}
@@ -21,6 +23,6 @@ export function ToggleSwitch({
       onClick={() => onChange(!checked)}
     >
       <span />
-    </button>
+    </Toggle>
   );
 }

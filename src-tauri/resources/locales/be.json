@@ -591,7 +591,6 @@
   "backups.filteredNone": "Копій гэтага тыпу пакуль няма",
   "settings.backupsMenuTitle": "Рэзервовыя копіі меню",
   "settings.backupsMenuText": "Дакладная копія system/menu.dat. Перад аднаўленнем бягучы файл захоўваецца аўтаматычна.",
-  "settings.backupsMenuCreate": "Стварыць копію меню",
   "settings.backupsMenuCreated": "Рэзервовая копія меню створана",
   "settings.backupsKindMenu": "Меню OSPanel",
   "settings.backupsConfirmMenu": "Аднавіць меню з копіі ад {date}? Перад заменай system/menu.dat бягучы файл захоўваецца аўтаматычна.",
@@ -623,7 +622,6 @@
   "settings.backupsDbTitle": "Дампы баз дадзеных",
   "settings.backupsDbText": "Лагічны SQL-дамп запушчанага модуля БД (MySQL, MariaDB, PostgreSQL). Перад аднаўленнем бягучы стан захоўваецца аўтаматычна.",
   "settings.backupsDbNone": "Запушчаных модуляў БД няма",
-  "settings.backupsDbCreate": "Стварыць дамп",
   "settings.backupsDbCreated": "Дамп базы дадзеных захаваны: {module}",
   "settings.backupsDbCreatedCount": {
     "one": "Створаны {count} дамп",
@@ -634,7 +632,6 @@
   "settings.backupsProjectTitle": "Рэзервовыя копіі праектаў",
   "settings.backupsProjectText": "ZIP-архіў каталога праекта; папкі node_modules і vendor выключаюцца. Перад аднаўленнем бягучая папка захоўваецца аўтаматычна.",
   "settings.backupsProjectNone": "Праектаў няма",
-  "settings.backupsProjectCreate": "Стварыць архіў",
   "settings.backupsProjectCreated": "Архіў праекта захаваны: {domain}",
   "settings.backupsProjectCreatedCount": {
     "one": "Створаны {count} архіў",
@@ -915,6 +912,7 @@
   "projects.tagsCreate": "Стварыць метку «{tag}»",
   "projects.tagsSelectHelp": "Увядзіце тэкст для пошуку або стварэння меткі. Стрэлкі — навігацыя, Enter — выбар, Backspace — выдаленне выбранай меткі.",
   "projects.tagsSelection": "Выбраныя меткі: {tags}",
+  "projects.tagsAvailable": "Даступныя меткі",
   "projects.tagsOptions": "Даступна метак: {count}",
   "projects.tagsAdd": "Дадаць",
   "projects.tagsDone": "Гатова",
@@ -927,6 +925,7 @@
   "projects.tagsEdit": "Змяніць меткі",
   "projects.tagsTag": "метка",
   "projects.tagsColumn": "Меткі",
+  "projects.tagsMore": "Схаваныя меткі праекта {domain} ({count})",
   "projects.tagsBulk": "Масавыя дзеянні з меткамі",
   "projects.tagsSelected": "Выбрана: {count}",
   "projects.tagsBulkName": "Метка для выбраных праектаў",
@@ -1299,11 +1298,16 @@
   "err.installFailed": "Усталяванне завершылася памылкай. Праверце вывад каманды. Загатоўка захавана, калі не паказана асобнае паведамленне пра аднаўленне.",
   "err.installTimeout": "Усталяванне перавысіла ліміт у 15 хвілін. Загатоўка захавана; праверце злучэнне і паўтарыце спробу.",
   "err.installPayload": "Усталяванне не стварыла поўную праграму. Загатоўка захавана.",
-"err.installPayloadFile": "Усталяванне не стварыла поўную праграму: адсутнічае {path}. Загатоўка захавана.",
+  "err.installPayloadFile": "Усталяванне не стварыла поўную праграму: адсутнічае {path}. Загатоўка захавана.",
   "err.installPayloadName": "Спампаваны пакет — {actual}, чакаўся {name}. Загатоўка захавана.",
   "err.installRecovery": "Не ўдалося завершыць перанос праекта або аўтаматычна аднавіць яго. Зыходныя файлы: {path}. Падрыхтаваная праграма і звесткі для аднаўлення: {staging}.",
   "err.installDownload": "Не ўдалося спампаваць архіў. Праверце злучэнне і даступнасць крыніцы, затым паўтарыце спробу. Загатоўка захавана.",
   "err.installChecksum": "Спампаваны архіў не супадае з апублікаванай кантрольнай сумай. Загатоўка захавана; праверце крыніцу спампоўкі і паўтарыце спробу.",
   "err.installArchive": "Спампаваны архіў не з'яўляецца чаканым пакетам праграмы. Загатоўка захавана.",
-  "starters.static.ready": "Лакальны сайт гатовы. Замяніце гэтую старонку файламі свайго праекта."
+  "starters.static.ready": "Лакальны сайт гатовы. Замяніце гэтую старонку файламі свайго праекта.",
+  "settings.paletteTitle": "Тэма афармлення",
+  "settings.paletteText": "Колеры інтэрфейсу. Кожная тэма падтрымлівае светлы, цёмны і сістэмны рэжымы.",
+  "settings.backupsFolderPreview": "Дэманстрацыя адкрыцця папкі рэзервовых копій.",
+  "settings.accentOriginal": "Зыходны акцэнт тэмы",
+  "settings.accentVariant": "Акцэнт {number}"
 }

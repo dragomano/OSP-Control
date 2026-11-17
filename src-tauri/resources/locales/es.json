@@ -589,7 +589,6 @@
   "backups.filteredNone": "Aún no hay copias de este tipo",
   "settings.backupsMenuTitle": "Copias de seguridad del menú",
   "settings.backupsMenuText": "Copia exacta de system/menu.dat. El archivo actual se guarda automáticamente antes de restaurarlo.",
-  "settings.backupsMenuCreate": "Crear copia del menú",
   "settings.backupsMenuCreated": "Copia de seguridad del menú creada",
   "settings.backupsKindMenu": "Menú de OSPanel",
   "settings.backupsConfirmMenu": "¿Restaurar el menú desde la copia del {date}? El archivo system/menu.dat actual se guarda automáticamente antes de reemplazarlo.",
@@ -620,7 +619,6 @@
   "settings.backupsDbTitle": "Volcados de base de datos",
   "settings.backupsDbText": "Un volcado SQL lógico de un módulo de base de datos en ejecución (MySQL, MariaDB, PostgreSQL). El estado actual se guarda automáticamente antes de restaurar.",
   "settings.backupsDbNone": "No hay módulos de base de datos en ejecución",
-  "settings.backupsDbCreate": "Crear volcado",
   "settings.backupsDbCreated": "Volcado guardado: {module}",
   "settings.backupsDbCreatedCount": {
     "one": "Se creó {count} volcado",
@@ -630,7 +628,6 @@
   "settings.backupsProjectTitle": "Copias de seguridad de los proyectos",
   "settings.backupsProjectText": "Un archivo zip de la carpeta del proyecto; se excluyen node_modules y vendor. La carpeta actual se guarda automáticamente antes de restaurar.",
   "settings.backupsProjectNone": "No hay proyectos",
-  "settings.backupsProjectCreate": "Crear archivo",
   "settings.backupsProjectCreated": "Archivo del proyecto guardado: {domain}",
   "settings.backupsProjectCreatedCount": {
     "one": "Se creó {count} archivo",
@@ -910,6 +907,7 @@
   "projects.tagsCreate": "Crear etiqueta «{tag}»",
   "projects.tagsSelectHelp": "Escribe para buscar o crear una etiqueta. Usa las flechas para navegar, Intro para seleccionar y Retroceso para eliminar una etiqueta seleccionada.",
   "projects.tagsSelection": "Etiquetas seleccionadas: {tags}",
+  "projects.tagsAvailable": "Etiquetas disponibles",
   "projects.tagsOptions": "Etiquetas disponibles: {count}",
   "projects.tagsAdd": "Añadir",
   "projects.tagsDone": "Listo",
@@ -922,6 +920,7 @@
   "projects.tagsEdit": "Editar etiquetas",
   "projects.tagsTag": "etiqueta",
   "projects.tagsColumn": "Etiquetas",
+  "projects.tagsMore": "Etiquetas ocultas de {domain} ({count})",
   "projects.tagsBulk": "Acciones masivas de etiquetas",
   "projects.tagsSelected": "Seleccionados: {count}",
   "projects.tagsBulkName": "Etiqueta para los proyectos seleccionados",
@@ -1294,11 +1293,16 @@
   "err.installFailed": "La instalación falló. Comprueba la salida del comando. La estructura se conserva salvo que se muestre un mensaje de recuperación aparte.",
   "err.installTimeout": "La instalación superó el límite de 15 minutos. La estructura se conserva; comprueba la conexión e inténtalo de nuevo.",
   "err.installPayload": "La instalación no produjo una aplicación completa. La estructura se conserva.",
-"err.installPayloadFile": "La instalación no produjo una aplicación completa: falta {path}. La estructura se conserva.",
+  "err.installPayloadFile": "La instalación no produjo una aplicación completa: falta {path}. La estructura se conserva.",
   "err.installPayloadName": "El paquete descargado es {actual}, pero se esperaba {name}. La estructura se conserva.",
   "err.installRecovery": "No se pudo completar la transferencia del proyecto ni restaurarlo automáticamente. Archivos originales: {path}. Aplicación preparada y detalles de recuperación: {staging}.",
   "err.installDownload": "No se pudo descargar el archivo. Comprueba la conexión y la disponibilidad del origen e inténtalo de nuevo. La estructura se conserva.",
   "err.installChecksum": "El archivo descargado no coincide con la suma de verificación publicada. La estructura se conserva; comprueba el origen de la descarga e inténtalo de nuevo.",
   "err.installArchive": "El archivo descargado no es el paquete de aplicación esperado. La estructura se conserva.",
-  "starters.static.ready": "Tu sitio local está listo. Sustituye esta página por los archivos de tu proyecto."
+  "starters.static.ready": "Tu sitio local está listo. Sustituye esta página por los archivos de tu proyecto.",
+  "settings.paletteTitle": "Tema de color",
+  "settings.paletteText": "Colores de la interfaz. Todos los temas admiten los modos claro, oscuro y del sistema.",
+  "settings.backupsFolderPreview": "Demostración de apertura de la carpeta de copias de seguridad.",
+  "settings.accentOriginal": "Acento original del tema",
+  "settings.accentVariant": "Acento {number}"
 }

@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { preact } from '@preact/preset-vite';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { daisyUIStyles } from './scripts/daisyui.ts';
 
 // The single source of the product name is productName in tauri.conf.json.
 // Vite substitutes it for %VITE_APP_NAME% in index.html,
@@ -10,7 +12,7 @@ const { productName } = JSON.parse(
 ) as { productName: string };
 
 export default defineConfig({
-  plugins: [preact()],
+  plugins: [daisyUIStyles(), preact(), tailwindcss()],
   define: { 'import.meta.env.VITE_APP_NAME': JSON.stringify(productName) },
   build: {
     // The locales chunk carries all five embedded fallback dictionaries (~100 kB each).

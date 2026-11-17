@@ -4,6 +4,17 @@ import { errorText, useI18n } from '../../i18n';
 import { type OsPanelProject, renameProject } from '../../ospanel';
 import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
 import { useDismiss } from '../shared';
+import {
+  Actions,
+  Button,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPanel,
+  Field,
+  Input,
+} from '../ui';
 import { PathText } from '../widgets/PathText';
 
 export function RenameProjectDialog({
@@ -57,8 +68,8 @@ export function RenameProjectDialog({
   };
 
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
         className="modal-window"
         role="dialog"
         aria-modal="true"
@@ -72,9 +83,11 @@ export function RenameProjectDialog({
             void rename();
           }}
         >
-          <div className="modal-head">
+          <DialogHeader className="modal-head">
             <h3 className="modal-title">{t('projects.renameDomain')}</h3>
-            <button
+            <Button
+              variant="ghost"
+              square
               type="button"
               className="icon-button"
               disabled={busy}
@@ -82,15 +95,15 @@ export function RenameProjectDialog({
               aria-label={t('common.close')}
             >
               <X size={16} />
-            </button>
-          </div>
+            </Button>
+          </DialogHeader>
           <p className="modal-hint" id={hintId}>
             <PathText text={t('projects.renameHint')} />
           </p>
-          <div className="modal-body">
-            <label className="module-select">
+          <DialogBody className="modal-body">
+            <Field className="module-select">
               <span>{t('projects.renameNewDomain')}</span>
-              <input
+              <Input
                 ref={inputRef}
                 type="text"
                 value={domain}
@@ -101,7 +114,7 @@ export function RenameProjectDialog({
                   setError('');
                 }}
               />
-            </label>
+            </Field>
             {(error || exists || !valid) && (
               <p className="modal-hint" role="alert">
                 <PathText
@@ -114,26 +127,27 @@ export function RenameProjectDialog({
                 />
               </p>
             )}
-          </div>
-          <div className="modal-foot">
+          </DialogBody>
+          <DialogFooter className="modal-foot">
             <span className="modal-path">
               {project.domain} → {newDomain ?? domain.trim()}
             </span>
-            <div className="row-actions">
-              <button type="button" className="secondary-button" disabled={busy} onClick={dismiss}>
+            <Actions className="row-actions">
+              <Button type="button" className="secondary-button" disabled={busy} onClick={dismiss}>
                 {t('common.close')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 type="submit"
                 className="primary-button"
                 disabled={busy || unchanged || !valid || exists}
               >
                 {t('projects.renameDomain')}
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Actions>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

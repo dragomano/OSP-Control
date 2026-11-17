@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import { useI18n } from '../../i18n';
 import type { LogSource } from '../../ospanel';
 import { useDismiss } from '../shared';
+import { Button, Input } from '../ui';
 import './logSourcePicker.css';
 
 export function LogSourcePicker({
@@ -118,7 +119,7 @@ export function LogSourcePicker({
 
   return (
     <div className="log-source-picker" ref={ref}>
-      <button
+      <Button
         type="button"
         className="filter-button log-source-trigger"
         ref={triggerRef}
@@ -137,8 +138,8 @@ export function LogSourcePicker({
       >
         <SourceIcon size={15} />
         <span>{selected?.label ?? value}</span>
-        <ChevronDown size={14} />
-      </button>
+        <ChevronDown size={14} className="ui-choice-indicator" />
+      </Button>
       {open && !disabled && (
         <div
           className="log-source-popover"
@@ -153,7 +154,7 @@ export function LogSourcePicker({
         >
           <div className="log-source-search">
             <Search size={15} aria-hidden="true" />
-            <input
+            <Input
               ref={inputRef}
               role="combobox"
               aria-label={t('logs.sourceSearchPlaceholder')}
@@ -190,7 +191,9 @@ export function LogSourcePicker({
               }}
             />
             {query ? (
-              <button
+              <Button
+                variant="ghost"
+                square
                 type="button"
                 className="search-clear"
                 aria-label={t('common.clearSearch')}
@@ -201,7 +204,7 @@ export function LogSourcePicker({
                 }}
               >
                 <X size={13} />
-              </button>
+              </Button>
             ) : null}
           </div>
           <div
@@ -224,13 +227,16 @@ export function LogSourcePicker({
                   {group.map((source) => {
                     const index = filtered.indexOf(source);
                     return (
-                      <button
+                      <Button
+                        layout="row"
+                        selected={Boolean(index === activeIndex)}
+                        variant="ghost"
                         type="button"
                         role="option"
                         aria-selected={source.name === value}
                         id={`${id}-option-${index}`}
                         key={source.name}
-                        className={`log-source-option ${index === activeIndex ? 'active' : ''}`}
+                        className={`ui-choice-option log-source-option ${index === activeIndex ? 'active' : ''}`}
                         tabIndex={-1}
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => choose(source)}
@@ -241,7 +247,7 @@ export function LogSourcePicker({
                           {source.label.slice(needle.length)}
                         </span>
                         {source.name === value && <Check size={14} aria-hidden="true" />}
-                      </button>
+                      </Button>
                     );
                   })}
                 </fieldset>

@@ -1,6 +1,16 @@
-import { FolderOpen, Monitor, Moon, Palette, RefreshCw, SlidersHorizontal, Sun } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import {
+  CircleCheck,
+  FolderOpen,
+  Monitor,
+  Moon,
+  Palette,
+  RefreshCw,
+  SlidersHorizontal,
+  Sun,
+} from 'lucide-react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { AppUpdateSettings } from '../../appUpdates';
+import { COLOR_THEMES, colorThemeIsLight, colorThemeSwatches } from '../../colorThemes';
 import { errorText, type LocaleInfo, useI18n } from '../../i18n';
 import { useModuleUpdates } from '../../moduleUpdates';
 import {
@@ -11,9 +21,17 @@ import {
   setAutostart,
   setCloseToTray,
 } from '../../ospanel';
+import { paletteContent } from '../../paletteColors';
 import { settingsStorage } from '../../settingsStorage';
-import { ACCENT_THEMES, accentSwatch, FONT_OPTIONS, type ThemeMode } from '../../theme';
+import {
+  ACCENT_THEMES,
+  accentSwatch,
+  FONT_OPTIONS,
+  type ThemeMode,
+  useSystemPrefersLight,
+} from '../../theme';
 import type { Notify, SettingsTab } from '../shared';
+import { Actions, Button, FormRow, Input, Panel, SectionHeader, Select, Tab, Tabs, Toggle } from '../ui';
 import { MenuSelect } from '../widgets/MenuSelect';
 import { ModuleUpdateSources } from '../widgets/ModuleUpdateSources';
 import { PageHeader } from '../widgets/PageHeader';
@@ -35,6 +53,8 @@ export function Settings({
   onProjectAutostartChange,
   themeMode,
   setTheme,
+  colorTheme = 'default',
+  onColorThemeChange,
   accent,
   onAccentChange,
   font,
@@ -54,6 +74,8 @@ export function Settings({
   onProjectAutostartChange: (enabled: boolean) => void;
   themeMode: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
+  colorTheme?: string;
+  onColorThemeChange?: (id: string) => void;
   accent: string;
   onAccentChange: (id: string) => void;
   font: string;
@@ -66,6 +88,9 @@ export function Settings({
   onReloadLocales: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const activeMode = themeMode;
+  const systemLight = useSystemPrefersLight();
+  const swatches = colorThemeSwatches(colorTheme, colorThemeIsLight(colorTheme, themeMode, systemLight));
   const updates = useModuleUpdates();
   const busyRef = useRef(updates.busy);
   busyRef.current = updates.busy;
@@ -205,9 +230,9 @@ export function Settings({
         description={t('settings.subtitle')}
       />
       <div className="settings-layout">
-        <div className="settings-nav" role="tablist" aria-label={t('nav.settings')}>
+        <Tabs className="settings-nav" role="tablist" aria-label={t('nav.settings')}>
           {settingsTabs.map((item) => (
-            <button
+            <Tab
               type="button"
               key={item.id}
               id={`settings-tab-${item.id}`}
@@ -219,68 +244,71 @@ export function Settings({
             >
               <item.icon size={14} />
               {t(item.key)}
-            </button>
+            </Tab>
           ))}
-        </div>
+        </Tabs>
         <div role="tabpanel" id="settings-tab-panel" aria-labelledby={`settings-tab-${currentTab.id}`}>
-          <div className="settings-section-head">
+          <SectionHeader className="settings-section-head">
             <h2>{t(currentTab.key)}</h2>
             <p>{t(currentTab.description)}</p>
-          </div>
+          </SectionHeader>
           {tab === 'general' && (
             <>
-              <div className="settings-card">
-                <div className="setting-block">
+              <Panel className="settings-card">
+                <FormRow className="setting-block">
                   <div>
                     <h3>{t('settings.autostartTitle')}</h3>
                     <p>{t('settings.autostartText')}</p>
                   </div>
-                  <button
+                  <Toggle
+                    checked={autostart}
                     type="button"
                     className={`large-toggle ${autostart ? 'on' : ''}`}
                     onClick={() => void toggleAutostart()}
                     aria-label={t('settings.autostartTitle')}
                   >
                     <span />
-                  </button>
-                </div>
-                <div className="setting-block">
+                  </Toggle>
+                </FormRow>
+                <FormRow className="setting-block">
                   <div>
                     <h3>{t('settings.closeToTrayTitle')}</h3>
                     <p>{t('settings.closeToTrayText')}</p>
                   </div>
-                  <button
+                  <Toggle
+                    checked={closeToTray}
                     type="button"
                     className={`large-toggle ${closeToTray ? 'on' : ''}`}
                     onClick={() => void toggleCloseToTray()}
                     aria-label={t('settings.closeToTrayTitle')}
                   >
                     <span />
-                  </button>
-                </div>
-                <div className="setting-block">
+                  </Toggle>
+                </FormRow>
+                <FormRow className="setting-block">
                   <div>
                     <h3>{t('settings.notificationsTitle')}</h3>
                     <p>{t('settings.notificationsText')}</p>
                   </div>
-                  <button
+                  <Toggle
+                    checked={notifications}
                     type="button"
                     className={`large-toggle ${notifications ? 'on' : ''}`}
                     onClick={toggleNotifications}
                     aria-label={t('settings.notificationsTitle')}
                   >
                     <span />
-                  </button>
-                </div>
-              </div>
-              <div className="settings-card">
-                <div className="setting-block settings-path">
+                  </Toggle>
+                </FormRow>
+              </Panel>
+              <Panel className="settings-card">
+                <FormRow className="setting-block settings-path">
                   <div>
                     <h3>{t('settings.connectionTitle')}</h3>
                     <p>{t('settings.connectionText')}</p>
                   </div>
                   <div className="path-field">
-                    <input
+                    <Input
                       value={osPath}
                       disabled={updates.busy}
                       onChange={(event) => {
@@ -299,7 +327,7 @@ export function Settings({
                       placeholder={t('settings.pathPlaceholder')}
                       aria-label={t('settings.connectionTitle')}
                     />
-                    <button
+                    <Button
                       type="button"
                       className="secondary-button"
                       disabled={updates.busy}
@@ -307,54 +335,57 @@ export function Settings({
                     >
                       <FolderOpen size={14} />
                       {t('settings.chooseFolder')}
-                    </button>
+                    </Button>
                   </div>
-                </div>
-                <div className="setting-block">
+                </FormRow>
+                <FormRow className="setting-block">
                   <div>
                     <h3>{t('settings.panelAutostartTitle')}</h3>
                     <p>{t('settings.panelAutostartText')}</p>
                   </div>
-                  <button
+                  <Toggle
+                    checked={panelAutostart}
                     type="button"
                     className={`large-toggle ${panelAutostart ? 'on' : ''}`}
                     onClick={togglePanelAutostart}
                     aria-label={t('settings.panelAutostartTitle')}
                   >
                     <span />
-                  </button>
-                </div>
-                <div className="setting-block">
+                  </Toggle>
+                </FormRow>
+                <FormRow className="setting-block">
                   <div>
                     <h3>{t('settings.projectAutostartTitle')}</h3>
                     <p>
                       <PathText text={t('settings.projectAutostartText')} />
                     </p>
                   </div>
-                  <button
+                  <Toggle
+                    checked={projectAutostart}
                     type="button"
                     className={`large-toggle ${projectAutostart ? 'on' : ''}`}
                     onClick={toggleProjectAutostart}
                     aria-label={t('settings.projectAutostartTitle')}
                   >
                     <span />
-                  </button>
-                </div>
-              </div>
+                  </Toggle>
+                </FormRow>
+              </Panel>
             </>
           )}
           {tab === 'updates' && (
             <>
-              <div className="settings-card">
+              <Panel className="settings-card">
                 <AppUpdateSettings />
-              </div>
-              <div className="settings-card">
-                <div className="setting-block">
+              </Panel>
+              <Panel className="settings-card">
+                <FormRow className="setting-block">
                   <div>
                     <h3>{t('settings.checkModuleUpdates')}</h3>
                     <p>{t('settings.moduleUpdatesText')}</p>
                   </div>
-                  <button
+                  <Toggle
+                    checked={checkUpdates}
                     type="button"
                     className={`large-toggle ${checkUpdates ? 'on' : ''}`}
                     onClick={() => {
@@ -365,120 +396,181 @@ export function Settings({
                     aria-label={t('settings.checkModuleUpdates')}
                   >
                     <span />
-                  </button>
-                </div>
+                  </Toggle>
+                </FormRow>
                 <ModuleUpdateSources notify={notify} />
-              </div>
+              </Panel>
             </>
           )}
           {tab === 'interface' && (
-            <div className="settings-card">
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.themeTitle')}</h3>
-                  <p>{t('settings.themeText')}</p>
-                </div>
-                <div className="theme-grid">
-                  <button
-                    type="button"
-                    className={`theme-card ${themeMode === 'system' ? 'selected' : ''}`}
-                    onClick={() => setTheme('system')}
-                  >
-                    <Monitor size={18} />
-                    <b>{t('settings.themeSystem')}</b>
-                  </button>
-                  <button
-                    type="button"
-                    className={`theme-card ${themeMode === 'dark' ? 'selected' : ''}`}
-                    onClick={() => setTheme('dark')}
-                  >
-                    <Moon size={18} />
-                    <b>{t('settings.themeDark')}</b>
-                  </button>
-                  <button
-                    type="button"
-                    className={`theme-card ${themeMode === 'light' ? 'selected' : ''}`}
-                    onClick={() => setTheme('light')}
-                  >
-                    <Sun size={18} />
-                    <b>{t('settings.themeLight')}</b>
-                  </button>
-                </div>
-              </div>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.accentTitle')}</h3>
-                  <p>{t('settings.accentText')}</p>
-                </div>
-                <div className="theme-grid">
-                  {ACCENT_THEMES.map((theme) => (
-                    <button
+            <>
+              <Panel className="settings-card">
+                <FormRow className="setting-block">
+                  <div>
+                    <h3>{t('settings.themeTitle')}</h3>
+                    <p>{t('settings.themeText')}</p>
+                  </div>
+                  <div className="theme-grid">
+                    <Button
+                      layout="column"
+                      selected={Boolean(activeMode === 'system')}
+                      aria-pressed={activeMode === 'system'}
+                      variant="ghost"
                       type="button"
-                      key={theme.id}
-                      className={`theme-card accent-card ${accent === theme.id ? 'selected' : ''}`}
-                      onClick={() => onAccentChange(theme.id)}
-                      aria-label={t(`accent.${theme.id}`)}
-                      title={t(`accent.${theme.id}`)}
+                      className={`theme-card ${activeMode === 'system' ? 'selected' : ''}`}
+                      onClick={() => setTheme('system')}
                     >
-                      <span
-                        className="theme-swatch"
-                        style={{
-                          background: `linear-gradient(135deg, ${accentSwatch(theme.delta, '#f0b263')}, ${accentSwatch(theme.delta, '#eda75f')})`,
-                        }}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.languageTitle')}</h3>
-                  <p>{t('settings.languageText')}</p>
-                </div>
-                <div className="row-actions">
+                      <Monitor size={18} />
+                      <b>{t('settings.themeSystem')}</b>
+                    </Button>
+                    <Button
+                      layout="column"
+                      selected={Boolean(activeMode === 'dark')}
+                      aria-pressed={activeMode === 'dark'}
+                      variant="ghost"
+                      type="button"
+                      className={`theme-card ${activeMode === 'dark' ? 'selected' : ''}`}
+                      onClick={() => setTheme('dark')}
+                    >
+                      <Moon size={18} />
+                      <b>{t('settings.themeDark')}</b>
+                    </Button>
+                    <Button
+                      layout="column"
+                      selected={Boolean(activeMode === 'light')}
+                      aria-pressed={activeMode === 'light'}
+                      variant="ghost"
+                      type="button"
+                      className={`theme-card ${activeMode === 'light' ? 'selected' : ''}`}
+                      onClick={() => setTheme('light')}
+                    >
+                      <Sun size={18} />
+                      <b>{t('settings.themeLight')}</b>
+                    </Button>
+                  </div>
+                </FormRow>
+                <FormRow className="setting-block">
+                  <div>
+                    <label htmlFor="color-theme">{t('settings.paletteTitle')}</label>
+                    <p>{t('settings.paletteText')}</p>
+                  </div>
+                  <Select
+                    id="color-theme"
+                    className="settings-palette-select"
+                    value={colorTheme}
+                    onChange={(event) => onColorThemeChange?.(event.target.value)}
+                  >
+                    {Object.entries(COLOR_THEMES).map(([id, palette]) => (
+                      <option key={id} value={id}>
+                        {palette.name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormRow>
+                <FormRow className="setting-block">
+                  <div>
+                    <h3>{t('settings.accentTitle')}</h3>
+                    <p>{t('settings.accentText')}</p>
+                  </div>
+                  <div className="theme-grid">
+                    {ACCENT_THEMES.map((theme, index) => (
+                      <Button
+                        layout="swatch"
+                        selected={Boolean(accent === theme.id)}
+                        aria-pressed={accent === theme.id}
+                        variant="ghost"
+                        type="button"
+                        key={theme.id}
+                        className={`theme-card accent-card ${accent === theme.id ? 'selected' : ''}`}
+                        onClick={() => onAccentChange(theme.id)}
+                        aria-label={
+                          swatches
+                            ? t(index === 0 ? 'settings.accentOriginal' : 'settings.accentVariant', {
+                                number: index + 1,
+                              })
+                            : t(`accent.${theme.id}`)
+                        }
+                        title={
+                          swatches
+                            ? t(index === 0 ? 'settings.accentOriginal' : 'settings.accentVariant', {
+                                number: index + 1,
+                              })
+                            : t(`accent.${theme.id}`)
+                        }
+                      >
+                        <span
+                          className="theme-swatch"
+                          style={
+                            {
+                              background:
+                                swatches?.[index].fill ??
+                                `linear-gradient(135deg, ${accentSwatch(theme.delta, '#f0b263')}, ${accentSwatch(theme.delta, '#eda75f')})`,
+                              '--ui-swatch-ink': paletteContent(
+                                swatches?.[index].fill ?? accentSwatch(theme.delta, '#eda75f'),
+                              ),
+                            } as CSSProperties
+                          }
+                        >
+                          {accent === theme.id && (
+                            <CircleCheck size={18} className="ui-swatch-check" aria-hidden="true" />
+                          )}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                </FormRow>
+              </Panel>
+              <Panel className="settings-card">
+                <FormRow className="setting-block">
+                  <div>
+                    <h3>{t('settings.languageTitle')}</h3>
+                    <p>{t('settings.languageText')}</p>
+                  </div>
+                  <Actions className="row-actions">
+                    <MenuSelect
+                      ariaLabel={t('settings.languageTitle')}
+                      value={lang}
+                      options={locales.map((item) => ({ value: item.code, label: item.name }))}
+                      onChange={onLangChange}
+                    />
+                    <Button type="button" className="secondary-button" onClick={() => void onReloadLocales()}>
+                      <RefreshCw size={14} />
+                      {t('settings.reloadLocales')}
+                    </Button>
+                  </Actions>
+                </FormRow>
+                <FormRow className="setting-block">
+                  <div>
+                    <h3>{t('settings.fontTitle')}</h3>
+                    <p>{t('settings.fontText')}</p>
+                  </div>
                   <MenuSelect
-                    ariaLabel={t('settings.languageTitle')}
-                    value={lang}
-                    options={locales.map((item) => ({ value: item.code, label: item.name }))}
-                    onChange={onLangChange}
+                    ariaLabel={t('settings.fontTitle')}
+                    value={font}
+                    options={FONT_OPTIONS.map((item) => ({ value: item.id, label: t(`font.${item.id}`) }))}
+                    onChange={onFontChange}
                   />
-                  <button type="button" className="secondary-button" onClick={() => void onReloadLocales()}>
-                    <RefreshCw size={14} />
-                    {t('settings.reloadLocales')}
-                  </button>
-                </div>
-              </div>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.fontTitle')}</h3>
-                  <p>{t('settings.fontText')}</p>
-                </div>
-                <MenuSelect
-                  ariaLabel={t('settings.fontTitle')}
-                  value={font}
-                  options={FONT_OPTIONS.map((item) => ({ value: item.id, label: t(`font.${item.id}`) }))}
-                  onChange={onFontChange}
-                />
-              </div>
-              <div className="setting-block">
-                <div>
-                  <h3>{t('settings.sizeTitle')}</h3>
-                  <p>{t('settings.sizeText')}</p>
-                </div>
-                <div className="range-field">
-                  <input
-                    type="range"
-                    min={80}
-                    max={130}
-                    step={5}
-                    value={scale}
-                    onChange={(event) => onScaleChange(Number(event.target.value))}
-                    aria-label={t('settings.sizeTitle')}
-                  />
-                  <b>{scale}%</b>
-                </div>
-              </div>
-            </div>
+                </FormRow>
+                <FormRow className="setting-block">
+                  <div>
+                    <h3>{t('settings.sizeTitle')}</h3>
+                    <p>{t('settings.sizeText')}</p>
+                  </div>
+                  <div className="range-field">
+                    <Input
+                      type="range"
+                      min={80}
+                      max={130}
+                      step={5}
+                      value={scale}
+                      onChange={(event) => onScaleChange(Number(event.target.value))}
+                      aria-label={t('settings.sizeTitle')}
+                    />
+                    <b>{scale}%</b>
+                  </div>
+                </FormRow>
+              </Panel>
+            </>
           )}
         </div>
       </div>

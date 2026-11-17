@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Projects } from '../src/components/pages/Projects';
@@ -17,6 +17,7 @@ import {
   tagsForProject,
   writeProjectTags,
 } from '../src/projectTags';
+import { selectOption } from './selectOption';
 
 const mocks = vi.hoisted(() => ({ getProjectActivity: vi.fn(), listEditors: vi.fn() }));
 vi.mock('../src/ospanel', async (importOriginal) => ({
@@ -76,6 +77,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('project tag metadata', () => {
@@ -230,21 +232,83 @@ describe('project tag metadata', () => {
 });
 
 describe('project tags UI', () => {
+  it('keeps the tags that fit and exposes the rest as filters until the column widens', () => {
+    writeProjectTags(
+      key,
+      { ...initial, 'shop.test': ['Client', 'Documentation', 'API'] },
+      { documentation: '#12a4ce' },
+    );
+    const observe = vi.fn();
+    const resize = vi.fn<(callback: () => void) => void>();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          resize(callback);
+        }
+        observe = observe;
+        disconnect = vi.fn();
+      },
+    );
+
+    const { container } = render(
+      <>
+        <style>{`
+          .project-tags-list { width: 165px; column-gap: 5px; }
+          .project-tag-add { width: 45px; }
+          .project-tag-more, .project-tag-chip { width: 40px; }
+          .project-tag-chip[aria-label="Filter by tag Documentation"] { width: 160px; }
+          .project-tag-chip[aria-label="Filter by tag API"] { width: 25px; }
+        `}</style>
+        <Harness />
+      </>,
+    );
+    const shop = row('shop.test');
+    expect(shop.getByRole('button', { name: 'Filter by tag Client' })).toBeVisible();
+    expect(shop.getByRole('button', { name: 'Filter by tag API' })).toBeVisible();
+    expect(shop.queryByRole('button', { name: 'Filter by tag Documentation' })).not.toBeInTheDocument();
+    expect(shop.getByRole('button', { name: 'Tags for shop.test' })).toBeVisible();
+
+    const more = shop.getByRole('button', { name: 'Hidden tags for shop.test (1)' });
+    expect(more).toHaveTextContent('+1');
+    fireEvent.click(more);
+    const menuItem = shop.getByRole('menuitem', { name: 'Documentation' });
+    const menuChip = within(menuItem).getByText('Documentation');
+    expect(menuChip).toHaveClass('project-tag-chip', 'tag-color-custom');
+    expect(menuChip.style.getPropertyValue('--tag-custom')).toBe('#12a4ce');
+    fireEvent.click(menuItem);
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('api.test')).not.toBeInTheDocument();
+
+    act(() => {
+      for (const list of container.querySelectorAll<HTMLElement>('.project-tags-list')) {
+        list.style.width = '300px';
+      }
+      for (const [callback] of resize.mock.calls) callback();
+    });
+    expect(shop.queryByRole('button', { name: 'Hidden tags for shop.test (1)' })).not.toBeInTheDocument();
+    const rowChip = shop.getByRole('button', { name: 'Filter by tag Documentation' });
+    expect(rowChip).toHaveClass('active');
+    expect(rowChip.style.cssText).toBe(menuChip.style.cssText);
+  });
+
   it('adds and removes tags and keeps them across remounts', async () => {
     const view = render(<Harness />);
     fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     const editor = screen.getByRole('region', { name: 'Tags for shop.test' });
     fireEvent.change(within(editor).getByLabelText('Tag name'), { target: { value: 'Client' } });
     fireEvent.click(screen.getByRole('option', { name: 'Create tag “Client”' }));
-    expect(row('shop.test').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
+    expect(row('shop.test').queryByRole('button', { name: 'Filter by tag Client' })).not.toBeInTheDocument();
+    expect(readProjectTags(key)).toEqual({});
     fireEvent.click(within(editor).getByRole('button', { name: 'Done' }));
     view.unmount();
     render(<Harness />);
     expect(row('shop.test').getByRole('button', { name: 'Filter by tag Client' })).toBeInTheDocument();
     fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove tag Client' }));
+    expect(readProjectTags(key)).toEqual({ 'shop.test': ['Client'] });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(readProjectTags(key)).toEqual({});
-    fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() =>
       expect(screen.queryByRole('region', { name: 'Tags for shop.test' })).not.toBeInTheDocument(),
     );
@@ -256,7 +320,7 @@ describe('project tags UI', () => {
     fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
     fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
     const palette = screen.getByRole('group', { name: 'Color for Client' });
-    expect(palette.textContent).toBe('');
+    expect(within(palette).getByText('Color for Client')).toBeInTheDocument();
     expect(within(palette).getAllByRole('button')).toHaveLength(2);
     const picker = palette.querySelector('input[type="color"]') as HTMLInputElement;
     // A display:none input has no screen anchor and opens the native picker at the window origin.
@@ -268,6 +332,11 @@ describe('project tags UI', () => {
       within(palette).getByRole('button', { name: 'Color for Client' }),
     );
     fireEvent.change(picker, { target: { value: '#12a4ce' } });
+    expect(readProjectTagColors(key)).toEqual({});
+    expect(row('api.test').getByRole('button', { name: 'Filter by tag Client' })).not.toHaveClass(
+      'tag-color-custom',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(readProjectTagColors(key)).toEqual({ client: '#12a4ce' });
     for (const domain of ['shop.test', 'api.test']) {
       const chip = row(domain).getByRole('button', { name: 'Filter by tag Client' });
@@ -291,6 +360,8 @@ describe('project tags UI', () => {
         name: 'Default color',
       }),
     );
+    expect(readProjectTagColors(key)).toEqual({ client: '#12a4ce' });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(readProjectTagColors(key)).toEqual({});
     expect(tagsForProject(readProjectTags(key), 'shop.test')).toContain('Client');
   });
@@ -309,8 +380,12 @@ describe('project tags UI', () => {
         .querySelector('input[type="color"]') as HTMLInputElement,
       { target: { value: '#12a4ce' } },
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Remove tag Laravel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(notify).toHaveBeenCalledWith('Failed to save project tags');
     expect(readProjectTagColors(key)).toEqual({});
+    expect(readProjectTags(key)).toEqual(initial);
+    expect(screen.getByRole('region', { name: 'Tags for shop.test' })).toBeInTheDocument();
     expect(row('shop.test').getByRole('button', { name: 'Filter by tag Client' })).not.toHaveClass(
       'tag-color-custom',
     );
@@ -320,11 +395,9 @@ describe('project tags UI', () => {
     writeProjectTags(key, initial);
     render(<Harness />);
     await screen.findByRole('button', { name: 'Show the last modified file in shop.test' });
-    fireEvent.click(screen.getByRole('button', { name: 'Sort projects' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Domain A–Z' }));
+    selectOption(screen.getByRole('combobox', { name: 'Sort projects' }), 'Domain A–Z');
     expect(rowOrder()).toEqual(['api.test', 'empty.test', 'shop.test']);
-    fireEvent.click(screen.getByRole('button', { name: 'Sort projects' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Tags Z–A' }));
+    selectOption(screen.getByRole('combobox', { name: 'Sort projects' }), 'Tags Z–A');
     expect(rowOrder()).toEqual(['shop.test', 'api.test', 'empty.test']);
     expect(document.querySelector('.project-activity-group-heading')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
@@ -332,8 +405,7 @@ describe('project tags UI', () => {
     fireEvent.click(within(filter).getByRole('checkbox', { name: 'Client' }));
     fireEvent.click(within(filter).getByRole('checkbox', { name: 'Laravel' }));
     expect(rowOrder()).toEqual(['shop.test', 'api.test']);
-    fireEvent.click(within(filter).getByRole('button', { name: 'Match' }));
-    fireEvent.click(within(filter).getByRole('menuitem', { name: 'All tags' }));
+    selectOption(within(filter).getByRole('combobox', { name: 'Match' }), 'All tags');
     expect(rowOrder()).toEqual(['shop.test']);
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     fireEvent.change(search(), { target: { value: '#API' } });
@@ -372,11 +444,11 @@ describe('project tags UI', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select shop.test' }));
     const input = screen.getByLabelText('Tag for selected projects');
     fireEvent.focus(input);
-    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual([
-      'API',
-      'Client',
-      'Laravel',
-    ]);
+    expect(
+      within(screen.getByRole('listbox'))
+        .getAllByRole('option')
+        .map((item) => item.textContent),
+    ).toEqual(['API', 'Client', 'Laravel']);
     fireEvent.click(screen.getByRole('option', { name: 'Client' }));
     fireEvent.click(screen.getByRole('option', { name: 'API' }));
     expect(input).toHaveValue('');
@@ -394,6 +466,7 @@ describe('project tags UI', () => {
       throw new Error('quota');
     });
     fireEvent.click(screen.getByRole('option', { name: 'Create tag “Review”' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(notify).toHaveBeenCalledWith('Failed to save project tags');
     expect(row('shop.test').queryByRole('button', { name: 'Filter by tag Review' })).not.toBeInTheDocument();
     expect(readProjectTags(key)).toEqual(initial);
@@ -407,29 +480,80 @@ describe('project tags UI', () => {
     const input = within(screen.getByRole('region', { name: 'Tags for shop.test' })).getByLabelText(
       'Tag name',
     );
-    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual(['API']);
+    expect(
+      within(screen.getByRole('listbox'))
+        .getAllByRole('option')
+        .map((item) => item.textContent),
+    ).toEqual(['API']);
     fireEvent.change(input, { target: { value: 'cl' } });
     // Selected catalog tags are hidden, so only the create action is left.
-    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual(['Create tag “cl”']);
+    expect(
+      within(screen.getByRole('listbox'))
+        .getAllByRole('option')
+        .map((item) => item.textContent),
+    ).toEqual(['Create tag “cl”']);
   });
 
-  it('adds catalog tags immediately and keeps the list open for more selections', () => {
+  it('stages catalog tags and keeps the list open until Done applies the selection', () => {
     writeProjectTags(key, initial);
     render(<Harness />);
     fireEvent.click(row('empty.test').getByRole('button', { name: 'Tags for empty.test' }));
     const editor = screen.getByRole('region', { name: 'Tags for empty.test' });
     const input = within(editor).getByLabelText('Tag name');
-    expect(screen.getAllByRole('option').map((item) => item.textContent)).toEqual([
-      'API',
-      'Client',
-      'Laravel',
-    ]);
+    expect(
+      within(screen.getByRole('listbox'))
+        .getAllByRole('option')
+        .map((item) => item.textContent),
+    ).toEqual(['API', 'Client', 'Laravel']);
     fireEvent.click(screen.getByRole('option', { name: 'Client' }));
     expect(input).toHaveValue('');
     expect(screen.getByRole('listbox')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: 'Laravel' }));
+    expect(tagsForProject(readProjectTags(key), 'empty.test')).toEqual([]);
+    fireEvent.click(within(editor).getByRole('button', { name: 'Done' }));
     expect(tagsForProject(readProjectTags(key), 'empty.test')).toEqual(['Client', 'Laravel']);
     expect(row('empty.test').getByRole('button', { name: 'Filter by tag Laravel' })).toBeInTheDocument();
+  });
+
+  it('keeps color controls and completion available with suggestions open', () => {
+    writeProjectTags(key, initial);
+    render(<Harness />);
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
+    const editor = screen.getByRole('region', { name: 'Tags for shop.test' });
+    fireEvent.click(within(editor).getByRole('button', { name: 'Color for Client' }));
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    expect(within(editor).getByText('Available tags')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Color for Client' })).getByRole('button', {
+        name: 'Default color',
+      }),
+    ).toBeEnabled();
+    fireEvent.click(within(editor).getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('region', { name: 'Tags for shop.test' })).not.toBeInTheDocument();
+    expect(tagsForProject(readProjectTags(key), 'shop.test')).toEqual(initial['shop.test']);
+  });
+
+  it.each(['Cancel', 'Escape'])('discards tag and color edits on %s', (action) => {
+    writeProjectTags(key, initial, { client: '#123456' });
+    render(<Harness />);
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Color for Client' }));
+    fireEvent.change(
+      screen
+        .getByRole('group', { name: 'Color for Client' })
+        .querySelector('input[type="color"]') as HTMLInputElement,
+      { target: { value: '#12a4ce' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Remove tag Client' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove tag Laravel' }));
+    if (action === 'Cancel') fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    else fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'Tags for shop.test' })).not.toBeInTheDocument();
+    expect(readProjectTags(key)).toEqual(initial);
+    expect(readProjectTagColors(key)).toEqual({ client: '#123456' });
+    fireEvent.click(row('shop.test').getByRole('button', { name: 'Tags for shop.test' }));
+    expect(screen.getByRole('button', { name: 'Remove tag Client' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove tag Laravel' })).toBeInTheDocument();
   });
 
   it('closes the suggestions with Escape first and the editor only afterwards', async () => {

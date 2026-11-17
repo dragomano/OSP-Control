@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronRight, Copy, FileCode2, FolderOpen } from 'lucide-react';
+import { ArrowUpRight, Copy, FileCode2, FolderOpen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { highlightConfig } from '../../highlight';
 import { errorText, useI18n } from '../../i18n';
@@ -11,8 +11,9 @@ import {
   readConfigFile,
 } from '../../ospanel';
 import { copyText, formatSize, type Notify } from '../shared';
+import { Button, EmptyState, Toolbar } from '../ui';
+import { MenuSelect } from '../widgets/MenuSelect';
 import { PageHeader } from '../widgets/PageHeader';
-import { RowMenu } from '../widgets/RowMenu';
 import { SearchField } from '../widgets/SearchField';
 
 export function Configs({ notify }: { notify: Notify }) {
@@ -87,38 +88,38 @@ export function Configs({ notify }: { notify: Notify }) {
         heading={t('nav.configs')}
         description={t('configs.subtitle')}
         action={
-          <button type="button" className="primary-button" disabled={busy} onClick={() => void makeBackup()}>
+          <Button
+            variant="primary"
+            type="button"
+            className="primary-button"
+            disabled={busy}
+            onClick={() => void makeBackup()}
+          >
             <Copy size={16} />
             {t('configs.backup')}
-          </button>
+          </Button>
         }
       />
       <div className="configs-layout">
         <aside className="configs-list">
-          <div className="configs-filters">
+          <Toolbar className="configs-filters">
             <SearchField value={query} onChange={setQuery} placeholder={t('configs.searchPlaceholder')} />
-            <RowMenu
-              trigger={({ onToggle, open }) => (
-                <button
-                  type="button"
-                  className="filter-button"
-                  onClick={onToggle}
-                  aria-haspopup="menu"
-                  aria-expanded={open}
-                >
-                  {service === 'all' ? t('configs.allModules') : service}
-                  <ChevronRight size={14} />
-                </button>
-              )}
-              entries={[
-                { label: t('configs.allModules'), onSelect: () => setService('all') },
-                ...services.map((item) => ({ label: item, onSelect: () => setService(item) })),
+            <MenuSelect
+              value={service}
+              ariaLabel={t('configs.allModules')}
+              onChange={setService}
+              options={[
+                { value: 'all', label: t('configs.allModules') },
+                ...services.map((item) => ({ value: item, label: item })),
               ]}
             />
-          </div>
+          </Toolbar>
           <div className="configs-scroll">
             {visible.map((config) => (
-              <button
+              <Button
+                layout="row"
+                selected={Boolean(selected?.path === config.path)}
+                variant="ghost"
                 type="button"
                 className={`config-item ${selected?.path === config.path ? 'selected' : ''}`}
                 key={config.path}
@@ -131,9 +132,9 @@ export function Configs({ notify }: { notify: Notify }) {
                     {config.service} · {formatSize(config.sizeBytes)}
                   </span>
                 </div>
-              </button>
+              </Button>
             ))}
-            {visible.length === 0 && <div className="empty-note">{t('common.empty')}</div>}
+            {visible.length === 0 && <EmptyState className="empty-note">{t('common.empty')}</EmptyState>}
           </div>
           <div className="configs-meta">
             {t('configs.shown', { visible: visible.length, total: configs.length })}
@@ -148,7 +149,8 @@ export function Configs({ notify }: { notify: Notify }) {
                   {selected.service} / {selected.name}
                 </div>
                 <div className="editor-actions">
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="text-button"
                     onClick={() =>
@@ -159,8 +161,9 @@ export function Configs({ notify }: { notify: Notify }) {
                   >
                     <ArrowUpRight size={13} />
                     {t('configs.open')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="text-button"
                     onClick={() =>
@@ -171,15 +174,16 @@ export function Configs({ notify }: { notify: Notify }) {
                   >
                     <FolderOpen size={13} />
                     {t('configs.folder')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     className="text-button"
                     onClick={() => void copyText(t, content, 'label.file', notify)}
                   >
                     <Copy size={13} />
                     {t('configs.copy')}
-                  </button>
+                  </Button>
                 </div>
               </div>
               <pre>

@@ -10,6 +10,7 @@ import {
   readProjectTags,
   writeProjectTags,
 } from '../src/projectTags';
+import { selectOption } from './selectOption';
 
 const mocks = vi.hoisted(() => ({
   getProjectActivity: vi.fn(),
@@ -216,13 +217,11 @@ describe('Projects filtering', () => {
     expect(screen.getByText('my-shop.test')).toBeInTheDocument();
     expect(screen.getByText('landing.test')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'TLS' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'TLS off' }));
+    selectOption(screen.getByRole('combobox', { name: 'TLS' }), 'TLS off');
     expect(screen.queryByText('my-shop.test')).not.toBeInTheDocument();
     expect(screen.getByText('landing.test')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /PHP version/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'PHP 8.2' }));
+    selectOption(screen.getByRole('combobox', { name: /PHP version/ }), 'PHP 8.2');
     expect(screen.getByText('landing.test')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
@@ -234,8 +233,7 @@ describe('Projects filtering', () => {
   it('shows the filtered-empty note when no project matches', () => {
     renderProjects(vi.fn(), [shopProject]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'TLS' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'TLS off' }));
+    selectOption(screen.getByRole('combobox', { name: 'TLS' }), 'TLS off');
 
     expect(screen.getByText('No projects match the selected filters')).toBeInTheDocument();
   });
@@ -292,11 +290,10 @@ describe('Projects sorting', () => {
     renderProjects(vi.fn());
 
     // The trigger keeps the control name and shows the current selection until another option is chosen.
-    expect(screen.getByRole('button', { name: 'Sort projects' })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: 'Sort projects' })).toHaveTextContent(
       'Most recently modified first',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Sort projects' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Domain A–Z' }));
+    selectOption(screen.getByRole('combobox', { name: 'Sort projects' }), 'Domain A–Z');
 
     const landing = screen.getByRole('button', { name: 'landing.test' });
     const shop = screen.getByRole('button', { name: 'my-shop.test' });

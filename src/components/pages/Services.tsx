@@ -13,6 +13,7 @@ import {
   statusLabel,
   stopStartAction,
 } from '../shared';
+import { Actions, Badge, Button, Notice, Panel, StatusBadge } from '../ui';
 import { PageHeader } from '../widgets/PageHeader';
 import { RowMenu } from '../widgets/RowMenu';
 import { StatusDot } from '../widgets/StatusDot';
@@ -84,7 +85,8 @@ export function Services({
         heading={t('nav.services')}
         description={t('services.subtitle')}
         action={
-          <button
+          <Button
+            variant="primary"
             type="button"
             className="primary-button"
             disabled={restartingAll || panelRestarting || updates.busy || controlsDisabled}
@@ -95,17 +97,18 @@ export function Services({
           >
             <RefreshCw size={16} className={panelRestarting ? 'spin' : undefined} />
             {panelRestarting ? t('services.restartingPanel') : t('services.restartAll')}
-          </button>
+          </Button>
         }
       />
       <ModuleUpdateToolbar />
-      <div className="notice">
+      <Notice className="notice">
         <ShieldCheck size={18} />
         <div>
           <b>{t('services.synced')}</b>
           <span>{t('services.syncedNote')}</span>
         </div>
-        <button
+        <Button
+          variant="ghost"
           type="button"
           className="text-button"
           disabled={syncing}
@@ -119,20 +122,24 @@ export function Services({
           }}
         >
           {t('services.checkAgain')}
-        </button>
-      </div>
+        </Button>
+      </Notice>
       {visibleGroups.length > 0 && (
         <div className="service-filter">
-          <button
+          <Button
+            selected={Boolean(filter === 'all')}
+            variant="ghost"
             type="button"
             className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
             onClick={() => selectFilter('all')}
           >
             {t('services.filterAll')}
             <span className="filter-chip-count">{services.length}</span>
-          </button>
+          </Button>
           {visibleGroups.map((group) => (
-            <button
+            <Button
+              selected={Boolean(filter === group.id)}
+              variant="ghost"
               type="button"
               key={group.id}
               className={`filter-chip ${filter === group.id ? 'active' : ''}`}
@@ -140,7 +147,7 @@ export function Services({
             >
               {group.label}
               <span className="filter-chip-count">{group.items.length}</span>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -151,7 +158,8 @@ export function Services({
           const summary = serviceGroupSummary(group.items, t);
           return (
             <section className="service-group" key={group.id}>
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 className="service-group-head"
                 aria-expanded={!isCollapsed}
@@ -161,7 +169,7 @@ export function Services({
                 <span className="service-group-name">{group.label}</span>
                 <span className="service-group-count">{group.items.length}</span>
                 <span className={`service-group-summary ${summary.tone}`}>{summary.text}</span>
-              </button>
+              </Button>
               {!isCollapsed && (
                 <div className="service-list">
                   {group.items.map(({ service, index }) => {
@@ -172,7 +180,7 @@ export function Services({
                     const profilesLabel = t('profiles.open', { name: service.name, profile: profileName });
 
                     return (
-                      <div
+                      <Panel
                         className={`service-row ${busy ? 'busy' : ''}`}
                         aria-busy={busy}
                         key={service.name}
@@ -189,18 +197,27 @@ export function Services({
                             <b>{updates.versions[service.name] ?? service.version}</b>
                             <span>{service.port}</span>
                           </div>
-                          <div className="service-state">
+                          <StatusBadge
+                            tone={
+                              service.status === 'running'
+                                ? 'success'
+                                : service.status === 'warning'
+                                  ? 'warning'
+                                  : 'default'
+                            }
+                            className="service-state"
+                          >
                             <StatusDot status={service.status} />
                             {statusLabel(service.status, t)}
                             {busy && (
-                              <span className="service-busy-badge">
+                              <Badge className="service-busy-badge">
                                 {t(panelRestarting ? 'services.restartingPanel' : 'services.pendingAction')}
-                              </span>
+                              </Badge>
                             )}
-                          </div>
-                          <div className="row-actions">
+                          </StatusBadge>
+                          <Actions className="row-actions">
                             {onProfiles && (
-                              <button
+                              <Button
                                 type="button"
                                 className="secondary-button profiles-trigger"
                                 disabled={busy || updates.busy}
@@ -211,9 +228,9 @@ export function Services({
                                 <Layers size={14} />
                                 <span className="profiles-trigger-name">{profileName}</span>
                                 <ChevronDown size={12} />
-                              </button>
+                              </Button>
                             )}
-                            <button
+                            <Button
                               type="button"
                               className="secondary-button"
                               disabled={toggleDisabled}
@@ -228,7 +245,7 @@ export function Services({
                             >
                               <toggle.icon size={14} className={busy ? 'spin' : undefined} />
                               {busy && !panelRestarting ? t('services.pendingAction') : toggle.label}
-                            </button>
+                            </Button>
                             <RowMenu
                               entries={serviceMenuEntries(
                                 service,
@@ -239,13 +256,13 @@ export function Services({
                                 controlsDisabled,
                               )}
                             />
-                          </div>
+                          </Actions>
                         </div>
                         <ModuleUpdateAction
                           name={service.name}
                           disabled={panelRestarting || Boolean(pendingServices?.has(service.name))}
                         />
-                      </div>
+                      </Panel>
                     );
                   })}
                 </div>

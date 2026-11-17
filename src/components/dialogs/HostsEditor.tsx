@@ -32,6 +32,22 @@ import {
 import { errorText, useI18n } from '../../i18n';
 import { flushHostsDns, isDesktopApp, readHosts, writeHosts } from '../../ospanel';
 import { copyText, type Notify, useDismiss } from '../shared';
+import {
+  Actions,
+  Button,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPanel,
+  Field,
+  Input,
+  NoticeText,
+  Table,
+  Textarea,
+  Toggle,
+  Toolbar,
+} from '../ui';
 import './hostsEditor.css';
 
 function useHostsDialog(ref: RefObject<HTMLDivElement | null>, close: () => void, enabled = true) {
@@ -184,15 +200,16 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
     }
   };
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
+        size="xl"
         className="modal-window hosts-editor"
         role="dialog"
         aria-modal="true"
         aria-label={t('hosts.title')}
         ref={windowRef}
       >
-        <div className="modal-head">
+        <DialogHeader className="modal-head">
           <div>
             <h2 className="modal-title">
               <Network size={18} />
@@ -204,7 +221,9 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
               </p>
             )}
           </div>
-          <button
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button"
             disabled={blocked}
@@ -212,12 +231,13 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
             aria-label={t('common.close')}
           >
             <X size={18} />
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
         {!isDesktopApp() && <p className="modal-hint">{t('hosts.demo')}</p>}
-        <div className="hosts-toolbar">
-          <div className="row-actions">
-            <button
+        <Toolbar className="hosts-toolbar">
+          <Actions className="row-actions">
+            <Button
+              variant="primary"
               type="button"
               className="primary-button"
               disabled={!document || blocked}
@@ -225,8 +245,8 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
             >
               <Plus size={15} />
               {t('hosts.add')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="secondary-button"
               disabled={!document || blocked}
@@ -234,16 +254,17 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
             >
               <ListPlus size={15} />
               {t('hosts.addMany')}
-            </button>
-          </div>
-          <button type="button" className="secondary-button" onClick={reload} disabled={blocked}>
+            </Button>
+          </Actions>
+          <Button type="button" className="secondary-button" onClick={reload} disabled={blocked}>
             <RefreshCw size={15} />
             {t('hosts.reload')}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
         <div className="hosts-mode-row">
           <fieldset className="hosts-mode" aria-label={t('hosts.view')}>
-            <button
+            <Button
+              selected={Boolean(view === 'table')}
               type="button"
               className={`secondary-button ${view === 'table' ? 'on' : ''}`}
               aria-pressed={view === 'table'}
@@ -252,8 +273,9 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
             >
               <Table2 size={15} />
               {t('hosts.table')}
-            </button>
-            <button
+            </Button>
+            <Button
+              selected={Boolean(view === 'text')}
               type="button"
               className={`secondary-button ${view === 'text' ? 'on' : ''}`}
               aria-pressed={view === 'text'}
@@ -262,7 +284,7 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
             >
               <FileCode2 size={15} />
               {t('hosts.text')}
-            </button>
+            </Button>
           </fieldset>
           {document && (
             <span>
@@ -277,13 +299,13 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
           {loading && <p className="empty-note">{t('common.loading')}</p>}
           {document && (
             <>
-              <p className="hosts-info">
+              <NoticeText className="hosts-info">
                 {view === 'table' ? <LockKeyhole size={15} /> : <AlertTriangle size={15} />}
                 {t(view === 'table' ? 'hosts.managedHint' : 'hosts.textHint')}
-              </p>
+              </NoticeText>
               {view === 'text' ? (
                 <div className="hosts-file-label">
-                  <label htmlFor={inputId}>{t('hosts.fullFile')}</label>
+                  <Field htmlFor={inputId}>{t('hosts.fullFile')}</Field>
                   <div className="hosts-file-editor">
                     <pre
                       ref={highlightRef}
@@ -292,7 +314,8 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                       // biome-ignore lint/security/noDangerouslySetInnerHtml: highlightHosts escapes local text via highlight.js or escapeHtml.
                       dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }}
                     />
-                    <textarea
+                    <Textarea
+                      code
                       id={inputId}
                       className="hosts-file-text"
                       spellCheck={false}
@@ -312,7 +335,7 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                 </div>
               ) : (
                 <div className="hosts-table-wrap">
-                  <table className="hosts-table">
+                  <Table className="hosts-table">
                     <thead>
                       <tr>
                         <th>{t('hosts.enabled')}</th>
@@ -328,7 +351,8 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                       {parsed.entries.slice(0, limit).map((entry) => (
                         <tr key={entry.line}>
                           <td>
-                            <button
+                            <Toggle
+                              checked={entry.active}
                               type="button"
                               role="switch"
                               aria-checked={entry.active}
@@ -338,7 +362,7 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                               onClick={() => change(toggleHostsEntry(content, entry))}
                             >
                               <i />
-                            </button>
+                            </Toggle>
                           </td>
                           <td className="hosts-ip">{entry.ip}</td>
                           <td>
@@ -353,7 +377,9 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                           </td>
                           <td>
                             {!entry.managed && (
-                              <button
+                              <Button
+                                variant="ghost"
+                                square
                                 type="button"
                                 className="icon-button"
                                 disabled={blocked}
@@ -361,28 +387,28 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                                 aria-label={t('hosts.editEntry', { host: entry.hosts })}
                               >
                                 <Pencil size={15} />
-                              </button>
+                              </Button>
                             )}
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </Table>
                   {!parsed.entries.length && <p className="empty-note">{t('hosts.empty')}</p>}
                   {parsed.entries.length > limit && (
-                    <button type="button" className="secondary-button" onClick={() => setLimit(limit + 100)}>
+                    <Button type="button" className="secondary-button" onClick={() => setLimit(limit + 100)}>
                       {t('hosts.showMore')}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
               {parsed.errors.length > 0 && <Issues issues={parsed.errors} />}
               {parsed.warnings.length > 0 && <Issues issues={parsed.warnings} />}
               {managedChanged && (
-                <p className="hosts-info">
+                <NoticeText className="hosts-info">
                   <AlertTriangle size={15} />
                   {t('hosts.managedChanged')}
-                </p>
+                </NoticeText>
               )}
             </>
           )}
@@ -398,24 +424,25 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                 {t(result.dnsFlushed ? 'hosts.applied' : 'hosts.savedDnsFailed')}
               </p>
               {result.backup && (
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   className="hosts-backup-link"
                   onClick={() => void copyText(t, result.backup ?? '', 'hosts.backup', notify)}
                 >
                   <Copy size={13} />
                   {t('hosts.backup')}: {result.backup}
-                </button>
+                </Button>
               )}
               {!result.dnsFlushed && (
-                <button
+                <Button
                   type="button"
                   className="secondary-button"
                   disabled={blocked}
                   onClick={() => void retryDns()}
                 >
                   {t('hosts.retryDns')}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -429,13 +456,14 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
           </p>
         </details>
         {discard ? (
-          <div className="modal-foot hosts-discard" role="alert">
+          <DialogFooter className="modal-foot hosts-discard" role="alert">
             <span>{t('hosts.discardHint')}</span>
-            <div className="row-actions">
-              <button type="button" className="secondary-button" onClick={() => setDiscard(null)}>
+            <Actions className="row-actions">
+              <Button type="button" className="secondary-button" onClick={() => setDiscard(null)}>
                 {t('hosts.keepEditing')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 type="button"
                 className="primary-button"
                 onClick={() => {
@@ -445,26 +473,27 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
                 }}
               >
                 {t(discard === 'close' ? 'hosts.discardClose' : 'hosts.discardReload')}
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Actions>
+          </DialogFooter>
         ) : (
-          <div className="modal-foot">
+          <DialogFooter className="modal-foot">
             <span className="modal-hint">{t(dirty ? 'hosts.unsaved' : 'hosts.clean')}</span>
-            <div className="row-actions">
-              <button type="button" className="secondary-button" disabled={blocked} onClick={close}>
+            <Actions className="row-actions">
+              <Button type="button" className="secondary-button" disabled={blocked} onClick={close}>
                 {t('common.close')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 type="button"
                 className="primary-button"
                 disabled={blocked || !dirty || parsed.errors.length > 0}
                 onClick={() => void save()}
               >
                 {t(busy ? 'hosts.applying' : 'hosts.apply')}
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Actions>
+          </DialogFooter>
         )}
         {sheet && (
           <HostsEntrySheet
@@ -478,8 +507,8 @@ export function HostsEditor({ onClose, notify }: { onClose: () => void; notify: 
             }}
           />
         )}
-      </div>
-    </div>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }
 
@@ -539,8 +568,8 @@ function HostsEntrySheet({
     onChange(next);
   };
   return (
-    <div className="hosts-sheet-overlay">
-      <div
+    <DialogOverlay className="hosts-sheet-overlay">
+      <DialogPanel
         className="modal-window hosts-entry-sheet"
         role="dialog"
         aria-modal="true"
@@ -553,28 +582,35 @@ function HostsEntrySheet({
             commit();
           }}
         >
-          <div className="modal-head">
+          <DialogHeader className="modal-head">
             <h3 className="modal-title">
               {t(batch ? 'hosts.batchTitle' : entry ? 'hosts.edit' : 'hosts.new')}
             </h3>
-            <button type="button" className="icon-button" aria-label={t('common.close')} onClick={onClose}>
+            <Button
+              variant="ghost"
+              square
+              type="button"
+              className="icon-button"
+              aria-label={t('common.close')}
+              onClick={onClose}
+            >
               <X size={16} />
-            </button>
-          </div>
-          <div className="modal-body">
+            </Button>
+          </DialogHeader>
+          <DialogBody className="modal-body">
             {batch ? (
               <>
                 <p className="modal-hint">{t('hosts.batchHint')}</p>
-                <label className="module-select">
+                <Field className="module-select">
                   <span>{t('hosts.block')}</span>
-                  <textarea
+                  <Textarea
                     className="hosts-batch-text"
                     value={block}
                     onChange={(event) => setBlock(event.target.value)}
                     spellCheck={false}
                     placeholder={'127.0.0.1 shop.test www.shop.test\n127.0.0.1 api.shop.test'}
                   />
-                </label>
+                </Field>
                 <p className="modal-hint" role="status">
                   {t('hosts.count', {
                     count: preview.entries.length,
@@ -599,31 +635,31 @@ function HostsEntrySheet({
               </>
             ) : (
               <>
-                <label className="module-select">
+                <Field className="module-select">
                   <span>{t('hosts.address')}</span>
-                  <input value={ip} onChange={(event) => setIp(event.target.value)} spellCheck={false} />
-                </label>
-                <label className="module-select">
+                  <Input value={ip} onChange={(event) => setIp(event.target.value)} spellCheck={false} />
+                </Field>
+                <Field className="module-select">
                   <span>{t('hosts.names')}</span>
-                  <input
+                  <Input
                     value={hosts}
                     onChange={(event) => setHosts(event.target.value)}
                     spellCheck={false}
                   />
                   <span className="select-hint">{t('hosts.namesHint')}</span>
-                </label>
-                <label className="module-select">
+                </Field>
+                <Field className="module-select">
                   <span>{t('hosts.comment')}</span>
-                  <input value={comment} onChange={(event) => setComment(event.target.value)} />
-                </label>
-                <label className="hosts-checkbox">
-                  <input
+                  <Input value={comment} onChange={(event) => setComment(event.target.value)} />
+                </Field>
+                <Field className="hosts-checkbox">
+                  <Input
                     type="checkbox"
                     checked={active}
                     onChange={(event) => setActive(event.target.checked)}
                   />
                   {t('hosts.enabled')}
-                </label>
+                </Field>
               </>
             )}
             {error && (
@@ -631,10 +667,10 @@ function HostsEntrySheet({
                 {error}
               </p>
             )}
-          </div>
-          <div className="modal-foot">
+          </DialogBody>
+          <DialogFooter className="modal-foot">
             {entry ? (
-              <button
+              <Button
                 type="button"
                 className="secondary-button"
                 onClick={() => {
@@ -645,25 +681,26 @@ function HostsEntrySheet({
               >
                 <Trash2 size={14} />
                 {t('hosts.delete')}
-              </button>
+              </Button>
             ) : (
               <span />
             )}
-            <div className="row-actions">
-              <button type="button" className="secondary-button" onClick={onClose}>
+            <Actions className="row-actions">
+              <Button type="button" className="secondary-button" onClick={onClose}>
                 {t('hosts.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 type="submit"
                 className="primary-button"
                 disabled={batch && (!preview.entries.length || batchErrors.length > 0 || markers)}
               >
                 {t(batch ? 'hosts.addEntries' : entry ? 'hosts.updateEntry' : 'hosts.add')}
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Actions>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

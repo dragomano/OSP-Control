@@ -8,6 +8,7 @@ import {
 } from '../src/components/pages/projectActivity';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
 import type { OsPanelProject, ProjectActivity } from '../src/ospanel';
+import { selectOption } from './selectOption';
 
 const mocks = vi.hoisted(() => ({ getProjectActivity: vi.fn(), listEditors: vi.fn() }));
 vi.mock('../src/ospanel', async (importOriginal) => ({
@@ -196,8 +197,7 @@ describe('project activity UI', () => {
     expect(screen.getByText('recent.test/index.php')).not.toBeVisible();
     expect(screen.getByText('older.test/index.php')).toBeVisible();
     expect(screen.getByText('Scan incomplete; the modification date may be inaccurate')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'TLS' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'TLS off' }));
+    selectOption(screen.getByRole('combobox', { name: 'TLS' }), 'TLS off');
     expect(screen.getByText('No projects match the selected filters')).toBeVisible();
     expect(mocks.getProjectActivity).toHaveBeenCalledTimes(1);
   });

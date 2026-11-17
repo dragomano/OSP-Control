@@ -32,6 +32,19 @@ import {
   saveProfileFile,
 } from '../../ospanel';
 import { type Notify, type Service, useDismiss } from '../shared';
+import {
+  Actions,
+  Badge,
+  Button,
+  DialogOverlay,
+  DialogPanel,
+  EmptyState,
+  Field,
+  Input,
+  NoticeText,
+  Select,
+  Textarea,
+} from '../ui';
 import { RowMenu } from '../widgets/RowMenu';
 import './moduleProfiles.css';
 
@@ -248,8 +261,9 @@ export function ModuleProfilesDialog({
   };
 
   return (
-    <div className="modal-overlay">
-      <div
+    <DialogOverlay className="modal-overlay">
+      <DialogPanel
+        size="lg"
         className="modal-window profiles-window"
         role="dialog"
         aria-modal="true"
@@ -277,7 +291,9 @@ export function ModuleProfilesDialog({
             <h3 className="modal-title">{t('profiles.title', { name: service.name })}</h3>
             <p className="modal-hint">{t('profiles.subtitle')}</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            square
             type="button"
             className="icon-button"
             disabled={busy || blocked}
@@ -285,13 +301,15 @@ export function ModuleProfilesDialog({
             aria-label={t('common.close')}
           >
             <X size={17} />
-          </button>
+          </Button>
         </header>
         <div className="profiles-layout">
           <aside className="profiles-sidebar" aria-label={t('profiles.list')}>
             <span className="profiles-list-label">{t('profiles.list')}</span>
             {list?.profiles.map((item) => (
-              <button
+              <Button
+                selected={Boolean(selected === item.name && mode === 'edit')}
+                variant="ghost"
                 type="button"
                 className={`profiles-item ${selected === item.name && mode === 'edit' ? 'selected' : ''}`}
                 disabled={locked}
@@ -309,9 +327,9 @@ export function ModuleProfilesDialog({
                         : 'profiles.custom',
                   )}
                 </span>
-              </button>
+              </Button>
             ))}
-            <button
+            <Button
               type="button"
               className="secondary-button profiles-create"
               disabled={locked || !list || (!list.profiles.length && !list.factoryAvailable)}
@@ -319,8 +337,9 @@ export function ModuleProfilesDialog({
             >
               <Plus size={14} />
               {t('profiles.create')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
               type="button"
               className="text-button profiles-reload"
               disabled={locked}
@@ -332,7 +351,7 @@ export function ModuleProfilesDialog({
             >
               <RefreshCw size={13} />
               {t('profiles.reload')}
-            </button>
+            </Button>
           </aside>
           <section className="profiles-content" aria-busy={busy || loading}>
             {!list?.online && list && <p className="profiles-note">{t('profiles.offline')}</p>}
@@ -341,11 +360,11 @@ export function ModuleProfilesDialog({
                 {selected && (
                   <div className="profiles-editor-heading">
                     <h4>{selected}</h4>
-                    {profile?.builtin && <span className="profiles-badge">{t('profiles.builtin')}</span>}
+                    {profile?.builtin && <Badge className="profiles-badge">{t('profiles.builtin')}</Badge>}
                     {selected === list?.active && (
-                      <span className="profiles-badge active">{t('profiles.active')}</span>
+                      <Badge className="profiles-badge active">{t('profiles.active')}</Badge>
                     )}
-                    {dirty && <span className="profiles-badge changed">{t('profiles.changed')}</span>}
+                    {dirty && <Badge className="profiles-badge changed">{t('profiles.changed')}</Badge>}
                     <RowMenu
                       entries={[
                         {
@@ -376,7 +395,9 @@ export function ModuleProfilesDialog({
                     <div className="profiles-path">{document.path}</div>
                     <fieldset className="profiles-files" aria-label={t('profiles.files')}>
                       {document.files.map((item) => (
-                        <button
+                        <Button
+                          selected={Boolean(item.name === file)}
+                          variant="ghost"
                           type="button"
                           disabled={locked}
                           className={`profiles-file ${item.name === file ? 'selected' : ''}`}
@@ -386,13 +407,13 @@ export function ModuleProfilesDialog({
                         >
                           <FileCode2 size={13} />
                           {item.name}
-                        </button>
+                        </Button>
                       ))}
                     </fieldset>
                   </>
                 )}
                 {loading ? (
-                  <div className="empty-note">{t('common.loading')}</div>
+                  <EmptyState className="empty-note">{t('common.loading')}</EmptyState>
                 ) : (
                   original !== null && (
                     <div className="profiles-code editor-preview">
@@ -402,7 +423,8 @@ export function ModuleProfilesDialog({
                           dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }}
                         />
                       </pre>
-                      <textarea
+                      <Textarea
+                        code
                         aria-label={t('profiles.fileContent', { file })}
                         value={draft}
                         disabled={busy || blocked}
@@ -435,9 +457,9 @@ export function ModuleProfilesDialog({
                 }}
               >
                 <h4>{t(mode === 'rename' ? 'profiles.rename' : 'profiles.new')}</h4>
-                <label className="module-select">
+                <Field className="module-select">
                   {t('profiles.name')}
-                  <input
+                  <Input
                     ref={nameRef}
                     value={name}
                     disabled={locked}
@@ -446,7 +468,7 @@ export function ModuleProfilesDialog({
                     autoComplete="off"
                   />
                   <span className="select-hint">{t('profiles.nameHint')}</span>
-                </label>
+                </Field>
                 {name && (!validProfileName(name.trim()) || exists) && (
                   <span className="profiles-error" role="alert">
                     {t(exists ? 'err.profileExists' : 'err.profileName')}
@@ -454,9 +476,9 @@ export function ModuleProfilesDialog({
                 )}
                 {mode === 'create' && (
                   <>
-                    <label className="module-select">
+                    <Field className="module-select">
                       {t('profiles.base')}
-                      <select
+                      <Select
                         value={base}
                         disabled={locked}
                         onChange={(event) => {
@@ -477,12 +499,12 @@ export function ModuleProfilesDialog({
                           </option>
                         ))}
                         {list?.factoryAvailable && <option value="$factory">{t('profiles.factory')}</option>}
-                      </select>
-                    </label>
+                      </Select>
+                    </Field>
                     {(selectedBase?.hasData || list?.factoryData) && (
-                      <label className="module-select">
+                      <Field className="module-select">
                         {t('profiles.data')}
-                        <select
+                        <Select
                           value={String(copyData)}
                           disabled={locked || base === '$factory'}
                           onChange={(event) => setCopyData(event.target.value === 'true')}
@@ -493,34 +515,39 @@ export function ModuleProfilesDialog({
                           <option value="true" disabled={!selectedBase?.hasData || base === '$factory'}>
                             {t('profiles.copyData')}
                           </option>
-                        </select>
+                        </Select>
                         <span className="select-hint">{t('profiles.dataHint')}</span>
-                      </label>
+                      </Field>
                     )}
                     <p className="profiles-note">{t('profiles.createHint')}</p>
                   </>
                 )}
                 {mode === 'rename' && <p className="profiles-note">{t('profiles.renameHint')}</p>}
-                <div className="row-actions">
-                  <button type="submit" className="primary-button" disabled={locked || !nameValid}>
+                <Actions className="row-actions">
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    className="primary-button"
+                    disabled={locked || !nameValid}
+                  >
                     <Plus size={14} />
                     {t(mode === 'rename' ? 'profiles.rename' : 'profiles.create')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className="secondary-button"
                     disabled={busy || blocked}
                     onClick={() => setMode('edit')}
                   >
                     {t('common.cancel')}
-                  </button>
-                </div>
+                  </Button>
+                </Actions>
               </form>
             )}
             {error && (
-              <p className="profiles-error" role="alert">
+              <NoticeText className="profiles-error" role="alert">
                 {error}
-              </p>
+              </NoticeText>
             )}
             {message && (
               <p className="profiles-note" role="status">
@@ -528,7 +555,8 @@ export function ModuleProfilesDialog({
               </p>
             )}
             {backup && (
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 className="text-button profiles-backup"
                 title={backup}
@@ -540,15 +568,15 @@ export function ModuleProfilesDialog({
               >
                 <FolderOpen size={14} />
                 {t('profiles.openBackup')}
-              </button>
+              </Button>
             )}
           </section>
         </div>
         {mode === 'edit' && (
           <footer className="modal-foot profiles-foot">
             <span className="modal-path">{t('profiles.saveHint')}</span>
-            <div className="row-actions">
-              <button
+            <Actions className="row-actions">
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={locked || dirty || !selected || !list?.online}
@@ -556,15 +584,21 @@ export function ModuleProfilesDialog({
               >
                 <Layers size={14} />
                 {t(selected === list?.active ? 'profiles.apply' : 'profiles.activate')}
-              </button>
-              <button type="button" className="primary-button" disabled={locked || !dirty} onClick={save}>
+              </Button>
+              <Button
+                variant="primary"
+                type="button"
+                className="primary-button"
+                disabled={locked || !dirty}
+                onClick={save}
+              >
                 <Check size={14} />
                 {t('common.save')}
-              </button>
-            </div>
+              </Button>
+            </Actions>
           </footer>
         )}
-      </div>
-    </div>
+      </DialogPanel>
+    </DialogOverlay>
   );
 }

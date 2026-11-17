@@ -1,0 +1,20 @@
+{
+  "demo.title": "DaisyUI interface workshop",
+  "demo.tagClient": "Client",
+  "demo.tagDevelopment": "Development",
+  "demo.tagApi": "API",
+  "demo.releaseNotes": "### Sample release\n\n- Shared interface components.\n- Light and dark themes.\n\nThis is synthetic data for reviewing the update dialog.",
+  "demo.notice": "The complete application in browser mode. Synthetic data; native OSPanel operations are unavailable. Demo preferences and menu edits stay in memory.",
+  "demo.light": "Light",
+  "demo.dark": "Dark",
+  "demo.compare": "Compare themes",
+  "demo.page": "Page",
+  "demo.language": "Language",
+  "demo.ru": "Русский",
+  "demo.en": "English",
+  "demo.reset": "Reset demo",
+  "demo.appFrame": "Application preview: {theme}",
+  "demo.fullscreen": "Open full window",
+  "demo.actualApp": "Current application · complete screens and dialogs",
+  "demo.review": "Navigate inside either application or use the page picker. Project workspaces, templates, profiles and dialogs open from their usual controls."
+}

@@ -59,6 +59,30 @@ export const BASE_LANG = 'en';
 export const embeddedDict = (lang: string): Dict => EMBEDDED[lang] ?? EMBEDDED[BASE_LANG];
 // Dictionaries known before files are loaded from the locales folder — the basis of the startup language choice.
 export const EMBEDDED_LANGS = Object.keys(EMBEDDED);
+export const LOCALES_UPDATED_EVENT = 'osp-locales-updated';
+
+if (import.meta.hot) {
+  // Keep mounted translators and demo state alive when source dictionaries change.
+  import.meta.hot.accept(
+    [
+      '../src-tauri/resources/locales/en.json',
+      '../src-tauri/resources/locales/ru.json',
+      '../src-tauri/resources/locales/be.json',
+      '../src-tauri/resources/locales/es.json',
+      '../src-tauri/resources/locales/uk.json',
+    ],
+    (modules) => {
+      const languages = ['en', 'ru', 'be', 'es', 'uk'];
+      modules.forEach((module, index) => {
+        if (!module) return;
+        const lang = languages[index];
+        EMBEDDED[lang] = flattenDict(module.default);
+        LANG_NAMES[lang] = EMBEDDED[lang]['lang.name'] ?? lang.toUpperCase();
+      });
+      window.dispatchEvent(new Event(LOCALES_UPDATED_EVENT));
+    },
+  );
+}
 
 function parseDict(raw: string): Dict {
   const parsed: unknown = JSON.parse(raw);

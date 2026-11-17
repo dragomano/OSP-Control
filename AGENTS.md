@@ -13,6 +13,10 @@ Tauri 2 + React 19 + TypeScript (no Tailwind, custom CSS) — desktop control pa
 - `cargo check` — run in `src-tauri` (Rust lives in `~/.cargo/bin`: `export PATH="$USERPROFILE/.cargo/bin:$PATH"`)
 - `pnpm lint` / `pnpm format` — Biome
 
+## UI visualization
+
+When working on the interface, prefer running the demo stand with `pnpm demo` for visual verification. Open `http://127.0.0.1:1421/demo.html` to compare themes, or `http://127.0.0.1:1421/demo-app.html` for the full-window application. The demo renders the actual application pages, dialogs and shared components with isolated demonstration data. Check the affected screens in light and dark themes and at relevant window sizes.
+
 ## Mandatory verification after changes
 
 After every change to project files, run the commands one by one in this order and fix all reported errors until the result is clean:

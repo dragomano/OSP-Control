@@ -9,6 +9,7 @@ import {
 } from '../../ospanel';
 import type { StarterInstall } from '../../projectTemplates';
 import { starterText } from '../../projectTemplates';
+import { Button, NoticeText, SectionPanel } from '../ui';
 import { PathText } from '../widgets/PathText';
 import './applicationSetup.css';
 
@@ -78,14 +79,15 @@ export function ApplicationSetup({
     }
   };
   return (
-    <section className="workspace-card application-setup" aria-label={text('title')}>
+    <SectionPanel className="workspace-card application-setup" aria-label={text('title')}>
       <div className="application-setup-head">
         <div>
           <h3>{text('title')}</h3>
           <p>{result ? text('done') : text('pending')}</p>
         </div>
         {!result && (
-          <button
+          <Button
+            variant="primary"
             type="button"
             className="primary-button"
             disabled={disabled || running}
@@ -93,7 +95,7 @@ export function ApplicationSetup({
           >
             <Download size={15} />
             {text('button')}
-          </button>
+          </Button>
         )}
       </div>
       {!result && (
@@ -112,9 +114,9 @@ export function ApplicationSetup({
         />
       )}
       {error && (
-        <p className="workspace-error" role="alert">
+        <NoticeText className="workspace-error" role="alert">
           {error}
-        </p>
+        </NoticeText>
       )}
       {result && (
         <p className="application-setup-hint">
@@ -127,6 +129,6 @@ export function ApplicationSetup({
           <pre>{plainOutput}</pre>
         </details>
       )}
-    </section>
+    </SectionPanel>
   );
 }

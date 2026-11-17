@@ -129,7 +129,7 @@
   flex: 1;
   min-width: 0;
 }
-.tasks-inspector-head :where(strong, span) {
+.tasks-inspector-head > div :where(strong, span) {
   display: block;
   overflow-wrap: anywhere;
 }

@@ -7,6 +7,7 @@ import { ProjectModulesDialog } from '../src/components/dialogs/ProjectModulesDi
 import type { Notify } from '../src/components/shared';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
 import type { CreatedProject, OsPanelProject } from '../src/ospanel';
+import { selectOption } from './selectOption';
 
 const mocks = vi.hoisted(() => ({
   getProjectModuleOptions: vi.fn(),
@@ -76,10 +77,9 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-// Opens a dropdown control by its accessible name and picks an item from its menu.
+// Chooses a native option through the control's accessible name.
 const pickMenu = (control: string | RegExp, item: string) => {
-  fireEvent.click(screen.getByRole('button', { name: control }));
-  fireEvent.click(screen.getByRole('menuitem', { name: item }));
+  selectOption(screen.getByRole('combobox', { name: control }), item);
 };
 
 describe('ModuleSelect', () => {
@@ -104,12 +104,10 @@ describe('ModuleSelect', () => {
 
   it('renders the auto option first, with its own label, and deduplicates options', () => {
     renderSelect(null);
-    fireEvent.click(screen.getByRole('button', { name: 'HTTP engine' }));
-    const items = within(screen.getByRole('menu')).getAllByRole('menuitem');
+    const items = within(screen.getByRole('combobox', { name: 'HTTP engine' })).getAllByRole('option');
     expect(items.map((item) => item.textContent)).toEqual(['Auto (module settings)', 'Nginx', 'Apache']);
-    // The current value carries the check mark.
-    expect(items[0].querySelector('svg')).not.toBeNull();
-    expect(items[1].querySelector('svg')).toBeNull();
+    expect(items[0]).toHaveProperty('selected', true);
+    expect(items[1]).toHaveProperty('selected', false);
   });
 
   it('reports the selected value to onChange', () => {
@@ -192,7 +190,7 @@ describe('CreateProjectDialog', () => {
     expect(screen.queryByRole('button', { name: 'Use my-project.test' })).not.toBeInTheDocument();
   });
 
-  it('keeps the open database menu across parent re-renders and commits the choice', async () => {
+  it('keeps the database control and focus across parent re-renders and commits the choice', async () => {
     mocks.getProjectModuleOptions.mockResolvedValue({
       ...moduleOptions,
       databaseEngines: ['MySQL-8.4', 'PostgreSQL-17'],
@@ -212,14 +210,15 @@ describe('CreateProjectDialog', () => {
     const view = render(dialog());
     await screen.findByLabelText('Domain name');
     pickMenu('Project template', 'Laravel — preparation');
-    fireEvent.click(screen.getByRole('button', { name: 'Database engine' }));
-    const menu = screen.getByRole('menu');
-    // Unrelated re-renders neither close the open menu nor refetch the module options.
+    const control = screen.getByRole('combobox', { name: 'Database engine' });
+    control.focus();
+    // Keeping the native control mounted also preserves its picker and keyboard focus.
     view.rerender(dialog());
-    expect(screen.getByRole('menu')).toBe(menu);
+    expect(screen.getByRole('combobox', { name: 'Database engine' })).toBe(control);
+    expect(control).toHaveFocus();
     expect(mocks.getProjectModuleOptions).toHaveBeenCalledTimes(1);
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'PostgreSQL-17' }));
-    expect(screen.getByRole('button', { name: 'Database engine' })).toHaveTextContent('PostgreSQL-17');
+    selectOption(control, 'PostgreSQL-17');
+    expect(control).toHaveValue('PostgreSQL-17');
     expect(screen.getByLabelText('Database user')).toHaveValue('postgres');
   });
 
@@ -253,9 +252,9 @@ describe('CreateProjectDialog', () => {
     expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
     // The global engines could not be read in this test — no parentheses.
     const autoLabel = 'Default';
-    expect(screen.getByRole('button', { name: 'HTTP engine' })).toHaveTextContent(autoLabel);
-    expect(screen.getByRole('button', { name: 'PHP version' })).toHaveTextContent(autoLabel);
-    expect(screen.getByRole('button', { name: 'Node.js version' })).toHaveTextContent(autoLabel);
+    expect(screen.getByRole('combobox', { name: 'HTTP engine' })).toHaveTextContent(autoLabel);
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveTextContent(autoLabel);
+    expect(screen.getByRole('combobox', { name: 'Node.js version' })).toHaveTextContent(autoLabel);
   });
 
   it('keeps Create disabled until a domain is typed and previews the config path', async () => {
@@ -375,20 +374,21 @@ describe('CreateProjectDialog', () => {
     renderDialog();
     const domain = await screen.findByLabelText('Domain name');
     fireEvent.change(domain, { target: { value: 'CAFÉ.test' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Project template' }));
-    expect(screen.getAllByRole('menuitem')).toHaveLength(9);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Laravel — preparation' }));
+    expect(
+      within(screen.getByRole('combobox', { name: 'Project template' })).getAllByRole('option'),
+    ).toHaveLength(9);
+    pickMenu('Project template', 'Laravel — preparation');
     expect(domain).toHaveValue('CAFÉ.test');
     expect(screen.getByText('{base_dir}\\public')).toBeInTheDocument();
     expect(screen.getByText(/click Install Laravel in the project overview/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('Files to create: 8'));
     expect(screen.getByText('.osp/nginx/xn--caf-dma.test.conf')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'HTTP engine' })).toHaveTextContent('Apache_2.4');
-    expect(screen.getByRole('button', { name: 'PHP version' })).toHaveTextContent('PHP_8.2');
-    expect(screen.getByRole('button', { name: 'Node.js version' })).toHaveTextContent('Not used');
+    expect(screen.getByRole('combobox', { name: 'HTTP engine' })).toHaveTextContent('Apache_2.4');
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveTextContent('PHP_8.2');
+    expect(screen.getByRole('combobox', { name: 'Node.js version' })).toHaveTextContent('Not used');
     pickMenu('Project template', 'Empty project');
     // The auto option shows the global PHP value read from the panel settings.
-    expect(screen.getByRole('button', { name: 'PHP version' })).toHaveTextContent('Default (PHP_8.2)');
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveTextContent('Default (PHP_8.2)');
     expect(domain).toHaveValue('CAFÉ.test');
   });
 
@@ -408,7 +408,7 @@ describe('CreateProjectDialog', () => {
         'Project template',
         template === 'wordpress' ? 'WordPress — preparation' : 'Laravel — preparation',
       );
-      const http = screen.getByRole('button', { name: 'HTTP engine' });
+      const http = screen.getByRole('combobox', { name: 'HTTP engine' });
       expect(http).toHaveTextContent('Apache_2.4');
       pickMenu('HTTP engine', 'Nginx_1.25');
       fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
@@ -430,7 +430,7 @@ describe('CreateProjectDialog', () => {
         'Project template',
         template === 'wordpress' ? 'WordPress — preparation' : 'Laravel — preparation',
       );
-      expect(screen.getByRole('button', { name: 'HTTP engine' })).toHaveTextContent('Nginx_1.25');
+      expect(screen.getByRole('combobox', { name: 'HTTP engine' })).toHaveTextContent('Nginx_1.25');
     },
   );
 
@@ -475,15 +475,15 @@ describe('CreateProjectDialog', () => {
     renderDialog();
     fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'site.test' } });
     pickMenu('Project template', 'WordPress — preparation');
-    fireEvent.click(screen.getByRole('button', { name: 'Database engine' }));
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
-      'MySQL-8.4',
-      'MariaDB-11.8',
-      'Configure later',
-    ]);
+    const database = screen.getByRole('combobox', { name: 'Database engine' });
+    expect(
+      within(database)
+        .getAllByRole('option')
+        .map((item) => item.textContent),
+    ).toEqual(['MySQL-8.4', 'MariaDB-11.8', 'Configure later']);
     expect(screen.getByText('public/', { selector: 'b' })).toBeVisible();
     expect(screen.getAllByText('.osp/database.json').some((element) => element.tagName === 'B')).toBe(true);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'MySQL-8.4' }));
+    selectOption(database, 'MySQL-8.4');
     fireEvent.change(screen.getByLabelText('New database name'), { target: { value: 'cms_data' } });
     fireEvent.change(screen.getByLabelText('Database user'), { target: { value: 'local_admin' } });
     fireEvent.change(screen.getByLabelText('Database password'), { target: { value: 'synthetic-password' } });
@@ -521,7 +521,7 @@ describe('CreateProjectDialog', () => {
     renderDialog();
     fireEvent.change(await screen.findByLabelText('Domain name'), { target: { value: 'forum.test' } });
     pickMenu('Project template', 'SMF — preparation');
-    expect(screen.getByRole('button', { name: 'Database engine' })).toHaveTextContent('MySQL-8.4');
+    expect(screen.getByRole('combobox', { name: 'Database engine' })).toHaveTextContent('MySQL-8.4');
   });
 
   it('creates a static scaffold with unused runtimes and offers README instructions', async () => {
@@ -553,7 +553,7 @@ describe('CreateProjectDialog', () => {
     pickMenu('Project template', 'Node.js application');
     expect(screen.getByRole('alert')).toHaveTextContent('No Node.js versions are installed');
     expect(screen.getByRole('button', { name: 'Create project' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Node.js version' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Node.js version' })).not.toBeInTheDocument();
     expect(mocks.createProject).not.toHaveBeenCalled();
   });
 
@@ -581,7 +581,7 @@ describe('CreateProjectDialog', () => {
     expect(mocks.createProject).toHaveBeenCalledWith(
       expect.objectContaining({ template: 'node', backendPort: 4321, nodeEngine: 'Node-24', phpEngine: '' }),
     );
-    expect(screen.getByRole('button', { name: 'Project template' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Project template' })).toBeDisabled();
     expect(screen.getByLabelText('Domain name')).toBeDisabled();
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.mouseDown(document.body);
@@ -613,12 +613,14 @@ describe('CreateProjectDialog', () => {
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('osp node install lts'));
     screen.getByRole('button', { name: 'Refresh versions' }).focus();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh versions' }));
-    const node = await screen.findByRole('button', { name: 'Node.js version' });
+    const node = await screen.findByRole('combobox', { name: 'Node.js version' });
     expect(node).toHaveTextContent('Node-24.10.0');
     expect(domain).toHaveValue('shop.test');
-    expect(screen.getByRole('button', { name: 'Project template' })).toHaveTextContent('Node.js application');
-    expect(screen.getByRole('button', { name: 'HTTP engine' })).toHaveTextContent('Nginx_1.25');
-    expect(screen.getByRole('button', { name: 'PHP version' })).toHaveTextContent('PHP_8.2');
+    expect(screen.getByRole('combobox', { name: 'Project template' })).toHaveTextContent(
+      'Node.js application',
+    );
+    expect(screen.getByRole('combobox', { name: 'HTTP engine' })).toHaveTextContent('Nginx_1.25');
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveTextContent('PHP_8.2');
     expect(screen.getByRole('spinbutton', { name: 'Application port' })).toHaveValue(4321);
     expect(screen.getByRole('button', { name: 'Create project' })).toBeEnabled();
     expect(domain).not.toHaveFocus();
@@ -674,21 +676,19 @@ describe('ProjectModulesDialog', () => {
     mocks.getGlobalProjectEngines.mockResolvedValue({ httpEngine: 'Apache', phpEngine: '', nodeEngine: '' });
     renderDialog();
 
-    const http = await screen.findByRole('button', { name: 'HTTP engine' });
+    const http = await screen.findByRole('combobox', { name: 'HTTP engine' });
     expect(http).toHaveTextContent('Apache_2.4');
-    expect(screen.getByRole('button', { name: 'PHP version' })).toHaveTextContent('PHP_8.2');
+    expect(screen.getByRole('combobox', { name: 'PHP version' })).toHaveTextContent('PHP_8.2');
     expect(screen.getByText('Global setting: Apache')).toBeInTheDocument();
     expect(screen.getAllByText('Not set globally — the engine is not used')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     // The auto option carries the global value from the panel settings in parentheses.
-    fireEvent.click(http);
-    expect(within(screen.getByRole('menu')).getAllByRole('menuitem')[0].textContent).toBe('Default (Apache)');
-    fireEvent.click(within(screen.getByRole('menu')).getAllByRole('menuitem')[0]);
-    expect(screen.getByRole('button', { name: 'HTTP engine' })).toHaveTextContent('Default (Apache)');
-    fireEvent.click(screen.getByRole('button', { name: 'PHP version' }));
-    expect(within(screen.getByRole('menu')).getAllByRole('menuitem')[0].textContent).toBe(
-      'Default (not set)',
-    );
+    expect(within(http).getAllByRole('option')[0].textContent).toBe('Default (Apache)');
+    selectOption(http, 'Default (Apache)');
+    expect(http).toHaveValue('auto');
+    expect(
+      within(screen.getByRole('combobox', { name: 'PHP version' })).getAllByRole('option')[0].textContent,
+    ).toBe('Default (not set)');
   });
 
   it('stays usable and hides the hints when the global engines cannot be read', async () => {
@@ -697,7 +697,7 @@ describe('ProjectModulesDialog', () => {
     mocks.getGlobalProjectEngines.mockRejectedValue(new Error('boom'));
     renderDialog();
 
-    expect(await screen.findByRole('button', { name: 'HTTP engine' })).toHaveTextContent('Apache_2.4');
+    expect(await screen.findByRole('combobox', { name: 'HTTP engine' })).toHaveTextContent('Apache_2.4');
     expect(screen.queryByText('Global setting: Apache')).not.toBeInTheDocument();
   });
 
@@ -708,7 +708,7 @@ describe('ProjectModulesDialog', () => {
     mocks.saveProjectSettings.mockResolvedValue({ ...projectSettings, httpEngine: 'Nginx_1.25' });
     const { notify, onRestartPanel, onClose } = renderDialog();
 
-    await screen.findByRole('button', { name: 'HTTP engine' });
+    await screen.findByRole('combobox', { name: 'HTTP engine' });
     pickMenu('HTTP engine', 'Nginx_1.25');
     const save = screen.getByRole('button', { name: 'Save' });
     expect(save).toBeEnabled();
@@ -740,7 +740,7 @@ describe('ProjectModulesDialog', () => {
     mocks.saveProjectSettings.mockRejectedValue(new Error('boom'));
     const { notify, onRestartPanel, onClose } = renderDialog();
 
-    await screen.findByRole('button', { name: 'HTTP engine' });
+    await screen.findByRole('combobox', { name: 'HTTP engine' });
     pickMenu('HTTP engine', 'Nginx_1.25');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -791,7 +791,7 @@ describe('ProjectModulesDialog', () => {
     mocks.getGlobalProjectEngines.mockRejectedValue(new Error('boom'));
     const { onClose } = renderDialog();
 
-    await screen.findByRole('button', { name: 'HTTP engine' });
+    await screen.findByRole('combobox', { name: 'HTTP engine' });
     fireEvent.mouseDown(document.body);
     expect(onClose).toHaveBeenCalled();
   });

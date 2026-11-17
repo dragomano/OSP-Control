@@ -2,6 +2,7 @@ import { Search, X } from 'lucide-react';
 import type { Ref } from 'react';
 import { type KeyboardEvent, type ReactNode, useRef } from 'react';
 import { useI18n } from '../../i18n';
+import { Button, cx, Input } from '../ui';
 
 type SearchFieldProps = {
   value: string;
@@ -40,9 +41,10 @@ export function SearchField({
   };
 
   return (
-    <div className={className}>
+    <div className={cx('input input-sm ui-search', className)}>
       <Search size={iconSize} aria-hidden="true" />
-      <input
+      <Input
+        embedded
         ref={(node) => {
           fallbackRef.current = node;
           if (typeof inputRef === 'function') {
@@ -62,7 +64,9 @@ export function SearchField({
         autoComplete="off"
       />
       {value ? (
-        <button
+        <Button
+          variant="ghost"
+          square
           type="button"
           className="search-clear"
           aria-label={t('common.clearSearch')}
@@ -72,7 +76,7 @@ export function SearchField({
           }}
         >
           <X size={Math.max(12, iconSize - 2)} />
-        </button>
+        </Button>
       ) : null}
       {children}
     </div>

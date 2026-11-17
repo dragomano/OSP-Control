@@ -1,16 +1,21 @@
-import { ChevronDown, Palette, RotateCcw, Tags, X } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { ChevronDown, Palette, Plus, RotateCcw, Tags, X } from 'lucide-react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import {
   colorForTag,
+  MAX_PROJECT_TAGS,
   type ProjectTagColor,
+  type ProjectTagColorEdits,
   type ProjectTagColors,
   projectTagAppearance,
+  setProjectTagColor,
   type TagMatch,
 } from '../../projectTags';
 import { useDismiss } from '../shared';
+import { Actions, Badge, BadgeButton, Button, cx, Field, Input, SectionPanel } from '../ui';
 import { MenuSelect } from './MenuSelect';
 import { ProjectTagSelect } from './ProjectTagSelect';
+import { RowMenu } from './RowMenu';
 
 export function ProjectSelection({
   checked,
@@ -30,8 +35,8 @@ export function ProjectSelection({
     if (ref.current) ref.current.indeterminate = mixed;
   }, [mixed]);
   return (
-    <label className="project-selection">
-      <input
+    <Field className="project-selection">
+      <Input
         ref={ref}
         type="checkbox"
         checked={checked}
@@ -39,7 +44,141 @@ export function ProjectSelection({
         onChange={(event) => onChange(event.target.checked)}
       />
       {all && <span className="project-select-all-text">{label}</span>}
-    </label>
+    </Field>
+  );
+}
+
+export function ProjectTagList({
+  domain,
+  tags,
+  colors,
+  selected,
+  editing,
+  onEdit,
+  onFilter,
+}: {
+  domain: string;
+  tags: string[];
+  colors: ProjectTagColors;
+  selected: (string | null)[];
+  editing: boolean;
+  onEdit: () => void;
+  onFilter: (tag: string) => void;
+}) {
+  const { t } = useI18n();
+  const listRef = useRef<HTMLDivElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const [hiddenTags, setHiddenTags] = useState<string[]>([]);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const add = addRef.current;
+    const more = moreRef.current;
+    if (!list || !add || !more) return;
+    const chips = [...list.querySelectorAll<HTMLElement>(':scope > .project-tag-chip')];
+    const width = (element: HTMLElement) => Number.parseFloat(getComputedStyle(element).width);
+    const measure = () => {
+      const available = width(list);
+      if (!available) return;
+      const gap = Number.parseFloat(getComputedStyle(list).columnGap) || 0;
+      const budget = available - width(add);
+      const widths = chips.map((chip) => width(chip) + gap);
+      const hidden: string[] = [];
+      if (widths.reduce((sum, chipWidth) => sum + chipWidth, 0) > budget) {
+        let remaining = budget - width(more) - gap;
+        for (const [index, chipWidth] of widths.entries()) {
+          if (chipWidth <= remaining) remaining -= chipWidth;
+          else hidden.push(tags[index]);
+        }
+      }
+      setHiddenTags((current) =>
+        current.length === hidden.length && current.every((tag, index) => tag === hidden[index])
+          ? current
+          : hidden,
+      );
+    };
+
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    // Font changes can resize individual chips without changing the column width.
+    for (const element of [list, add, more, ...chips]) observer.observe(element);
+    return () => observer.disconnect();
+  }, [tags]);
+
+  const overflow = tags.filter((tag) => hiddenTags.includes(tag));
+  const chipAppearance = (tag: string) => {
+    const { className, style } = projectTagAppearance(colors, tag);
+    return { className: cx('project-tag-chip', className, selected.includes(tag) && 'active'), style };
+  };
+  return (
+    <div className="project-tags-cell">
+      <div className="project-tags-list" ref={listRef}>
+        {tags.map((tag) => {
+          const hidden = hiddenTags.includes(tag);
+          return (
+            <BadgeButton
+              key={tag}
+              type="button"
+              {...chipAppearance(tag)}
+              aria-hidden={hidden || undefined}
+              tabIndex={hidden ? -1 : undefined}
+              aria-label={t('projects.tagsFilterBy', { tag })}
+              onClick={() => onFilter(tag)}
+            >
+              {tag}
+            </BadgeButton>
+          );
+        })}
+        {overflow.length > 0 && (
+          <RowMenu
+            entries={overflow.map((tag) => ({
+              label: tag,
+              labelContent: <Badge {...chipAppearance(tag)}>{tag}</Badge>,
+              onSelect: () => onFilter(tag),
+            }))}
+            trigger={({ onToggle, open }) => (
+              <Button
+                type="button"
+                variant="ghost"
+                className="project-tag-more"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={t('projects.tagsMore', { domain, count: overflow.length })}
+                onClick={onToggle}
+              >
+                +{overflow.length}
+              </Button>
+            )}
+          />
+        )}
+        <Button
+          ref={addRef}
+          variant="ghost"
+          type="button"
+          className="project-tag-add"
+          aria-label={t('projects.tagsEditFor', { domain })}
+          aria-expanded={editing}
+          onClick={onEdit}
+        >
+          <Plus size={12} />
+          {t('projects.tagsTag')}
+        </Button>
+        {tags.length > 0 && (
+          <Button
+            ref={moreRef}
+            type="button"
+            variant="ghost"
+            className="project-tag-more"
+            aria-hidden="true"
+            tabIndex={-1}
+          >
+            +{MAX_PROJECT_TAGS}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -66,7 +205,8 @@ export function ProjectTagFilter({
   const options = [...new Set([...available, ...selected.filter((tag): tag is string => tag !== null)])];
   return (
     <div className="project-tags-filter" ref={ref}>
-      <button
+      <Button
+        selected={Boolean(selected.length)}
         type="button"
         className={`filter-button ${selected.length ? 'active' : ''}`}
         aria-label={t('projects.tagsFilter')}
@@ -77,13 +217,13 @@ export function ProjectTagFilter({
         <Tags size={15} />
         {t('projects.tagsFilter')}
         {selected.length > 0 && <span>{selected.length}</span>}
-        <ChevronDown size={14} />
-      </button>
+        <ChevronDown size={14} className="ui-choice-indicator" />
+      </Button>
       {open && (
         <fieldset className="project-tags-filter-popup" id={id} aria-label={t('projects.tagsFilter')}>
           {[...options, null].map((tag) => (
-            <label className="project-tags-filter-option" key={tag ?? '\u0000'}>
-              <input
+            <Field className="project-tags-filter-option" key={tag ?? '\u0000'}>
+              <Input
                 type="checkbox"
                 checked={selected.includes(tag)}
                 onChange={(event) =>
@@ -92,15 +232,15 @@ export function ProjectTagFilter({
                   )
                 }
               />
-              <span
+              <Badge
                 className={
                   tag ? `project-tag-chip ${projectTagAppearance(colors, tag).className}` : undefined
                 }
                 style={tag ? projectTagAppearance(colors, tag).style : undefined}
               >
                 {tag ?? t('projects.tagsWithout')}
-              </span>
-            </label>
+              </Badge>
+            </Field>
           ))}
           <div className="project-tags-match">
             <span>{t('projects.tagsMatch')}</span>
@@ -125,19 +265,25 @@ export function ProjectTagEditor({
   tags,
   available,
   colors,
-  onColorChange,
-  onChange,
+  onSave,
   onClose,
 }: {
   domain: string;
   tags: string[];
   available: string[];
   colors: ProjectTagColors;
-  onColorChange: (tag: string, color: ProjectTagColor | null) => void;
-  onChange: (tags: string[]) => boolean;
+  onSave: (tags: string[], colorEdits: ProjectTagColorEdits) => boolean;
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const [draftTags, setDraftTags] = useState(() => [...tags]);
+  const [colorEdits, setColorEdits] = useState<ProjectTagColorEdits>({});
+  const draftColors = Object.entries(colorEdits).reduce(
+    (current, [tag, color]) => setProjectTagColor(current, tag, color),
+    colors,
+  );
+  const changeColor = (tag: string, color: ProjectTagColor | null) =>
+    setColorEdits((current) => ({ ...current, [tag]: color }));
   const [colorFor, setColorFor] = useState<string | null>(null);
   const colorInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -154,36 +300,61 @@ export function ProjectTagEditor({
   }, [onClose]);
 
   return (
-    <section className="project-tag-editor" aria-label={t('projects.tagsEditFor', { domain })}>
+    <SectionPanel className="project-tag-editor" aria-label={t('projects.tagsEditFor', { domain })}>
       <div className="project-tag-editor-head">
-        <b>{t('projects.tagsEditFor', { domain })}</b>
-        <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
-          <X size={16} />
-        </button>
+        <b className="project-tag-editor-title">{t('projects.tagsEditFor', { domain })}</b>
+        <Actions className="project-tag-editor-actions">
+          <Button
+            variant="primary"
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              if (onSave(draftTags, colorEdits)) onClose();
+            }}
+          >
+            {t('projects.tagsDone')}
+          </Button>
+          <Button
+            variant="ghost"
+            square
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label={t('common.cancel')}
+          >
+            <X size={16} />
+          </Button>
+        </Actions>
       </div>
       <ProjectTagSelect
-        value={tags}
+        value={draftTags}
         available={available}
-        colors={colors}
+        colors={draftColors}
         ariaLabel={t('projects.tagsName')}
         autoFocus
-        onChange={onChange}
+        inlineMenu
+        onChange={(next) => {
+          setDraftTags(next);
+          return true;
+        }}
         onColorSelect={(tag) => setColorFor(colorFor === tag ? null : tag)}
       />
-      {colorFor && tags.includes(colorFor) && (
+      {colorFor && draftTags.includes(colorFor) && (
         <fieldset className="project-tag-palette" aria-label={t('projects.tagsColorFor', { tag: colorFor })}>
+          <legend>{t('projects.tagsColorFor', { tag: colorFor })}</legend>
           <div className="project-tag-picker-anchor">
-            <button
+            <Button
+              variant="ghost"
               type="button"
-              className={`project-tag-swatch ${projectTagAppearance(colors, colorFor).className}`}
-              style={projectTagAppearance(colors, colorFor).style}
+              className={`project-tag-swatch ${projectTagAppearance(draftColors, colorFor).className}`}
+              style={projectTagAppearance(draftColors, colorFor).style}
               aria-label={t('projects.tagsColorFor', { tag: colorFor })}
               title={t('projects.tagsColorFor', { tag: colorFor })}
               onClick={(event) => {
                 const input = colorInput.current;
                 if (!input) return;
                 // Use the selected HEX directly; resolve the displayed app accent only for the default.
-                const color = colorForTag(colors, colorFor);
+                const color = colorForTag(draftColors, colorFor);
                 const probe = color ? null : document.createElement('canvas').getContext('2d');
                 if (color) input.value = color;
                 else if (probe) {
@@ -194,36 +365,32 @@ export function ProjectTagEditor({
               }}
             >
               <Palette size={18} aria-hidden="true" />
-            </button>
-            <input
+            </Button>
+            <Input
               ref={colorInput}
               type="color"
               className="project-tag-native-picker"
               tabIndex={-1}
               aria-hidden="true"
               key={colorFor}
-              defaultValue={colorForTag(colors, colorFor)}
+              defaultValue={colorForTag(draftColors, colorFor)}
               aria-label={t('projects.tagsColorFor', { tag: colorFor })}
-              onChange={(event) => onColorChange(colorFor, event.currentTarget.value as ProjectTagColor)}
+              onChange={(event) => changeColor(colorFor, event.currentTarget.value as ProjectTagColor)}
             />
           </div>
-          <button
+          <Button
+            variant="ghost"
             type="button"
             className="project-tag-color-reset"
             aria-label={t('projects.tagsColorDefault')}
-            aria-pressed={!colorForTag(colors, colorFor)}
-            onClick={() => onColorChange(colorFor, null)}
+            aria-pressed={!colorForTag(draftColors, colorFor)}
+            onClick={() => changeColor(colorFor, null)}
           >
             <RotateCcw size={16} aria-hidden="true" />
-          </button>
+          </Button>
         </fieldset>
       )}
-      <div className="project-tag-form">
-        <button type="button" className="secondary-button" onClick={onClose}>
-          {t('projects.tagsDone')}
-        </button>
-      </div>
       <p className="project-tags-hint">{t('projects.tagsHint')}</p>
-    </section>
+    </SectionPanel>
   );
 }

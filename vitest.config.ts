@@ -19,7 +19,8 @@ export default defineConfig({
       // main.tsx is bootstrap glue (createRoot + mount) exercised only by the real shell.
       // brand.ts is a single exported constant whose value tests/brand.test.ts asserts against
       // tauri.conf.json — the v8 remapper reports 0% for it regardless of execution.
-      exclude: ['src/**/*.d.ts', 'src/main.tsx', 'src/brand.ts'],
+      // The isolated UI workshop is not part of the desktop application bundle.
+      exclude: ['src/**/*.d.ts', 'src/main.tsx', 'src/brand.ts', 'src/demo/**'],
       reporter: ['text-summary', 'html'],
       // Floor set slightly under the suite baseline (~83/76/84/86) to block regressions;
       // the remaining gap is mostly desktop-only invoke branches in ospanel.ts.

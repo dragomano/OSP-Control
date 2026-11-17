@@ -1,0 +1,20 @@
+{
+  "demo.title": "Taller de interfaz DaisyUI",
+  "demo.tagClient": "Cliente",
+  "demo.tagDevelopment": "Desarrollo",
+  "demo.tagApi": "API",
+  "demo.releaseNotes": "### Versión de ejemplo\n\n- Componentes de interfaz compartidos.\n- Temas claro y oscuro.\n\nDatos ficticios para revisar el diálogo de actualización.",
+  "demo.notice": "Aplicación completa en el navegador. Datos ficticios; las operaciones del sistema OSPanel no están disponibles. Los ajustes de demostración y los cambios del menú se guardan en memoria.",
+  "demo.light": "Claro",
+  "demo.dark": "Oscuro",
+  "demo.compare": "Comparar temas",
+  "demo.page": "Página",
+  "demo.language": "Idioma",
+  "demo.ru": "Русский",
+  "demo.en": "English",
+  "demo.reset": "Restablecer demo",
+  "demo.appFrame": "Vista previa de la aplicación: {theme}",
+  "demo.fullscreen": "Abrir en pantalla completa",
+  "demo.actualApp": "Aplicación actual · páginas y diálogos completos",
+  "demo.review": "Navega por la aplicación o elige una página arriba. Los proyectos, plantillas, perfiles y diálogos se abren con los controles habituales."
+}
