@@ -85,6 +85,14 @@ export const formatRam = (bytes: number): string => {
   return `${Math.round(bytes / 2 ** 20)} MB`;
 };
 
+export function stripTerminalColors(output: string): string {
+  return output.replace(
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escapes requires control characters
+    /\u001b\[[0-?]*[ -/]*[@-~]/g,
+    '',
+  );
+}
+
 // A file size for the tables: megabytes, then kilobytes, then bytes.
 export const formatSize = (bytes: number) =>
   bytes > 1024 * 1024

@@ -1,13 +1,14 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectWorkspace } from '../src/components/pages/ProjectWorkspace';
 import { embeddedDict, I18nContext, makeTranslator } from '../src/i18n';
-import type { OsPanelProject } from '../src/ospanel';
+import type { OsPanelProject, ProjectTaskResult } from '../src/ospanel';
 
 const mocks = vi.hoisted(() => ({
   readProjectWorkspace: vi.fn(),
   readProjectFile: vi.fn(),
   saveProjectFile: vi.fn(),
+  runProjectTask: vi.fn(),
   getProjectModuleOptions: vi.fn(),
   getGlobalProjectEngines: vi.fn(),
   askConfirm: vi.fn(),
@@ -478,6 +479,80 @@ describe('project workspace drafts', () => {
       null,
       '[shop.test]\nRun job = * * * * 7 * 0 echo {host} & echo x=y\n',
     ]);
+  });
+
+  it('runs edited and new task commands without saving or validating the schedule', async () => {
+    mocks.readProjectFile.mockResolvedValue('[api.shop.test]\nBuild = * * * * * 1 0 echo api\n');
+    mocks.runProjectTask.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '', truncated: false });
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tasks' }));
+    await screen.findByRole('button', { name: 'Add task' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Domain' }), {
+      target: { value: 'api.shop.test' },
+    });
+    expect(screen.getByRole('checkbox', { name: 'Task enabled' })).not.toBeChecked();
+    const runNow = screen.getByRole('button', { name: 'Run now' });
+    expect(runNow.nextElementSibling).toBe(screen.getByRole('button', { name: 'Duplicate task' }));
+    const minute = screen.getByRole('textbox', { name: 'Minute' });
+    fireEvent.change(minute, { target: { value: '' } });
+    const command = screen.getByRole('textbox', { name: 'Command' });
+    fireEvent.change(command, { target: { value: 'echo edited' } });
+    fireEvent.click(runNow);
+    expect(mocks.runProjectTask).toHaveBeenCalledWith(project, 'api.shop.test', 'echo edited');
+    expect(await screen.findByText(t('tasks.runSuccess', { code: 0 }))).toBeInTheDocument();
+    expect(screen.getByText(t('tasks.runEmpty'))).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
+    expect(command).toHaveValue('');
+    expect(runNow).toBeDisabled();
+    fireEvent.change(command, { target: { value: 'echo first\necho second' } });
+    expect(runNow).toBeDisabled();
+    fireEvent.change(command, { target: { value: 'cmd.exe /c "echo {host} & echo x=y"' } });
+    fireEvent.click(runNow);
+    expect(mocks.runProjectTask).toHaveBeenLastCalledWith(
+      project,
+      'api.shop.test',
+      'cmd.exe /c "echo {host} & echo x=y"',
+    );
+    expect(mocks.saveProjectFile).not.toHaveBeenCalled();
+    await waitFor(() => expect(runNow).toBeEnabled());
+  });
+
+  it('shows a running task, both output streams and its exit code after changing tabs', async () => {
+    mocks.readProjectFile.mockResolvedValue('[shop.test]\nCheck = * * * * * 1 0 echo sample\n');
+    let finish!: (result: ProjectTaskResult) => void;
+    mocks.runProjectTask.mockReturnValueOnce(
+      new Promise<ProjectTaskResult>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tasks' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Run now' }));
+    expect(screen.getByText(t('tasks.runRunning'))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run now' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    finish({
+      exitCode: 7,
+      stdout: '\u001b[32m<sample output>\u001b[0m\n',
+      stderr: 'Sample error\n',
+      truncated: true,
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
+    const result = await screen.findByRole('region', { name: t('tasks.runResult') });
+    const taskList = screen.getByRole('region', { name: t('tasks.list') });
+    expect(taskList.nextElementSibling).toBe(result);
+    const output = within(result);
+    expect(await output.findByRole('status')).toHaveTextContent(t('tasks.runNonzero', { code: 7 }));
+    expect(output.getByText('<sample output>').textContent).toBe('<sample output>\n');
+    expect(output.getByRole('region', { name: t('tasks.runStdout') })).toHaveTextContent('<sample output>');
+    expect(output.getByLabelText(t('tasks.runStderr'))).toHaveTextContent('Sample error');
+    expect(output.getByText(t('tasks.runTruncated'))).toBeInTheDocument();
+
+    mocks.runProjectTask.mockRejectedValueOnce(new Error('err.desktopOnly'));
+    fireEvent.click(screen.getByRole('button', { name: 'Run now' }));
+    expect(await output.findByRole('alert')).toHaveTextContent(t('err.desktopOnly'));
+    expect(output.queryByLabelText(t('tasks.runStdout'))).not.toBeInTheDocument();
   });
 
   it('keeps the selected new task open after saving the file', async () => {

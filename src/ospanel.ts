@@ -1131,6 +1131,26 @@ export async function readProjectFile(project: OsPanelProject, file: string): Pr
   return demoProjectFiles.get(`${project.path}/${file}`) ?? null;
 }
 
+export type ProjectTaskResult = {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  truncated: boolean;
+};
+
+export async function runProjectTask(
+  project: OsPanelProject,
+  domain: string,
+  command: string,
+): Promise<ProjectTaskResult> {
+  if (!isTauri()) throw new Error('err.desktopOnly');
+  return invoke<ProjectTaskResult>('run_project_task', {
+    ...projectFileArgs(project),
+    domain,
+    command,
+  });
+}
+
 export async function readProjectMenu(project: OsPanelProject): Promise<OsPanelMenuDocument> {
   if (isTauri()) return invoke<OsPanelMenuDocument>('read_project_menu', projectFileArgs(project));
   return structuredClone(

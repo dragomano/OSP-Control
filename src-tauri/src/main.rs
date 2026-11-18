@@ -26,6 +26,7 @@ mod project_diagnostics;
 mod project_editors;
 mod project_starter_locale;
 mod project_starters;
+mod project_tasks;
 mod project_templates;
 mod project_workspace;
 mod projects;
@@ -284,6 +285,7 @@ fn main() {
             project_diagnostics::diagnose_project,
             project_workspace::read_project_file,
             project_workspace::save_project_file,
+            project_tasks::run_project_task,
             project_workspace::read_project_menu,
             project_workspace::write_project_menu,
             projects::write_project_settings,

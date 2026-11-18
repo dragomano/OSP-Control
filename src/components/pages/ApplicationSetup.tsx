@@ -9,6 +9,7 @@ import {
 } from '../../ospanel';
 import type { StarterInstall } from '../../projectTemplates';
 import { starterText } from '../../projectTemplates';
+import { stripTerminalColors } from '../shared';
 import { Button, NoticeText, SectionPanel } from '../ui';
 import { PathText } from '../widgets/PathText';
 import './applicationSetup.css';
@@ -45,12 +46,6 @@ export function ApplicationSetup({
   type InstallTextKey = 'title' | 'pending' | 'button' | 'hint' | 'unsaved' | 'done' | 'log' | 'backup';
   const text = (key: InstallTextKey) => starterText(install?.[key], lang);
   const phaseLabel = (key: string) => starterText(install?.phases[key] ?? '', lang);
-  // Composer and installer output may contain ANSI terminal colours.
-  const plainOutput = output.replace(
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escapes requires control characters
-    /\u001b\[[0-?]*[ -/]*[@-~]/g,
-    '',
-  );
   if (status !== 'pending' && !running && !result) return null;
   const start = async () => {
     if (disabled || pending.current) return;
@@ -126,7 +121,7 @@ export function ApplicationSetup({
       {output && (
         <details open={running || !!error}>
           <summary>{text('log')}</summary>
-          <pre>{plainOutput}</pre>
+          <pre>{stripTerminalColors(output)}</pre>
         </details>
       )}
     </SectionPanel>

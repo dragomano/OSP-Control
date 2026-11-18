@@ -162,7 +162,7 @@ pub(crate) fn base(root: &Path, domain: &str, base_dir: &str) -> Result<PathBuf,
     Ok(dir)
 }
 
-fn sections_at(dir: &Path) -> Result<Sections, CommandError> {
+pub(crate) fn sections_at(dir: &Path) -> Result<Sections, CommandError> {
     let osp = child(dir, ".osp")?;
     let ini = if osp.exists() { child(&osp, "project.ini")? } else { osp.join("project.ini") };
     read(&ini)?.map(|c| parse(&c)).unwrap_or_else(|| Ok(Sections::new()))

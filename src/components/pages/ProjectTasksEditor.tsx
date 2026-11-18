@@ -1,7 +1,8 @@
-import { Check, Clock3, Copy, Plus, Terminal, Trash2, TriangleAlert } from 'lucide-react';
+import { Check, Clock3, Copy, Play, Plus, Terminal, Trash2, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
-import { useI18n } from '../../i18n';
-import { askConfirm } from '../../ospanel';
+import { errorText, useI18n } from '../../i18n';
+import { askConfirm, type ProjectTaskResult } from '../../ospanel';
+import { displayProjectDomain } from '../../projectDomain';
 import {
   type ProjectTask,
   type ProjectTasksDocument,
@@ -12,23 +13,103 @@ import {
   taskPreset,
   uniqueTaskName,
 } from '../../projectTasks';
-import { Button, EmptyState, Field, Input, Notice, SectionPanel, Select, Textarea, Toolbar } from '../ui';
+import { stripTerminalColors } from '../shared';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Field,
+  Input,
+  Notice,
+  SectionPanel,
+  Select,
+  Textarea,
+  Toolbar,
+} from '../ui';
 import { SearchField } from '../widgets/SearchField';
 import '../widgets/formControls.css';
 import './projectTasksEditor.css';
+
+export type TaskRun = Pick<ProjectTask, 'command' | 'domain' | 'name'> &
+  (
+    | { state: 'running' }
+    | { state: 'finished'; result: ProjectTaskResult }
+    | { state: 'error'; error: unknown }
+  );
+
+function TaskRunOutput({ run }: { run: TaskRun }) {
+  const { t } = useI18n();
+  const result = run.state === 'finished' ? run.result : null;
+  const status = result
+    ? result.exitCode === null
+      ? t('tasks.runInterrupted')
+      : t(result.exitCode === 0 ? 'tasks.runSuccess' : 'tasks.runNonzero', { code: result.exitCode })
+    : t(run.state === 'running' ? 'tasks.runRunning' : 'tasks.runError');
+  const stdout = result ? stripTerminalColors(result.stdout) : '';
+  const stderr = result ? stripTerminalColors(result.stderr) : '';
+
+  return (
+    <section className="tasks-run" aria-label={t('tasks.runResult')}>
+      <div className="tasks-run-head">
+        <strong>{t('tasks.runResult')}</strong>
+        <Badge
+          className="tasks-run-status"
+          role="status"
+          tone={run.state === 'running' ? 'info' : result?.exitCode === 0 ? 'success' : 'error'}
+        >
+          {status}
+        </Badge>
+      </div>
+      <p className="tasks-run-target">
+        {t('tasks.runTarget', {
+          name: run.name || t('tasks.newName'),
+          domain: displayProjectDomain(run.domain),
+        })}
+      </p>
+      <code className="tasks-run-command">{run.command}</code>
+      {run.state === 'error' && (
+        <Notice className="workspace-error" role="alert">
+          {errorText(t, run.error, 'err.taskRunFailed')}
+        </Notice>
+      )}
+      {result && (
+        <>
+          {stdout && (
+            <section aria-label={t('tasks.runStdout')}>
+              <p>{t('tasks.runStdout')}</p>
+              <pre>{stdout}</pre>
+            </section>
+          )}
+          {stderr && (
+            <section aria-label={t('tasks.runStderr')}>
+              <p>{t('tasks.runStderr')}</p>
+              <pre>{stderr}</pre>
+            </section>
+          )}
+          {!stdout && !stderr && <p>{t('tasks.runEmpty')}</p>}
+          {result.truncated && <p>{t('tasks.runTruncated')}</p>}
+        </>
+      )}
+    </section>
+  );
+}
 
 export function ProjectTasksEditor({
   document,
   tasks,
   domain,
   disabled,
+  lastRun,
   onChange,
+  onRun,
 }: {
   document: ProjectTasksDocument;
   tasks: ProjectTask[];
   domain: string;
   disabled: boolean;
+  lastRun: TaskRun | null;
   onChange: (tasks: ProjectTask[]) => void;
+  onRun: (task: ProjectTask) => void;
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -95,48 +176,55 @@ export function ProjectTasksEditor({
         </Button>
       </Toolbar>
       <div className="tasks-editor-layout">
-        <SectionPanel className="workspace-card tasks-list-panel" aria-label={t('tasks.list')}>
-          <div className="tasks-panel-head">
-            <strong>
-              <Clock3 size={16} />
-              {t('tasks.list')}
-            </strong>
-            <span>{t('tasks.count', { n: entries.length })}</span>
-          </div>
-          <div className="tasks-list">
-            {visible.map((item) => (
-              <Button
-                selected={Boolean(item.id === task?.id)}
-                variant="ghost"
-                type="button"
-                key={item.id}
-                className={`tasks-list-item${item.id === task?.id ? ' selected' : ''}`}
-                aria-pressed={item.id === task?.id}
-                onClick={() => setSelected(item)}
-              >
-                <span
-                  className={`tasks-state${item.enabled === '0' ? '' : ' enabled'}`}
-                  title={t(item.enabled === '0' ? 'workspace.off' : 'workspace.on')}
+        <div className="tasks-list-column">
+          <SectionPanel className="workspace-card tasks-list-panel" aria-label={t('tasks.list')}>
+            <div className="tasks-panel-head">
+              <strong>
+                <Clock3 size={16} />
+                {t('tasks.list')}
+              </strong>
+              <span>{t('tasks.count', { n: entries.length })}</span>
+            </div>
+            <div className="tasks-list">
+              {visible.map((item) => (
+                <Button
+                  selected={Boolean(item.id === task?.id)}
+                  variant="ghost"
+                  type="button"
+                  key={item.id}
+                  className={`tasks-list-item${item.id === task?.id ? ' selected' : ''}`}
+                  aria-pressed={item.id === task?.id}
+                  onClick={() => setSelected(item)}
                 >
-                  <Check size={13} />
-                </span>
-                <span>
-                  <b>{item.name || t('tasks.newName')}</b>
-                  <code>{item.schedule.join(' ')}</code>
-                  <small>{t(item.enabled === '0' ? 'workspace.off' : 'workspace.on')}</small>
-                </span>
-                {taskErrors(item, tasks).length > 0 && (
-                  <TriangleAlert className="tasks-invalid-mark" size={15} aria-label={t('tasks.fixErrors')} />
-                )}
-              </Button>
-            ))}
-            {!visible.length && (
-              <EmptyState className="empty-note">
-                {t(entries.length ? 'common.empty' : 'tasks.empty')}
-              </EmptyState>
-            )}
-          </div>
-        </SectionPanel>
+                  <span
+                    className={`tasks-state${item.enabled === '0' ? '' : ' enabled'}`}
+                    title={t(item.enabled === '0' ? 'workspace.off' : 'workspace.on')}
+                  >
+                    <Check size={13} />
+                  </span>
+                  <span>
+                    <b>{item.name || t('tasks.newName')}</b>
+                    <code>{item.schedule.join(' ')}</code>
+                    <small>{t(item.enabled === '0' ? 'workspace.off' : 'workspace.on')}</small>
+                  </span>
+                  {taskErrors(item, tasks).length > 0 && (
+                    <TriangleAlert
+                      className="tasks-invalid-mark"
+                      size={15}
+                      aria-label={t('tasks.fixErrors')}
+                    />
+                  )}
+                </Button>
+              ))}
+              {!visible.length && (
+                <EmptyState className="empty-note">
+                  {t(entries.length ? 'common.empty' : 'tasks.empty')}
+                </EmptyState>
+              )}
+            </div>
+          </SectionPanel>
+          {lastRun && <TaskRunOutput run={lastRun} />}
+        </div>
         <SectionPanel className="workspace-card tasks-inspector" aria-label={t('tasks.properties')}>
           {task ? (
             <>
@@ -148,6 +236,18 @@ export function ProjectTasksEditor({
                   <span>{t('tasks.properties')}</span>
                   <strong>{task.name || t('tasks.newName')}</strong>
                 </div>
+                <Button
+                  variant="ghost"
+                  square
+                  type="button"
+                  className="icon-button"
+                  aria-label={t('tasks.runNow')}
+                  title={t('tasks.runNow')}
+                  disabled={lastRun?.state === 'running' || errors.includes('command')}
+                  onClick={() => onRun(task)}
+                >
+                  <Play size={16} />
+                </Button>
                 <Button
                   variant="ghost"
                   square
@@ -197,11 +297,15 @@ export function ProjectTasksEditor({
                 <Input
                   type="checkbox"
                   checked={task.enabled !== '0'}
+                  aria-describedby={[`${id}-enabled-hint`, errorId('enabled')].filter(Boolean).join(' ')}
                   onChange={(event) => update({ enabled: event.target.checked ? '1' : '0' })}
                 />
                 {t('tasks.enabled')}
               </Field>
               {error('enabled')}
+              <p className="tasks-help" id={`${id}-enabled-hint`}>
+                {t('tasks.enabledHint')}
+              </p>
               <Field className="tasks-field">
                 <span>{t('tasks.schedule')}</span>
                 <Select

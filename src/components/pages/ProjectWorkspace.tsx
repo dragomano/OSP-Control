@@ -31,6 +31,7 @@ import {
   type ProjectModuleOptions,
   readProjectFile,
   readProjectWorkspace,
+  runProjectTask,
   saveProjectFile,
 } from '../../ospanel';
 import { displayProjectDomain, normalizeProjectDomain } from '../../projectDomain';
@@ -68,6 +69,7 @@ import '../widgets/formControls.css';
 import './projectWorkspace.css';
 import { ApplicationSetup } from './ApplicationSetup';
 import type { MenuEditorHandle } from './MenuEditor';
+import type { TaskRun } from './ProjectTasksEditor';
 
 const ProjectMenuEditor = lazy(() =>
   import('./MenuEditor').then((module) => ({ default: module.MenuEditor })),
@@ -119,6 +121,7 @@ export function ProjectWorkspace({
   const [globals, setGlobals] = useState<GlobalProjectEngines | null>(null);
   const [files, setFiles] = useState<Record<string, FileDraft>>({});
   const [tasks, setTasks] = useState<ProjectTask[] | null>(null);
+  const [lastTaskRun, setLastTaskRun] = useState<TaskRun | null>(null);
   const [engine, setEngine] = useState('nginx');
   const [applicationFile, setApplicationFile] = useState('.env');
   const [phpFile, setPhpFile] = useState('.user.ini');
@@ -370,6 +373,17 @@ export function ProjectWorkspace({
       await action();
     } catch (error) {
       notify(errorText(t, error, 'workspace.failed'));
+    }
+  };
+  const runTask = async ({ command, domain, name }: ProjectTask) => {
+    if (lastTaskRun?.state === 'running') return;
+    const task = { command, domain, name };
+    setLastTaskRun({ ...task, state: 'running' });
+    try {
+      const result = await runProjectTask(project, domain, command);
+      setLastTaskRun({ ...task, state: 'finished', result });
+    } catch (error) {
+      setLastTaskRun({ ...task, state: 'error', error });
     }
   };
   const field = (key: string, control: ReactNode) => (
@@ -1015,7 +1029,9 @@ export function ProjectWorkspace({
                           tasks={tasks}
                           domain={domain}
                           disabled={locked}
+                          lastRun={lastTaskRun}
                           onChange={setTasks}
+                          onRun={(task) => void runTask(task)}
                         />
                         {files['tasks.ini'].original === null && (
                           <p className="workspace-hint">{t('workspace.createFile')}</p>
