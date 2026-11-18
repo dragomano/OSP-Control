@@ -102,6 +102,22 @@ button.starter-card:disabled {
   min-width: 0;
 }
 
+.starter-install-tabs {
+  margin-bottom: 0;
+}
+
+.starter-install-tabs button {
+  flex-shrink: 0;
+  min-height: 36px;
+}
+
+.starter-install-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-width: 0;
+}
+
 .workspace-setting .starter-input {
   width: min(100%, 380px);
 }

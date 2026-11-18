@@ -51,6 +51,14 @@ import './projectWorkspace.css';
 import './projectStarters.css';
 
 type Tab = 'general' | 'install' | 'web' | 'files' | 'database' | 'json';
+const INSTALL_SECTIONS = [
+  ['texts', 'starter.texts'],
+  ['phases', 'starter.phases'],
+  ['engine', 'starter.engine'],
+  ['environment', 'starter.envTitle'],
+  ['files', 'starter.configTitle'],
+] as const;
+type InstallSection = (typeof INSTALL_SECTIONS)[number][0];
 const BUILT_IN = ['empty', 'static'] as const;
 const ENGINES = ['nginx', 'apache', 'caddy'] as const;
 const DB_ENGINES = ['sqlite', 'mysql', 'mariadb', 'postgresql'] as const;
@@ -77,6 +85,7 @@ export function ProjectStartersWorkspace({
   const [draft, setDraft] = useState<ProjectStarterDocument | null>(null);
   const [original, setOriginal] = useState('');
   const [tab, setTab] = useState<Tab>('general');
+  const [installSection, setInstallSection] = useState<InstallSection>('texts');
   const [engine, setEngine] = useState<(typeof ENGINES)[number]>('nginx');
   const [file, setFile] = useState('');
   const [newFile, setNewFile] = useState('files/public/index.php');
@@ -109,6 +118,7 @@ export function ProjectStartersWorkspace({
     setOriginal(JSON.stringify(next));
     setJson(JSON.stringify(next.manifest, null, 2));
     setTab('general');
+    setInstallSection('texts');
     setFile(Object.keys(next.assets).find((p) => p.startsWith('files/')) ?? '');
   };
   const change = (patch: Partial<ProjectStarterDocument['manifest']>) => {
@@ -135,6 +145,7 @@ export function ProjectStartersWorkspace({
     setOriginal('');
     setJson(JSON.stringify(next.manifest, null, 2));
     setTab('general');
+    setInstallSection('texts');
   };
   const run = async (operation: () => Promise<void>) => {
     setBusy(true);
@@ -421,209 +432,272 @@ export function ProjectStartersWorkspace({
             onChange={() => change({ install: undefined })}
           />
         </FormRow>
-        <SectionHeader className="workspace-section-head">
-          <h2>{t('starter.texts')}</h2>
-          <p>{t('starter.textsHint')}</p>
-        </SectionHeader>
-        {installField('starter.installTitle', installText('title'), (value) =>
-          changeInstallText('title', value),
-        )}
-        {installField('starter.installButton', installText('button'), (value) =>
-          changeInstallText('button', value),
-        )}
-        {installField('starter.installPending', installText('pending'), (value) =>
-          changeInstallText('pending', value),
-        )}
-        {installField('starter.installDone', installText('done'), (value) =>
-          changeInstallText('done', value),
-        )}
-        {installField('starter.installLog', installText('log'), (value) => changeInstallText('log', value))}
-        {installField('starter.installBackup', installText('backup'), (value) =>
-          changeInstallText('backup', value),
-        )}
-        {installArea(
-          'starter.installHint',
-          installText('hint'),
-          (value) => changeInstallText('hint', value),
-          2,
-        )}
-        {installArea('starter.installUnsaved', installText('unsaved'), (value) =>
-          changeInstallText('unsaved', value),
-        )}
-        <SectionHeader className="workspace-section-head">
-          <h2>{t('starter.phases')}</h2>
-          <p>{t('starter.phasesHint')}</p>
-        </SectionHeader>
-        {(
-          [
-            'preparing',
-            'installing',
-            'publishing',
-            'database',
-            'configuring',
-            'downloading',
-            'extracting',
-          ] as const
-        ).map((key) =>
-          installField(`starter.phase.${key}`, phaseValue(key), (value) => changePhase(key, value)),
-        )}
-        <FormRow className="workspace-setting">
-          <b>{t('starter.engine')}</b>
-          <div className="starter-chips">
-            <Button
-              selected={Boolean(engineKind === 'composer')}
-              variant="ghost"
+        <Tabs
+          className="workspace-tabs starter-install-tabs"
+          role="tablist"
+          aria-label={t('starter.tab.install')}
+        >
+          {INSTALL_SECTIONS.map(([section, label]) => (
+            <UITab
+              key={section}
+              id={`starter-install-tab-${section}`}
               type="button"
-              className={`starter-chip ${engineKind === 'composer' ? 'selected' : ''}`}
-              disabled={busy}
-              onClick={() => switchEngine('composer')}
+              role="tab"
+              aria-selected={installSection === section}
+              aria-controls="starter-install-panel"
+              className={installSection === section ? 'selected' : ''}
+              onClick={() => setInstallSection(section)}
             >
-              {t('starter.engineComposer')}
-            </Button>
-            <Button
-              selected={Boolean(engineKind === 'archive')}
-              variant="ghost"
-              type="button"
-              className={`starter-chip ${engineKind === 'archive' ? 'selected' : ''}`}
-              disabled={busy}
-              onClick={() => switchEngine('archive')}
-            >
-              {t('starter.engineArchive')}
-            </Button>
-          </div>
-        </FormRow>
-        <p className="workspace-hint">{t('starter.engineHint')}</p>
-        {engineKind === 'composer' ? (
-          <>
-            {installField('starter.createProject', install.createProject, (value) =>
-              changeInstall({ createProject: value }),
-            )}
-            {installSwitch('scripts', 'starter.scripts')}
-            {installField('starter.payloadName', install.payload.composerName ?? '', (value) =>
-              changeInstall({ payload: { ...install.payload, composerName: value || undefined } }),
-            )}
-            {installArea('starter.payloadFiles', listText(install.payload.files), (value) =>
-              changeInstall({ payload: { ...install.payload, files: parseList(value) } }),
-            )}
-            {installArea('starter.then', commandText(install.then), (value) => {
-              const patch: Partial<StarterInstall> = {};
-              // biome-ignore lint/suspicious/noThenProperty: the Composer step list is named "then" by the starter manifest
-              (patch as { then?: string[][] }).then = parseCommands(value);
-              changeInstall(patch);
-            })}
-            {installArea('starter.console', commandText(install.console), (value) =>
-              changeInstall({ console: parseCommands(value) }),
-            )}
-            {installArea('starter.consoleWithDb', commandText(install.consoleWithDb), (value) =>
-              changeInstall({ consoleWithDb: parseCommands(value) }),
-            )}
-          </>
-        ) : (
-          install.archive &&
-          (() => {
-            const archive = install.archive;
-            return (
-              <>
-                {installField('starter.releaseUrl', archive.release?.url ?? '', (value) =>
+              {t(label)}
+            </UITab>
+          ))}
+        </Tabs>
+        <div
+          id="starter-install-panel"
+          role="tabpanel"
+          aria-labelledby={`starter-install-tab-${installSection}`}
+          className="starter-install-section"
+        >
+          {installSection === 'texts' && (
+            <>
+              <SectionHeader className="workspace-section-head">
+                <h2>{t('starter.texts')}</h2>
+                <p>{t('starter.textsHint')}</p>
+              </SectionHeader>
+              {installField('starter.installTitle', installText('title'), (value) =>
+                changeInstallText('title', value),
+              )}
+              {installField('starter.installButton', installText('button'), (value) =>
+                changeInstallText('button', value),
+              )}
+              {installField('starter.installPending', installText('pending'), (value) =>
+                changeInstallText('pending', value),
+              )}
+              {installField('starter.installDone', installText('done'), (value) =>
+                changeInstallText('done', value),
+              )}
+              {installField('starter.installLog', installText('log'), (value) =>
+                changeInstallText('log', value),
+              )}
+              {installField('starter.installBackup', installText('backup'), (value) =>
+                changeInstallText('backup', value),
+              )}
+              {installArea(
+                'starter.installHint',
+                installText('hint'),
+                (value) => changeInstallText('hint', value),
+                2,
+              )}
+              {installArea('starter.installUnsaved', installText('unsaved'), (value) =>
+                changeInstallText('unsaved', value),
+              )}
+            </>
+          )}
+          {installSection === 'phases' && (
+            <>
+              <SectionHeader className="workspace-section-head">
+                <h2>{t('starter.phases')}</h2>
+                <p>{t('starter.phasesHint')}</p>
+              </SectionHeader>
+              {(
+                [
+                  'preparing',
+                  'installing',
+                  'publishing',
+                  'database',
+                  'configuring',
+                  'downloading',
+                  'extracting',
+                ] as const
+              ).map((key) =>
+                installField(`starter.phase.${key}`, phaseValue(key), (value) => changePhase(key, value)),
+              )}
+            </>
+          )}
+          {installSection === 'engine' && (
+            <>
+              <FormRow className="workspace-setting">
+                <b>{t('starter.engine')}</b>
+                <div className="starter-chips">
+                  <Button
+                    selected={Boolean(engineKind === 'composer')}
+                    variant="ghost"
+                    type="button"
+                    className={`starter-chip ${engineKind === 'composer' ? 'selected' : ''}`}
+                    disabled={busy}
+                    onClick={() => switchEngine('composer')}
+                  >
+                    {t('starter.engineComposer')}
+                  </Button>
+                  <Button
+                    selected={Boolean(engineKind === 'archive')}
+                    variant="ghost"
+                    type="button"
+                    className={`starter-chip ${engineKind === 'archive' ? 'selected' : ''}`}
+                    disabled={busy}
+                    onClick={() => switchEngine('archive')}
+                  >
+                    {t('starter.engineArchive')}
+                  </Button>
+                </div>
+              </FormRow>
+              <p className="workspace-hint">{t('starter.engineHint')}</p>
+              {engineKind === 'composer' ? (
+                <>
+                  {installField('starter.createProject', install.createProject, (value) =>
+                    changeInstall({ createProject: value }),
+                  )}
+                  {installSwitch('scripts', 'starter.scripts')}
+                  {installField('starter.payloadName', install.payload.composerName ?? '', (value) =>
+                    changeInstall({ payload: { ...install.payload, composerName: value || undefined } }),
+                  )}
+                  {installArea('starter.payloadFiles', listText(install.payload.files), (value) =>
+                    changeInstall({ payload: { ...install.payload, files: parseList(value) } }),
+                  )}
+                  {installArea('starter.then', commandText(install.then), (value) => {
+                    const patch: Partial<StarterInstall> = {};
+                    // biome-ignore lint/suspicious/noThenProperty: the Composer step list is named "then" by the starter manifest
+                    (patch as { then?: string[][] }).then = parseCommands(value);
+                    changeInstall(patch);
+                  })}
+                  {installArea('starter.console', commandText(install.console), (value) =>
+                    changeInstall({ console: parseCommands(value) }),
+                  )}
+                  {installArea('starter.consoleWithDb', commandText(install.consoleWithDb), (value) =>
+                    changeInstall({ consoleWithDb: parseCommands(value) }),
+                  )}
+                </>
+              ) : (
+                install.archive &&
+                (() => {
+                  const archive = install.archive;
+                  return (
+                    <>
+                      {installField('starter.releaseUrl', archive.release?.url ?? '', (value) =>
+                        changeInstall({
+                          archive: {
+                            ...archive,
+                            release: value.trim()
+                              ? { url: value.trim(), path: archive.release?.path ?? [] }
+                              : undefined,
+                          },
+                        }),
+                      )}
+                      {installField('starter.releasePath', archive.release?.path.join('.') ?? '', (value) =>
+                        changeInstall({
+                          archive: {
+                            ...archive,
+                            release: {
+                              url: archive.release?.url ?? '',
+                              path: parseList(value).map((part) => part.replace(/^\.+|\.$/g, '')),
+                            },
+                          },
+                        }),
+                      )}
+                      {installField('starter.archiveUrl', archive.url, (value) =>
+                        changeInstall({ archive: { ...archive, url: value } }),
+                      )}
+                      {installField('starter.checksumUrl', archive.checksumUrl ?? '', (value) =>
+                        changeInstall({ archive: { ...archive, checksumUrl: value || undefined } }),
+                      )}
+                      {installField('starter.maxArchiveBytes', String(archive.maxArchiveBytes), (value) =>
+                        changeInstall({ archive: { ...archive, maxArchiveBytes: Number(value) || 0 } }),
+                      )}
+                      {installField('starter.extractFromDir', archive.extract.fromDir, (value) =>
+                        changeInstall({
+                          archive: { ...archive, extract: { ...archive.extract, fromDir: value } },
+                        }),
+                      )}
+                      {installField('starter.extractTo', archive.extract.to, (value) =>
+                        changeInstall({
+                          archive: { ...archive, extract: { ...archive.extract, to: value } },
+                        }),
+                      )}
+                      {installArea(
+                        'starter.requiredFiles',
+                        listText(archive.extract.requiredFiles),
+                        (value) =>
+                          changeInstall({
+                            archive: {
+                              ...archive,
+                              extract: { ...archive.extract, requiredFiles: parseList(value) },
+                            },
+                          }),
+                      )}
+                    </>
+                  );
+                })()
+              )}
+            </>
+          )}
+          {installSection === 'environment' && (
+            <>
+              <SectionHeader className="workspace-section-head">
+                <h2>{t('starter.envTitle')}</h2>
+                <p>{t('starter.envHint')}</p>
+              </SectionHeader>
+              {installField('starter.envSource', install.envSource ?? '', (value) =>
+                changeInstall({ envSource: value || undefined }),
+              )}
+              {installArea('starter.env', mapText(install.env), (value) =>
+                changeInstall({ env: parseMap(value) }),
+              )}
+              {installArea('starter.envSqlite', mapText(install.envSqlite), (value) =>
+                changeInstall({ envSqlite: parseMap(value) }),
+              )}
+              {installArea('starter.envServer', mapText(install.envServer), (value) =>
+                changeInstall({ envServer: parseMap(value) }),
+              )}
+              {installField('starter.sqliteDir', install.sqliteDir ?? '', (value) =>
+                changeInstall({ sqliteDir: value || undefined }),
+              )}
+              {installSwitch('sqliteFallback', 'starter.sqliteFallback')}
+            </>
+          )}
+          {installSection === 'files' && (
+            <>
+              <SectionHeader className="workspace-section-head">
+                <h2>{t('starter.keepTitle')}</h2>
+                <p>{t('starter.keepHint')}</p>
+              </SectionHeader>
+              {installArea('starter.keep', listText(install.keep ?? []), (value) =>
+                changeInstall({ keep: parseList(value) }),
+              )}
+              <SectionHeader className="workspace-section-head">
+                <h2>{t('starter.randomTitle')}</h2>
+                <p>{t('starter.randomHint')}</p>
+              </SectionHeader>
+              {installArea(
+                'starter.randomHex',
+                Object.entries(install.randomHex)
+                  .map(([name, bytes]) => `${name}=${bytes}`)
+                  .join('\n'),
+                (value) =>
                   changeInstall({
-                    archive: {
-                      ...archive,
-                      release: value.trim()
-                        ? { url: value.trim(), path: archive.release?.path ?? [] }
-                        : undefined,
-                    },
+                    randomHex: Object.fromEntries(
+                      Object.entries(parseMap(value)).map(
+                        ([name, bytes]) => [name, Number(bytes) || 0] as const,
+                      ),
+                    ),
                   }),
-                )}
-                {installField('starter.releasePath', archive.release?.path.join('.') ?? '', (value) =>
+              )}
+              <SectionHeader className="workspace-section-head">
+                <h2>{t('starter.configTitle')}</h2>
+                <p>{t('starter.configHint')}</p>
+              </SectionHeader>
+              {installArea(
+                'starter.configFiles',
+                install.configFiles.map((file) => `${file.template}=${file.to}`).join('\n'),
+                (value) =>
                   changeInstall({
-                    archive: {
-                      ...archive,
-                      release: {
-                        url: archive.release?.url ?? '',
-                        path: parseList(value).map((part) => part.replace(/^\.+|\.$/g, '')),
-                      },
-                    },
+                    configFiles: Object.entries(parseMap(value)).map(
+                      ([template, to]) => ({ template, to }) as const,
+                    ),
                   }),
-                )}
-                {installField('starter.archiveUrl', archive.url, (value) =>
-                  changeInstall({ archive: { ...archive, url: value } }),
-                )}
-                {installField('starter.checksumUrl', archive.checksumUrl ?? '', (value) =>
-                  changeInstall({ archive: { ...archive, checksumUrl: value || undefined } }),
-                )}
-                {installField('starter.maxArchiveBytes', String(archive.maxArchiveBytes), (value) =>
-                  changeInstall({ archive: { ...archive, maxArchiveBytes: Number(value) || 0 } }),
-                )}
-                {installField('starter.extractFromDir', archive.extract.fromDir, (value) =>
-                  changeInstall({ archive: { ...archive, extract: { ...archive.extract, fromDir: value } } }),
-                )}
-                {installField('starter.extractTo', archive.extract.to, (value) =>
-                  changeInstall({ archive: { ...archive, extract: { ...archive.extract, to: value } } }),
-                )}
-                {installArea('starter.requiredFiles', listText(archive.extract.requiredFiles), (value) =>
-                  changeInstall({
-                    archive: { ...archive, extract: { ...archive.extract, requiredFiles: parseList(value) } },
-                  }),
-                )}
-              </>
-            );
-          })()
-        )}
-        <SectionHeader className="workspace-section-head">
-          <h2>{t('starter.envTitle')}</h2>
-          <p>{t('starter.envHint')}</p>
-        </SectionHeader>
-        {installField('starter.envSource', install.envSource ?? '', (value) =>
-          changeInstall({ envSource: value || undefined }),
-        )}
-        {installArea('starter.env', mapText(install.env), (value) => changeInstall({ env: parseMap(value) }))}
-        {installArea('starter.envSqlite', mapText(install.envSqlite), (value) =>
-          changeInstall({ envSqlite: parseMap(value) }),
-        )}
-        {installArea('starter.envServer', mapText(install.envServer), (value) =>
-          changeInstall({ envServer: parseMap(value) }),
-        )}
-        {installField('starter.sqliteDir', install.sqliteDir ?? '', (value) =>
-          changeInstall({ sqliteDir: value || undefined }),
-        )}
-        {installSwitch('sqliteFallback', 'starter.sqliteFallback')}
-        <SectionHeader className="workspace-section-head">
-          <h2>{t('starter.keepTitle')}</h2>
-          <p>{t('starter.keepHint')}</p>
-        </SectionHeader>
-        {installArea('starter.keep', listText(install.keep ?? []), (value) =>
-          changeInstall({ keep: parseList(value) }),
-        )}
-        <SectionHeader className="workspace-section-head">
-          <h2>{t('starter.randomTitle')}</h2>
-          <p>{t('starter.randomHint')}</p>
-        </SectionHeader>
-        {installArea(
-          'starter.randomHex',
-          Object.entries(install.randomHex)
-            .map(([name, bytes]) => `${name}=${bytes}`)
-            .join('\n'),
-          (value) =>
-            changeInstall({
-              randomHex: Object.fromEntries(
-                Object.entries(parseMap(value)).map(([name, bytes]) => [name, Number(bytes) || 0] as const),
-              ),
-            }),
-        )}
-        <SectionHeader className="workspace-section-head">
-          <h2>{t('starter.configTitle')}</h2>
-          <p>{t('starter.configHint')}</p>
-        </SectionHeader>
-        {installArea(
-          'starter.configFiles',
-          install.configFiles.map((file) => `${file.template}=${file.to}`).join('\n'),
-          (value) =>
-            changeInstall({
-              configFiles: Object.entries(parseMap(value)).map(
-                ([template, to]) => ({ template, to }) as const,
-              ),
-            }),
-        )}
+              )}
+            </>
+          )}
+        </div>
       </>
     ) : (
       <Panel className="workspace-card starter-empty-config">

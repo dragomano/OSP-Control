@@ -88,7 +88,7 @@ describe('ProjectStartersWorkspace', () => {
     renderWorkspace();
     fireEvent.click(await screen.findByRole('button', { name: /WordPress/ }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Install' }));
-    expect(screen.getByText('Install texts')).toBeVisible();
+    expect(screen.getByRole('tabpanel', { name: 'Install texts' })).toBeVisible();
   });
 
   it('edits the manifest fields and saves through the adapter', async () => {
@@ -124,6 +124,10 @@ describe('ProjectStartersWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add install section' }));
     const buttonField = await screen.findByLabelText('Install button');
     expect(buttonField).toHaveValue('PHP application');
+    expect(screen.queryByLabelText('Composer package (create-project)')).toBeNull();
+    fireEvent.change(buttonField, { target: { value: 'Install application' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Engine' }));
+    expect(screen.queryByLabelText('Install button')).toBeNull();
     fireEvent.change(screen.getByLabelText('Composer package (create-project)'), {
       target: { value: 'vendor/package' },
     });
@@ -131,7 +135,10 @@ describe('ProjectStartersWorkspace', () => {
     await waitFor(() => expect(mocks.saveProjectStarter).toHaveBeenCalled());
     const saved = mocks.saveProjectStarter.mock.calls[0][0];
     expect(saved.manifest.install.createProject).toBe('vendor/package');
-    expect(saved.manifest.install.button).toMatchObject({ en: 'PHP application' });
+    expect(saved.manifest.install.button).toMatchObject({ en: 'Install application' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Install texts' }));
+    expect(screen.getByLabelText('Install button')).toHaveValue('Install application');
+    fireEvent.click(screen.getByRole('tab', { name: 'Engine' }));
 
     // The archive engine replaces the composer fields and parses the line-based maps.
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
@@ -141,9 +148,12 @@ describe('ProjectStartersWorkspace', () => {
     fireEvent.change(screen.getByLabelText('Required archive files'), {
       target: { value: 'index.php\nwp-load.php' },
     });
+    fireEvent.click(screen.getByRole('tab', { name: 'Environment and SQLite' }));
+    expect(screen.queryByLabelText('Required archive files')).toBeNull();
     fireEvent.change(screen.getByLabelText('Environment variables'), {
       target: { value: 'APP_ENV=local' },
     });
+    fireEvent.click(screen.getByRole('tab', { name: 'Configuration templates' }));
     fireEvent.change(screen.getByLabelText('Random keys (name=bytes)'), {
       target: { value: 'appSalt=32' },
     });
@@ -153,6 +163,7 @@ describe('ProjectStartersWorkspace', () => {
     fireEvent.change(screen.getByLabelText('Files kept from the scaffold'), {
       target: { value: '.gitignore' },
     });
+    fireEvent.click(screen.getByRole('tab', { name: 'Install phases' }));
     fireEvent.change(await screen.findByLabelText('Checking the scaffold…'), {
       target: { value: 'Checking…' },
     });
@@ -170,6 +181,8 @@ describe('ProjectStartersWorkspace', () => {
     expect(archived.manifest.install.phases.preparing).toBe('Checking…');
 
     // Back to Composer: the archive section is dropped, the command field returns.
+    fireEvent.click(screen.getByRole('tab', { name: 'Engine' }));
+    expect(screen.getByLabelText('Required archive files')).toHaveValue('index.php\nwp-load.php');
     fireEvent.click(screen.getByRole('button', { name: 'Composer' }));
     expect(screen.getByLabelText('Composer package (create-project)')).toBeInTheDocument();
 
@@ -182,6 +195,7 @@ describe('ProjectStartersWorkspace', () => {
     renderWorkspace();
     fireEvent.click(await screen.findByRole('button', { name: /Laravel/ }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Install' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Engine' }));
     const scripts = screen.getByRole('switch', { name: 'Run package scripts' });
     expect(scripts).toHaveAttribute('aria-checked', 'false');
     fireEvent.click(scripts);
