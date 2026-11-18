@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../src/App';
 import { LOCALES_UPDATED_EVENT } from '../src/i18n';
@@ -63,7 +63,7 @@ describe('locale loading request ordering', () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Интерфейс' }));
-      await screen.findByRole('option', { name: 'English' });
+      await within(screen.getByRole('tabpanel')).findByRole('option', { name: 'English' });
 
       if (source === 'focus') fireEvent(window, new Event('focus'));
       if (source === 'dictionary update') fireEvent(window, new Event(LOCALES_UPDATED_EVENT));
@@ -72,7 +72,10 @@ describe('locale loading request ordering', () => {
           fireEvent.click(screen.getByRole('button', { name: 'Перечитать переводы' }));
         });
       }
-      selectOption(screen.getByRole('combobox', { name: 'Язык интерфейса' }), 'English');
+      selectOption(
+        within(screen.getByRole('tabpanel')).getByRole('combobox', { name: 'Язык интерфейса' }),
+        'English',
+      );
 
       await resolveLocale('en', {
         'nav.settings': 'Settings from latest response',

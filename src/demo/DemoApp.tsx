@@ -16,6 +16,7 @@ function Frame({
   palette,
   onPalette,
   onNavigate,
+  onLang,
   label,
 }: {
   theme: 'light' | 'dark';
@@ -24,6 +25,7 @@ function Frame({
   palette: string;
   onPalette: (id: string) => void;
   onNavigate: (page: Page) => void;
+  onLang: (lang: string) => void;
   label: string;
 }) {
   const ref = useRef<HTMLIFrameElement>(null);
@@ -44,10 +46,11 @@ function Frame({
         return;
       if (demoPages.includes(event.data.page)) onNavigate(event.data.page);
       if (colorThemeId(event.data.palette) === event.data.palette) onPalette(event.data.palette);
+      if (Object.keys(demoLanguages).includes(event.data.lang)) onLang(event.data.lang);
     };
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, [onNavigate, onPalette]);
+  }, [onNavigate, onPalette, onLang]);
   return (
     <section className="workshop-frame" data-theme={theme}>
       <iframe
@@ -185,6 +188,7 @@ export default function DemoApp() {
               palette={palette}
               onPalette={setPalette}
               onNavigate={setPage}
+              onLang={setLang}
               label={t('demo.appFrame', { theme: t(`demo.${theme}`) })}
             />
           </div>

@@ -4,6 +4,7 @@ import {
   CircleHelp,
   Copy,
   FolderOpen,
+  Languages,
   Leaf,
   Lightbulb,
   MessagesSquare,
@@ -49,6 +50,7 @@ import {
   I18nContext,
   LOCALES_UPDATED_EVENT,
   type LocaleInfo,
+  langDisplayName,
   loadLocaleDict,
   loadLocaleList,
   localeIssues,
@@ -191,7 +193,9 @@ function App() {
   // The first dictionary is the settings language, not the base: otherwise English text
   // flashes in a Russian UI until the locale file is loaded.
   const [dict, setDict] = useState<Dict>(() => embeddedDict(initialLang()));
-  const [locales, setLocales] = useState<LocaleInfo[]>([]);
+  const [locales, setLocales] = useState<LocaleInfo[]>(() =>
+    EMBEDDED_LANGS.map((code) => ({ code, name: langDisplayName(code) })),
+  );
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
@@ -1206,6 +1210,21 @@ function App() {
                     <option value="system">{t('settings.themeSystem')}</option>
                     <option value="dark">{t('settings.themeDark')}</option>
                     <option value="light">{t('settings.themeLight')}</option>
+                  </Select>
+                  <Select
+                    iconOnly
+                    className="icon-button"
+                    aria-label={t('settings.languageTitle')}
+                    title={t('settings.languageTitle')}
+                    value={lang}
+                    onChange={(event) => changeLang(event.target.value)}
+                    leadingIcon={<Languages size={17} aria-hidden="true" />}
+                  >
+                    {locales.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.name}
+                      </option>
+                    ))}
                   </Select>
                 </div>
               </header>

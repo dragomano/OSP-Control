@@ -105,6 +105,62 @@ describe('workshop isolation and navigation', () => {
     expect(palettes.querySelector('option[value="dark"]')).toBeNull();
   });
 
+  it('synchronizes a preview language change with the toolbar and both comparison frames', () => {
+    window.history.replaceState(null, '', '/#page=projects&lang=en&mode=compare');
+    const { container } = render(<DemoApp />);
+    const frames = Array.from(container.querySelectorAll('iframe'));
+    const posts = frames.map((frame) => {
+      if (!frame.contentWindow) throw new Error('Preview window is missing');
+      return vi.spyOn(frame.contentWindow, 'postMessage');
+    });
+    const send = (origin: string, source: MessageEventSource | null, lang: string) =>
+      fireEvent(
+        window,
+        new MessageEvent('message', {
+          origin,
+          source,
+          data: { type: 'osp-demo-state', lang },
+        }),
+      );
+
+    send('https://untrusted.example', frames[0].contentWindow, 'ru');
+    send(window.location.origin, window, 'ru');
+    send(window.location.origin, frames[0].contentWindow, 'unknown');
+    expect(screen.getByRole('combobox', { name: en['demo.language'] })).toHaveValue('en');
+
+    send(window.location.origin, frames[0].contentWindow, 'ru');
+    expect(screen.getByRole('combobox', { name: ru['demo.language'] })).toHaveValue('ru');
+    expect(window.location.hash).toContain('lang=ru');
+    expect(window.location.hash).toContain('page=projects');
+    expect(document.documentElement.lang).toBe('ru');
+    for (const post of posts)
+      expect(post).toHaveBeenLastCalledWith(
+        {
+          type: 'osp-demo-control',
+          page: 'projects',
+          lang: 'ru',
+          palette: 'custom',
+          theme: expect.any(String),
+        },
+        window.location.origin,
+      );
+    expect(Array.from(container.querySelectorAll('iframe'))).toEqual(frames);
+    expect(screen.getByRole('link', { name: ru['demo.fullscreen'] })).toHaveAttribute(
+      'href',
+      './demo-app.html?page=projects&theme=light&lang=ru&palette=custom',
+    );
+
+    fireEvent.change(screen.getByRole('combobox', { name: ru['demo.language'] }), {
+      target: { value: 'en' },
+    });
+    expect(screen.getByRole('combobox', { name: en['demo.language'] })).toHaveValue('en');
+    for (const post of posts)
+      expect(post).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: 'osp-demo-control', lang: 'en' }),
+        window.location.origin,
+      );
+  });
+
   it('keeps toolbar translations in parity', () => {
     expect(Object.keys(ru).sort()).toEqual(Object.keys(en).sort());
     for (const dict of Object.values(demoDicts))

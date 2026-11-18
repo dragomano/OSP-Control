@@ -125,11 +125,49 @@ describe('App (browser mode: adapter serves mocks)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
-    selectOption(await screen.findByRole('combobox', { name: 'Язык интерфейса' }), 'English');
+    selectOption(
+      within(screen.getByRole('tabpanel')).getByRole('combobox', { name: 'Язык интерфейса' }),
+      'English',
+    );
     expect(await screen.findByRole('link', { name: 'OSPanel documentation' })).toHaveAttribute(
       'href',
       'https://github.com/OSPanel/OpenServerPanel/wiki',
     );
+  });
+
+  it('switches and persists the language from the topbar without leaving the current page', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Модули' }));
+    const header = within(screen.getByRole('banner'));
+    const control = header.getByRole('combobox', { name: 'Язык интерфейса' });
+    expect(control).toHaveValue('ru');
+    for (const code of ['en', 'ru', 'be', 'es', 'uk']) {
+      expect(
+        within(control).getByRole('option', { name: embeddedDict(code)['lang.name'] }),
+      ).toBeInTheDocument();
+    }
+    selectOption(control, 'English');
+    expect(await screen.findByRole('heading', { name: 'Modules', level: 1 })).toBeInTheDocument();
+    expect(localStorage.getItem('ospanel.lang')).toBe('en');
+    expect(document.documentElement.lang).toBe('en');
+    expect(header.getByRole('link', { name: 'OSPanel documentation' })).toHaveAttribute(
+      'href',
+      'https://github.com/OSPanel/OpenServerPanel/wiki',
+    );
+  });
+
+  it('keeps the topbar language synchronized with interface settings in both directions', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
+    const header = within(screen.getByRole('banner'));
+    selectOption(header.getByRole('combobox', { name: 'Язык интерфейса' }), 'English');
+    const settings = within(screen.getByRole('tabpanel'));
+    const label = embeddedDict('en')['settings.languageTitle'];
+    expect(await settings.findByRole('combobox', { name: label })).toHaveValue('en');
+    selectOption(settings.getByRole('combobox', { name: label }), 'Русский');
+    expect(await header.findByRole('combobox', { name: 'Язык интерфейса' })).toHaveValue('ru');
+    expect(localStorage.getItem('ospanel.lang')).toBe('ru');
   });
 
   it('switches pages via navigation', async () => {
@@ -158,7 +196,10 @@ describe('App (browser mode: adapter serves mocks)', () => {
       render(<App />);
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
-      selectOption(await screen.findByRole('combobox', { name: 'Язык интерфейса' }), 'English');
+      selectOption(
+        within(screen.getByRole('tabpanel')).getByRole('combobox', { name: 'Язык интерфейса' }),
+        'English',
+      );
       await waitFor(() => expect(document.documentElement.lang).toBe('en'));
     });
   });
@@ -518,7 +559,10 @@ describe('App (browser mode: adapter serves mocks)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
       fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
 
-      selectOption(await screen.findByRole('combobox', { name: 'Язык интерфейса' }), 'English');
+      selectOption(
+        within(screen.getByRole('tabpanel')).getByRole('combobox', { name: 'Язык интерфейса' }),
+        'English',
+      );
 
       expect(await screen.findByRole('button', { name: 'Modules' })).toBeInTheDocument();
       expect(localStorage.getItem('ospanel.lang')).toBe('en');
