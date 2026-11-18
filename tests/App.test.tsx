@@ -442,6 +442,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
         }
         selectOption(control, labels[mode]);
         expect(control).toHaveValue(mode);
+        expect(control).toHaveAttribute('title', 'Тема интерфейса');
         expect(localStorage.getItem('ospanel.theme')).toBe(mode);
       };
       const changeSystem = (matches: boolean) => {
@@ -453,7 +454,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
         render(<App />);
         expect(screen.getByRole('combobox', { name: 'Переключить тему' })).toHaveAttribute(
           'title',
-          labels.system,
+          'Тема интерфейса',
         );
         expect(shell()).toHaveClass('light');
         changeSystem(false);
@@ -467,7 +468,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
         render(<App />);
         expect(screen.getByRole('combobox', { name: 'Переключить тему' })).toHaveAttribute(
           'title',
-          labels[mode],
+          'Тема интерфейса',
         );
         expect(shell()?.classList.contains('light')).toBe(mode !== 'dark');
       });
@@ -499,7 +500,7 @@ describe('App (browser mode: adapter serves mocks)', () => {
         expect(localStorage.getItem('ospanel.theme')).toBe('system');
         expect(screen.getByRole('combobox', { name: 'Переключить тему' })).toHaveAttribute(
           'title',
-          labels.system,
+          'Тема интерфейса',
         );
       });
     });

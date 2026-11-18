@@ -1192,9 +1192,7 @@ function App() {
                     iconOnly
                     className="icon-button"
                     aria-label={t('common.toggleTheme')}
-                    title={t(
-                      `settings.theme${themeMode === 'system' ? 'System' : isLight ? 'Light' : 'Dark'}`,
-                    )}
+                    title={t('settings.themeTitle')}
                     value={themeMode}
                     onChange={(event) => changeTheme(event.target.value as ThemeMode)}
                     leadingIcon={
