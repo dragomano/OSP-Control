@@ -125,7 +125,7 @@ export function ProjectWorkspace({
   const [engine, setEngine] = useState('nginx');
   const [applicationFile, setApplicationFile] = useState('.env');
   const [phpFile, setPhpFile] = useState('.user.ini');
-  const [fileBusy, setFileBusy] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState<ReadonlySet<string>>(() => new Set());
   const [fileRetry, setFileRetry] = useState(0);
   const [busy, setBusy] = useState(false);
   const [installingApplication, setInstallingApplication] = useState(false);
@@ -157,6 +157,12 @@ export function ProjectWorkspace({
   const pending = useRef(false);
   const request = useRef(0);
   const tabsRef = useRef<HTMLDivElement>(null);
+  // Prefetch and the selected file share one cache and one in-flight set, so a click during
+  // prefetch joins that read instead of repeating it.
+  const filesRef = useRef(files);
+  filesRef.current = files;
+  const selectedFileRef = useRef('');
+  const inFlightFiles = useRef(new Set<string>());
   const domains = useMemo(() => projectDomains(ini, project.domain), [ini, project.domain]);
   const values = domains.find((item) => item.domain === domain)?.values ?? {};
   const iniDirty = doc !== null && ini !== (doc.content ?? emptyIni(project.domain));
@@ -189,6 +195,7 @@ export function ProjectWorkspace({
           : engine === 'php'
             ? selectedPhpFile
             : `${engine}/${domain}.conf`;
+  selectedFileRef.current = file;
   const isPhpFile = /(?:^|\/)\.user\.ini$/.test(file);
   const fileState = file === 'project.ini' ? { original: doc?.content ?? null, draft: ini } : files[file];
   const editingFile = advanced || ['configs', 'tasks', 'environment', 'application'].includes(tab);
@@ -233,8 +240,10 @@ export function ProjectWorkspace({
   }, [project.domain, project.path]);
 
   useEffect(() => {
-    onStateChange?.({ dirty, busy: busy || installingApplication || fileBusy || menuState.busy });
-  }, [dirty, busy, installingApplication, fileBusy, menuState.busy, onStateChange]);
+    // Reading a file is a detail of the configs tab: keeping it out of the app-wide busy flag
+    // avoids disabling backups and other pages for a background read.
+    onStateChange?.({ dirty, busy: busy || installingApplication || menuState.busy });
+  }, [dirty, busy, installingApplication, menuState.busy, onStateChange]);
   useEffect(() => () => onStateChange?.({ dirty: false, busy: false }), [onStateChange]);
   useEffect(() => {
     if (!dirty && !installingApplication) return;
@@ -246,30 +255,54 @@ export function ProjectWorkspace({
   }, [dirty, installingApplication]);
 
   // Drafts are cached per file, so switching tabs or domains never throws edits away.
+  // A path that is already cached or in flight is skipped, and an existing draft is never
+  // replaced by the contents read from disk.
+  const loadFiles = async (paths: string[], reportError: boolean) => {
+    const pending = paths.filter((path) => !filesRef.current[path] && !inFlightFiles.current.has(path));
+    if (pending.length === 0) return;
+    for (const path of pending) inFlightFiles.current.add(path);
+    setLoadingFiles((current) => new Set([...current, ...pending]));
+    if (reportError) setError('');
+    await Promise.all(
+      pending.map(async (path) => {
+        try {
+          const content = await readProjectFile(project, path);
+          setFiles((current) =>
+            current[path] ? current : { ...current, [path]: { original: content, draft: content ?? '' } },
+          );
+          if (path === 'tasks.ini') setTasks(parseProjectTasks(content ?? '').tasks);
+        } catch (error) {
+          // A silent prefetch must not raise an alert for a file the user did not open.
+          if (reportError && selectedFileRef.current === path)
+            setError(errorText(t, error, 'workspace.failed'));
+        } finally {
+          inFlightFiles.current.delete(path);
+          setLoadingFiles((current) => {
+            const next = new Set(current);
+            next.delete(path);
+            return next;
+          });
+        }
+      }),
+    );
+  };
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: fetch only when the selected file or workspace changes
   useEffect(() => {
-    if (!doc || !editingFile || file === 'project.ini' || files[file]) return;
-    let cancelled = false;
-    setFileBusy(true);
-    setError('');
-    void readProjectFile(project, file)
-      .then((content) => {
-        if (!cancelled) {
-          setFiles((current) => ({ ...current, [file]: { original: content, draft: content ?? '' } }));
-          if (file === 'tasks.ini') setTasks(parseProjectTasks(content ?? '').tasks);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) setError(errorText(t, error, 'workspace.failed'));
-      })
-      .finally(() => {
-        if (!cancelled) setFileBusy(false);
-      });
-    return () => {
-      cancelled = true;
-      setFileBusy(false);
-    };
+    if (!doc || !editingFile || file === 'project.ini') return;
+    void loadFiles([file], true);
   }, [doc, file, editingFile, fileRetry]);
+
+  // All three engines live on one tab, so reading them together makes the first switch to
+  // Apache/Nginx/Caddy instant. Only the selected domain is prefetched; others stay on demand.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: prefetch only when the configs tab, domain or workspace changes
+  useEffect(() => {
+    if (!doc || advanced || tab !== 'configs') return;
+    void loadFiles(
+      ['nginx', 'apache', 'caddy'].map((name) => `${name}/${domain}.conf`),
+      false,
+    );
+  }, [doc, advanced, tab, domain]);
 
   const confirmDiscard = () => !dirty || askConfirm(t('workspace.discard'), t('common.confirmTitle'));
   const close = async () => {
@@ -450,11 +483,7 @@ export function ProjectWorkspace({
         </div>
         <span>{projectFileLanguage(file)}</span>
       </div>
-      {fileBusy ? (
-        <EmptyState className="empty-note" role="status">
-          {t('common.loading')}
-        </EmptyState>
-      ) : fileState ? (
+      {fileState ? (
         <ConfigEditor
           file={file}
           value={fileState.draft}
@@ -465,6 +494,10 @@ export function ProjectWorkspace({
             else setFiles((current) => ({ ...current, [file]: { ...current[file], draft } }));
           }}
         />
+      ) : loadingFiles.has(file) ? (
+        <div className="workspace-editor-placeholder" role="status" aria-busy="true">
+          {t('common.loading')}
+        </div>
       ) : (
         <Button
           type="button"
@@ -669,7 +702,7 @@ export function ProjectWorkspace({
                           install={installConfigs[starterId]}
                           project={project}
                           status={doc?.installers?.[starterId] ?? null}
-                          disabled={locked || dirty || fileBusy}
+                          disabled={locked || dirty || loadingFiles.size > 0}
                           dirty={dirty}
                           onBusyChange={setInstallingApplication}
                           onInstalled={async () => {
@@ -995,7 +1028,7 @@ export function ProjectWorkspace({
                     </>
                   )}
                   {tab === 'tasks' &&
-                    (fileBusy ? (
+                    (loadingFiles.has('tasks.ini') ? (
                       <EmptyState className="empty-note" role="status">
                         {t('common.loading')}
                       </EmptyState>
@@ -1129,7 +1162,7 @@ export function ProjectWorkspace({
                   variant="primary"
                   className="primary-button"
                   type="button"
-                  disabled={locked || !dirty || fileBusy}
+                  disabled={locked || !dirty || loadingFiles.size > 0}
                   onClick={() => void save()}
                 >
                   <Save size={15} />

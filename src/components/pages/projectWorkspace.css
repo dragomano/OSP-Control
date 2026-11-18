@@ -224,6 +224,18 @@
   font-weight: 500;
   overflow-wrap: anywhere;
 }
+/* Keep the editor's footprint while a file is read: switching to a file that is not cached
+   yet must not collapse the panel or move the content and footer underneath it. */
+.workspace-editor-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 382px; /* .project-code-editor: a 380px textarea plus 1px borders */
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 11px;
+}
 .workspace-footer {
   display: flex;
   justify-content: space-between;

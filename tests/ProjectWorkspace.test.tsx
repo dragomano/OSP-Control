@@ -675,6 +675,52 @@ describe('project workspace drafts', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 
+  it('prefetches every engine config so the first switch has no loading state', async () => {
+    mocks.readProjectFile.mockImplementation(async (_project, file) => `# ${file}\n`);
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
+    await screen.findByRole('textbox', { name: 'Contents of nginx/shop.test.conf' });
+    await waitFor(() =>
+      expect(mocks.readProjectFile.mock.calls.map((call) => call[1]).sort()).toEqual([
+        'apache/shop.test.conf',
+        'caddy/shop.test.conf',
+        'nginx/shop.test.conf',
+      ]),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Caddy' }));
+    expect(screen.queryByText(t('common.loading'))).not.toBeInTheDocument();
+    expect(await screen.findByRole('textbox', { name: 'Contents of caddy/shop.test.conf' })).toHaveValue(
+      '# caddy/shop.test.conf\n',
+    );
+  });
+
+  it('keeps the editor footprint while an uncached file is read', async () => {
+    mocks.readProjectWorkspace.mockResolvedValue({
+      baseDir: project.path,
+      content,
+      files: ['.user.ini'],
+    });
+    let finish!: (value: string | null) => void;
+    mocks.readProjectFile.mockImplementation((_project, file) => {
+      if (file === '.user.ini')
+        return new Promise<string | null>((resolve) => {
+          finish = resolve;
+        });
+      return Promise.resolve(null);
+    });
+    setup();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Configurations' }));
+    fireEvent.click(screen.getByRole('button', { name: 'PHP' }));
+    const placeholder = await screen.findByText(t('common.loading'), {
+      selector: '.workspace-editor-placeholder',
+    });
+    expect(placeholder).toHaveAttribute('aria-busy', 'true');
+    finish('memory_limit=256M\n');
+    expect(await screen.findByRole('textbox', { name: 'Contents of .user.ini' })).toHaveValue(
+      'memory_limit=256M\n',
+    );
+  });
+
   it('edits the selected domain in a shared folder and retains other sections', async () => {
     setup();
     fireEvent.click(await screen.findByRole('tab', { name: 'Web server' }));
