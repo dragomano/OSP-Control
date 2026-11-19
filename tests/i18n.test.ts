@@ -148,6 +148,15 @@ describe('pluralSuffix', () => {
     expect(pluralSuffix('pl', 2)).toBe('few');
   });
 
+  it('keeps the Belarusian one/few/many categories', () => {
+    // The engine has plural data for "be" even where it has no date data, so the
+    // categories must come from plural support, not from another Intl service.
+    expect(pluralSuffix('be', 1)).toBe('one');
+    for (const count of [2, 3, 4, 22]) expect(pluralSuffix('be', count)).toBe('few');
+    for (const count of [0, 5, 11]) expect(pluralSuffix('be', count)).toBe('many');
+    expect(pluralSuffix('be', 1.5)).toBe('other');
+  });
+
   it('covers categories beyond one/other', () => {
     expect(pluralSuffix('ar', 0)).toBe('zero');
     expect(pluralSuffix('ar', 2)).toBe('two');
@@ -441,13 +450,27 @@ describe('errorText', () => {
 });
 
 describe('localeTag', () => {
-  it('normalizes underscore to dash per BCP-47', () => {
+  it('normalizes underscores to dashes per BCP-47', () => {
     expect(localeTag('en_US')).toBe('en-US');
+    expect(localeTag('zh_Hans_CN')).toBe('zh-Hans-CN');
   });
 
-  it('falls back to the base language for unknown or malformed codes', () => {
-    expect(localeTag('xx_YY')).toBe(BASE_LANG);
+  it('keeps a well-formed tag the engine has no date data for', () => {
+    // Chromium ships plural data for Belarusian but no date data:
+    // DateTimeFormat.supportedLocalesOf(['be']) is empty there, yet the tag must stay
+    // "be", otherwise the plural categories collapse to English.
+    const supported = vi.spyOn(Intl.DateTimeFormat, 'supportedLocalesOf').mockReturnValue([]);
+
+    try {
+      expect(localeTag('be')).toBe('be');
+    } finally {
+      supported.mockRestore();
+    }
+  });
+
+  it('falls back to the base language for malformed codes', () => {
     expect(localeTag('')).toBe(BASE_LANG);
+    expect(localeTag('!!')).toBe(BASE_LANG);
   });
 });
 

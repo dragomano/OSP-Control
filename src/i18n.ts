@@ -161,13 +161,11 @@ function pluralRules(lang: string): Intl.PluralRules {
 
   if (cached) return cached;
 
-  let rules: Intl.PluralRules;
-
-  try {
-    rules = new Intl.PluralRules(tag);
-  } catch {
-    rules = new Intl.PluralRules(BASE_LANG);
-  }
+  // A well-formed tag without plural data resolves to the engine's default locale, which
+  // would take the categories of the system language. Keep the base language for such tags
+  // instead — the base dictionary defines the categories the app can rely on.
+  const supported = Intl.PluralRules.supportedLocalesOf([tag]).length > 0;
+  const rules = new Intl.PluralRules(supported ? tag : BASE_LANG);
 
   pluralRulesCache.set(tag, rules);
 
@@ -370,12 +368,15 @@ export function errorText(t: Translator, error: unknown, fallback: string): stri
 }
 
 // Locale tag for Intl: codes from locales may use "_", BCP-47 requires "-".
-// An unknown or broken code falls back to the base language — no need to register new locales.
+// Only the syntax is checked here: Intl services cover locales differently, and consulting
+// one service's coverage for the tag breaks the others. Chromium, for example, has plural
+// data for Belarusian but no date data — DateTimeFormat.supportedLocalesOf(['be']) is empty
+// while PluralRules reports one/few/many/other, so a DateTimeFormat check used to demote
+// the tag to English and make the dictionary's few/many forms look like stray keys.
+// A malformed code falls back to the base language.
 export function localeTag(lang: string): string {
-  const tag = lang.replace('_', '-');
-
   try {
-    return Intl.DateTimeFormat.supportedLocalesOf([tag])[0] ?? BASE_LANG;
+    return Intl.getCanonicalLocales(lang.replace(/_/g, '-'))[0] ?? BASE_LANG;
   } catch {
     return BASE_LANG;
   }
