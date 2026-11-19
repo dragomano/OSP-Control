@@ -937,6 +937,16 @@ button {
   line-height: 1.6;
   margin: 0 0 9px;
 }
+.tip-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+.tip-actions > .join {
+  margin-left: auto;
+}
 .notice {
   display: flex;
   align-items: center;

@@ -59,6 +59,7 @@ const overviewProps = (overrides: Partial<OverviewProps> = {}): OverviewProps =>
   onAction: vi.fn<(service: Service, action: 'start' | 'stop' | 'restart') => void>(),
   notify: vi.fn<Notify>(),
   onSync: vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
+  onOpenDocumentation: vi.fn<() => void>(),
   panelRestarting: false,
   pendingServices: new Set<string>(),
   ...overrides,
@@ -66,12 +67,14 @@ const overviewProps = (overrides: Partial<OverviewProps> = {}): OverviewProps =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(Math, 'random').mockReturnValue(0);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 9, 25, 14));
 });
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -172,7 +175,7 @@ describe('Overview header', () => {
 });
 
 describe('Overview navigation', () => {
-  it('routes the hero, quick-access and tip buttons', () => {
+  it('routes the hero, quick-access and settings tip buttons', () => {
     const { props } = renderOverview();
 
     fireEvent.click(screen.getByRole('button', { name: /Manage modules/ }));
@@ -189,6 +192,82 @@ describe('Overview navigation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Open settings/ }));
     expect(props.onNavigate).toHaveBeenCalledWith('settings', 'general');
+  });
+
+  it('opens documentation with a topic for a documentation tip', () => {
+    vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0.85);
+    const { props } = renderOverview();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open documentation' }));
+    expect(props.onOpenDocumentation).toHaveBeenCalledWith('xdebug');
+  });
+
+  it.each([
+    [0.34, 'Open projects', 'projects'],
+    [0.46, 'Open modules', 'services'],
+    [0.92, 'Open logs', 'logs'],
+  ])('routes an internal tip at random value %s', (random, label, page) => {
+    vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(random);
+    const { props, view } = renderOverview();
+
+    fireEvent.click(
+      view.container
+        .querySelector('.tip-panel')
+        ?.querySelector(`button[aria-label="${label}"], button`) as HTMLElement,
+    );
+    expect(props.onNavigate).toHaveBeenCalledWith(page);
+  });
+
+  it('cycles tips with the arrow buttons', () => {
+    const { view } = renderOverview();
+    const title = () => view.container.querySelector('.tip-panel h3')?.textContent;
+
+    expect(title()).toBe('Speed up local development');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next tip' }));
+    expect(title()).toBe('Choose an SSD for OSPanel');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous tip' }));
+    expect(title()).toBe('Speed up local development');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous tip' }));
+    expect(title()).toBe('Find the cause of a failed start');
+  });
+
+  it('enables keyboard switching after an arrow button is used', () => {
+    const { view } = renderOverview();
+    const title = () => view.container.querySelector('.tip-panel h3')?.textContent;
+    const next = () => screen.getByRole('button', { name: 'Next tip' });
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Open settings' }), { key: 'ArrowRight' });
+    expect(title()).toBe('Speed up local development');
+
+    fireEvent.click(next());
+    expect(title()).toBe('Choose an SSD for OSPanel');
+
+    fireEvent.keyDown(next(), { key: 'ArrowRight' });
+    expect(title()).toBe('Prepare Windows once');
+    expect(document.activeElement).toHaveAttribute('aria-label', 'Next tip');
+
+    fireEvent.keyDown(next(), { key: 'ArrowLeft' });
+    expect(title()).toBe('Choose an SSD for OSPanel');
+    expect(document.activeElement).toHaveAttribute('aria-label', 'Previous tip');
+  });
+
+  it('keeps the selected tip stable across rerenders', () => {
+    const { view } = renderOverview();
+    const tipPanel = view.container.querySelector('.tip-panel');
+    const title = tipPanel?.querySelector('h3')?.textContent;
+
+    view.rerender(
+      <I18nContext.Provider value={{ lang: 'en', t, plural }}>
+        <Overview {...overviewProps({ userName: 'Updated User' })} />
+      </I18nContext.Provider>,
+    );
+
+    expect(view.container.querySelector('.tip-panel h3')?.textContent).toBe(title);
   });
 });
 

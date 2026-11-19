@@ -1,6 +1,7 @@
 import {
   Activity,
   ArrowUpRight,
+  ChevronLeft,
   ChevronRight,
   Gauge,
   Globe2,
@@ -12,7 +13,7 @@ import {
   Unplug,
   Wifi,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { localeTag, useI18n } from '../../i18n';
 import { ModuleUpdateToolbar } from '../../moduleUpdates';
 import type { OverviewMetrics } from '../../ospanel';
@@ -23,6 +24,96 @@ import { ActivityRow } from '../widgets/ActivityRow';
 import { Metric } from '../widgets/Metric';
 import { PageHeader } from '../widgets/PageHeader';
 import { ServiceCard } from '../widgets/ServiceCard';
+
+type OverviewTip = {
+  titleKey: string;
+  textKey: string;
+  action: 'settings' | 'services' | 'projects' | 'logs' | 'documentation';
+  actionKey: string;
+  documentationTopic?: string;
+};
+
+const OVERVIEW_TIPS: OverviewTip[] = [
+  {
+    titleKey: 'overview.tipTitle',
+    textKey: 'overview.tipText',
+    action: 'settings',
+    actionKey: 'overview.tipSettings',
+  },
+  {
+    titleKey: 'overview.tipSsdTitle',
+    textKey: 'overview.tipSsdText',
+    action: 'documentation',
+    actionKey: 'overview.tipDocumentation',
+    documentationTopic: 'installation',
+  },
+  {
+    titleKey: 'overview.tipSysprepTitle',
+    textKey: 'overview.tipSysprepText',
+    action: 'documentation',
+    actionKey: 'overview.tipDocumentation',
+    documentationTopic: 'sysprep',
+  },
+  {
+    titleKey: 'overview.tipVpnTitle',
+    textKey: 'overview.tipVpnText',
+    action: 'documentation',
+    actionKey: 'overview.tipDocumentation',
+    documentationTopic: 'vpn',
+  },
+  {
+    titleKey: 'overview.tipProjectTitle',
+    textKey: 'overview.tipProjectText',
+    action: 'projects',
+    actionKey: 'overview.tipProjects',
+  },
+  {
+    titleKey: 'overview.tipModulesTitle',
+    textKey: 'overview.tipModulesText',
+    action: 'services',
+    actionKey: 'overview.tipServices',
+  },
+  {
+    titleKey: 'overview.tipSslTitle',
+    textKey: 'overview.tipSslText',
+    action: 'documentation',
+    actionKey: 'overview.tipDocumentation',
+    documentationTopic: 'ssl',
+  },
+  {
+    titleKey: 'overview.tipCliTitle',
+    textKey: 'overview.tipCliText',
+    action: 'documentation',
+    actionKey: 'overview.tipDocumentation',
+    documentationTopic: 'projectsCli',
+  },
+  {
+    titleKey: 'overview.tipTasksTitle',
+    textKey: 'overview.tipTasksText',
+    action: 'projects',
+    actionKey: 'overview.tipProjects',
+  },
+  {
+    titleKey: 'overview.tipDatabaseTitle',
+    textKey: 'overview.tipDatabaseText',
+    action: 'documentation',
+    actionKey: 'overview.tipDocumentation',
+    documentationTopic: 'modules',
+  },
+  {
+    titleKey: 'overview.tipXdebugTitle',
+    textKey: 'overview.tipXdebugText',
+    action: 'documentation',
+    actionKey: 'overview.tipDocumentation',
+    documentationTopic: 'xdebug',
+  },
+  {
+    titleKey: 'overview.tipLogsTitle',
+    textKey: 'overview.tipLogsText',
+    action: 'logs',
+    actionKey: 'overview.tipLogs',
+  },
+];
 
 export function Overview({
   runningCount,
@@ -35,6 +126,7 @@ export function Overview({
   onAction,
   notify,
   onSync,
+  onOpenDocumentation,
   panelRestarting = false,
   pendingServices,
   panelOnline = true,
@@ -49,6 +141,7 @@ export function Overview({
   onAction: (service: Service, action: 'start' | 'stop' | 'restart') => void;
   notify: Notify;
   onSync: () => Promise<boolean>;
+  onOpenDocumentation: (topic?: string) => void;
   panelRestarting?: boolean;
   pendingServices?: ReadonlySet<string>;
   // When the panel is stopped, module start/stop is disabled.
@@ -58,6 +151,13 @@ export function Overview({
   const logAliases = logAliasesFromTranslator(t);
   const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * OVERVIEW_TIPS.length));
+  const [tipKeyboard, setTipKeyboard] = useState(false);
+  const prevTipRef = useRef<HTMLButtonElement>(null);
+  const nextTipRef = useRef<HTMLButtonElement>(null);
+  const tip = OVERVIEW_TIPS[tipIndex];
+  const stepTip = (step: number) =>
+    setTipIndex((index) => (index + step + OVERVIEW_TIPS.length) % OVERVIEW_TIPS.length);
 
   useEffect(() => {
     const updateTime = () => setNow(new Date());
@@ -268,21 +368,77 @@ export function Overview({
             ))
           )}
         </Panel>
-        <Panel className="tip-panel">
+        <Panel
+          className="tip-panel"
+          // Keyboard switching stays off until an arrow button is used, so arrow
+          // keys keep their usual meaning (e.g. scrolling) for users who never
+          // interact with the tip navigation.
+          onKeyDown={(event) => {
+            if (!tipKeyboard) return;
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            if (event.altKey || event.ctrlKey || event.metaKey) return;
+            event.preventDefault();
+            const arrow = event.key === 'ArrowLeft' ? prevTipRef.current : nextTipRef.current;
+            // The outline follows the direction so keyboard switching shows its effect
+            // on the arrow the user would have clicked.
+            arrow?.focus({ preventScroll: true });
+            stepTip(event.key === 'ArrowLeft' ? -1 : 1);
+          }}
+        >
           <div className="tip-glow" />
           <Sparkles size={20} className="tip-icon" />
           <div>
             <span className="eyebrow">{t('overview.tipKicker')}</span>
-            <h3>{t('overview.tipTitle')}</h3>
-            <p>{t('overview.tipText')}</p>
-            <Button
-              variant="ghost"
-              type="button"
-              className="text-button"
-              onClick={() => onNavigate('settings', 'general')}
-            >
-              {t('overview.tipSettings')} <ArrowUpRight size={15} />
-            </Button>
+            <h3>{t(tip.titleKey)}</h3>
+            <p>{t(tip.textKey)}</p>
+            <div className="tip-actions">
+              <Button
+                variant="ghost"
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  if (tip.action === 'settings') onNavigate('settings', 'general');
+                  else if (tip.action === 'services') onNavigate('services');
+                  else if (tip.action === 'projects') onNavigate('projects');
+                  else if (tip.action === 'logs') onNavigate('logs');
+                  else onOpenDocumentation(tip.documentationTopic);
+                }}
+              >
+                {t(tip.actionKey)} <ArrowUpRight size={15} />
+              </Button>
+              <div className="join">
+                <Button
+                  ref={prevTipRef}
+                  variant="ghost"
+                  square
+                  type="button"
+                  className="join-item"
+                  aria-label={t('overview.tipPrev')}
+                  title={t('overview.tipPrev')}
+                  onClick={() => {
+                    setTipKeyboard(true);
+                    stepTip(-1);
+                  }}
+                >
+                  <ChevronLeft size={15} />
+                </Button>
+                <Button
+                  ref={nextTipRef}
+                  variant="ghost"
+                  square
+                  type="button"
+                  className="join-item"
+                  aria-label={t('overview.tipNext')}
+                  title={t('overview.tipNext')}
+                  onClick={() => {
+                    setTipKeyboard(true);
+                    stepTip(1);
+                  }}
+                >
+                  <ChevronRight size={15} />
+                </Button>
+              </div>
+            </div>
           </div>
         </Panel>
       </div>

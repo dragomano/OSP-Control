@@ -119,6 +119,23 @@ const initialLang = (): string =>
 const REPOSITORY_URL = 'https://github.com/dragomano/OSP-Control';
 const DISCUSSIONS_URL = `${REPOSITORY_URL}/discussions`;
 
+const DOCUMENTATION_ANCHORS: Record<string, { localized: string; default: string }> = {
+  installation: { localized: '#рекомендации-по-установке', default: '#installation-recommendations' },
+  sysprep: { localized: '#установка', default: '#system-preparation-tool' },
+  vpn: { localized: '#установка', default: '#vpnproxy-configuration' },
+  ssl: { localized: '#импорт-корневого-ssl-сертификата', default: '#importing-the-root-ssl-certificate' },
+  projectsCli: { localized: '#смена-среды', default: '#switching-between-projects' },
+  modules: { localized: '#подключение-к-модулям', default: '#connecting-to-modules' },
+  xdebug: { localized: '#как-включить-расширение-xdebug', default: '#how-to-enable-the-xdebug-extension' },
+};
+
+export function documentationUrlFor(lang: string, topic?: string): string {
+  const localized = ['ru', 'uk', 'be'].includes(lang.toLowerCase().split(/[-_]/)[0]);
+  const base = `https://github.com/OSPanel/OpenServerPanel/wiki${localized ? '/Документация' : ''}`;
+  const anchor = topic ? DOCUMENTATION_ANCHORS[topic]?.[localized ? 'localized' : 'default'] : undefined;
+  return `${base}${anchor ?? ''}`;
+}
+
 // Hotkeys like "/" must not fire while the user is typing into a text field.
 const isTypingTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLInputElement ||
@@ -191,9 +208,7 @@ function App() {
   const [font, setFont] = useState(() => settingsStorage.getItem('ospanel.font') ?? 'dm-sans');
   const [scale, setScale] = useState(() => Number(settingsStorage.getItem('ospanel.scale') ?? 100));
   const [lang, setLang] = useState(() => initialLang());
-  const documentationUrl = `https://github.com/OSPanel/OpenServerPanel/wiki${
-    ['ru', 'uk', 'be'].includes(lang.toLowerCase().split(/[-_]/)[0]) ? '/Документация' : ''
-  }`;
+  const documentationUrl = documentationUrlFor(lang);
   // The current language code for async checks (refreshLocales) that need the
   // current selection without crossing callback dependencies.
   const langRef = useRef(lang);
@@ -1022,14 +1037,14 @@ function App() {
     }
   };
 
-  const openDocumentation = () => {
+  const openDocumentation = (topic?: string) => {
+    const url = documentationUrlFor(lang, topic);
+
     if (!isDesktopApp()) {
-      window.open(documentationUrl, '_blank', 'noopener,noreferrer');
+      window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }
-    void openInBrowser(documentationUrl).catch((error) =>
-      notify(errorText(t, error, 'common.documentationOpenFailed')),
-    );
+    void openInBrowser(url).catch((error) => notify(errorText(t, error, 'common.documentationOpenFailed')));
   };
 
   const searchActions: SearchAction[] = [
@@ -1384,6 +1399,7 @@ function App() {
                     onAction={runServiceAction}
                     notify={notify}
                     onSync={loadSnapshot}
+                    onOpenDocumentation={openDocumentation}
                     panelRestarting={panelRestarting || autostartBusy}
                     pendingServices={pendingServices}
                     panelOnline={!!snapshot?.panelRunning}

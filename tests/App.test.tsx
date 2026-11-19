@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from '../src/App';
+import App, { documentationUrlFor } from '../src/App';
 import { APP_NAME } from '../src/brand';
 import { embeddedDict } from '../src/i18n';
 import type { OsPanelSnapshot } from '../src/ospanel';
@@ -29,6 +29,25 @@ vi.mock('../src/ospanel', async (importOriginal) => {
     discoverOsPanel: ospanelMocks.discoverOsPanel,
     renameProject: ospanelMocks.renameProject,
   };
+});
+
+describe('documentation URLs', () => {
+  it('adds language-specific anchors to documentation topics', () => {
+    expect(documentationUrlFor('ru', 'installation')).toBe(
+      'https://github.com/OSPanel/OpenServerPanel/wiki/Документация#рекомендации-по-установке',
+    );
+    expect(documentationUrlFor('en', 'installation')).toBe(
+      'https://github.com/OSPanel/OpenServerPanel/wiki#installation-recommendations',
+    );
+    expect(documentationUrlFor('uk', 'xdebug')).toBe(
+      'https://github.com/OSPanel/OpenServerPanel/wiki/Документация#как-включить-расширение-xdebug',
+    );
+  });
+
+  it('keeps the top-level documentation URLs without an anchor', () => {
+    expect(documentationUrlFor('be')).toBe('https://github.com/OSPanel/OpenServerPanel/wiki/Документация');
+    expect(documentationUrlFor('es')).toBe('https://github.com/OSPanel/OpenServerPanel/wiki');
+  });
 });
 
 const confirmYes = () => {
