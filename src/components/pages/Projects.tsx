@@ -90,6 +90,7 @@ type ProjectsProps = {
   onProjectRenamed: (domain: string, renamed: OsPanelProject) => void;
   onToggleSsl: (domain: string, next: boolean) => void;
   onRestartPanel: () => void;
+  onStarterCreated?: () => void;
   blocked?: boolean;
   onWorkspaceStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
 };
@@ -110,6 +111,7 @@ function ProjectsContent({
   onProjectRenamed,
   onToggleSsl,
   onRestartPanel,
+  onStarterCreated,
   blocked,
   onWorkspaceStateChange,
   tagStorageKey,
@@ -802,6 +804,7 @@ function ProjectsContent({
         <Suspense fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}>
           <ProjectStartersWorkspace
             notify={notify}
+            onStarterCreated={onStarterCreated}
             onClose={() => {
               const scroll = startersScroll.current ?? 0;
               startersScroll.current = null;

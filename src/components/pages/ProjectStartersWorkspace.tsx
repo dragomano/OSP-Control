@@ -74,10 +74,12 @@ const TOKENS: [string, string][] = [
 export function ProjectStartersWorkspace({
   notify,
   onClose,
+  onStarterCreated,
   onStateChange,
 }: {
   notify: Notify;
   onClose: () => void;
+  onStarterCreated?: () => void;
   onStateChange?: (state: { dirty: boolean; busy: boolean }) => void;
 }) {
   const { t, lang } = useI18n();
@@ -163,6 +165,7 @@ export function ProjectStartersWorkspace({
       const saved = await saveProjectStarter(draft);
       setDraft(saved);
       setOriginal(JSON.stringify(saved));
+      if (original === '') onStarterCreated?.();
       await refresh();
       notify(t('starter.saved'));
     });

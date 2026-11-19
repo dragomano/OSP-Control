@@ -6,39 +6,6 @@
   margin-left: 0;
 }
 
-.app-update-notice {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 80;
-  width: min(540px, calc(100vw - 48px));
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--k-eda75f);
-  border-radius: 12px;
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--bg) 70%, transparent);
-}
-.app-update-notice > svg {
-  color: var(--k-eda75f);
-  flex-shrink: 0;
-}
-.app-update-notice > div {
-  flex: 1;
-  min-width: 0;
-}
-.app-update-notice b,
-.app-update-notice span {
-  display: block;
-}
-.app-update-notice span {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 5px;
-}
 .app-update-dialog {
   width: min(620px, calc(100vw - 48px));
   max-height: calc(100vh - 48px);

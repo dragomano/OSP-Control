@@ -282,13 +282,15 @@ describe('Backups restore', () => {
     mocks.askConfirm.mockResolvedValue(true);
     const notify = vi.fn();
     const onMenuRestored = vi.fn();
+    const onBackupRestored = vi.fn();
     const onRestart = vi.fn();
     const onMenuRestoreBusyChange = vi.fn();
-    renderBackups(notify, { onMenuRestored, onRestart, onMenuRestoreBusyChange });
+    renderBackups(notify, { onMenuRestored, onBackupRestored, onRestart, onMenuRestoreBusyChange });
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
     await vi.waitFor(() => expect(onMenuRestoreBusyChange).toHaveBeenLastCalledWith(false));
     expect(mocks.restoreMenuBackup).toHaveBeenCalledWith(menuBackup.id);
     expect(onMenuRestored).toHaveBeenCalledOnce();
+    expect(onBackupRestored).toHaveBeenCalledOnce();
     expect(notify).toHaveBeenCalledWith(t('settings.backupsDoneMenu'), {
       label: t('projects.restartPanel'),
       run: onRestart,
@@ -336,12 +338,14 @@ describe('Backups restore', () => {
     mocks.listBackups.mockResolvedValue([configBackup]);
     mocks.askConfirm.mockResolvedValue(true);
     const notify = vi.fn();
-    renderBackups(notify);
+    const onBackupRestored = vi.fn();
+    renderBackups(notify, { onBackupRestored });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Configurations restored'));
     expect(mocks.restoreBackup).toHaveBeenCalledWith('config-123');
+    expect(onBackupRestored).toHaveBeenCalledOnce();
     expect(mocks.askConfirm).toHaveBeenCalledWith(expect.stringContaining('2023'), 'Confirmation');
     expect(mocks.listBackups).toHaveBeenCalledTimes(2);
   });
@@ -350,12 +354,14 @@ describe('Backups restore', () => {
     mocks.listBackups.mockResolvedValue([dbBackup]);
     mocks.askConfirm.mockResolvedValue(true);
     const notify = vi.fn();
-    renderBackups(notify);
+    const onBackupRestored = vi.fn();
+    renderBackups(notify, { onBackupRestored });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Database restored'));
     expect(mocks.restoreDbBackup).toHaveBeenCalledWith('db-mysql');
+    expect(onBackupRestored).toHaveBeenCalledOnce();
     expect(mocks.askConfirm).toHaveBeenCalledWith(expect.stringContaining('MySQL-8.0'), 'Confirmation');
   });
 
@@ -363,24 +369,28 @@ describe('Backups restore', () => {
     mocks.listBackups.mockResolvedValue([projectBackup]);
     mocks.askConfirm.mockResolvedValue(true);
     const notify = vi.fn();
-    renderBackups(notify);
+    const onBackupRestored = vi.fn();
+    renderBackups(notify, { onBackupRestored });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Project restored'));
     expect(mocks.restoreProjectBackup).toHaveBeenCalledWith('proj-shop');
+    expect(onBackupRestored).toHaveBeenCalledOnce();
   });
 
   it('keeps the backup when the confirmation is declined', async () => {
     mocks.listBackups.mockResolvedValue([configBackup]);
     mocks.askConfirm.mockResolvedValue(false);
     const notify = vi.fn();
-    renderBackups(notify);
+    const onBackupRestored = vi.fn();
+    renderBackups(notify, { onBackupRestored });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
 
     await vi.waitFor(() => expect(mocks.askConfirm).toHaveBeenCalled());
     expect(mocks.restoreBackup).not.toHaveBeenCalled();
+    expect(onBackupRestored).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
   });
 
@@ -389,11 +399,13 @@ describe('Backups restore', () => {
     mocks.askConfirm.mockResolvedValue(true);
     mocks.restoreBackup.mockRejectedValue(new Error('boom'));
     const notify = vi.fn();
-    renderBackups(notify);
+    const onBackupRestored = vi.fn();
+    renderBackups(notify, { onBackupRestored });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to restore backup'));
+    expect(onBackupRestored).not.toHaveBeenCalled();
   });
 });
 

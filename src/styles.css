@@ -1770,9 +1770,6 @@ button {
   margin-top: 17px;
 }
 .toast {
-  position: fixed;
-  bottom: 22px;
-  right: 24px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -1783,7 +1780,6 @@ button {
   border-radius: 8px;
   box-shadow: 0 10px 40px #0007;
   font-size: 11px;
-  z-index: 5;
 }
 .toast button {
   display: grid;

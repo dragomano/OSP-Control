@@ -99,6 +99,53 @@ describe('App (browser mode: adapter serves mocks)', () => {
     expect(await screen.findByRole('dialog', { name: 'Обновление приложения' })).toBeVisible();
   });
 
+  it.each(['close', 'open'] as const)(
+    'remembers the GitHub invitation after the user chooses %s',
+    async (action) => {
+      const t = embeddedDict('en');
+      localStorage.setItem('ospanel.lang', 'en');
+      const openTemplates = async () => {
+        fireEvent.click(screen.getByRole('button', { name: t['nav.projects'] }));
+        fireEvent.click(await screen.findByRole('button', { name: t['starter.title'] }));
+      };
+      const saveNewStarter = async (id: string) => {
+        fireEvent.click(await screen.findByRole('button', { name: t['starter.new'] }));
+        fireEvent.change(await screen.findByLabelText(t['starter.id']), { target: { value: id } });
+        fireEvent.change(screen.getByLabelText(t['starter.name']), { target: { value: 'Example starter' } });
+        expect(screen.queryByText(t['githubStar.title'])).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: t['common.save'] }));
+        const saved = await screen.findByText(t['starter.saved']);
+        const toast = saved.closest<HTMLElement>('.toast');
+        if (!toast) throw new Error('Template save toast not found');
+        fireEvent.click(within(toast).getByRole('button', { name: t['common.close'] }));
+      };
+
+      const app = render(<App />);
+      await openTemplates();
+      await saveNewStarter(`example-${action}-first`);
+      const title = await screen.findByText(t['githubStar.title']);
+      const notice = title.closest<HTMLElement>('.corner-notice');
+      if (!notice) throw new Error('GitHub notice not found');
+      expect(within(notice).getByText(t['githubStar.description'])).toBeVisible();
+      const link = within(notice).getByRole('link', { name: t['githubStar.action'] });
+      expect(link).toHaveAttribute('href', 'https://github.com/dragomano/OSP-Control');
+      fireEvent.click(
+        action === 'open' ? link : within(notice).getByRole('button', { name: t['common.close'] }),
+      );
+      expect(title).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: t['starter.allTemplates'] }));
+      await saveNewStarter(`example-${action}-second`);
+      expect(screen.queryByText(t['githubStar.title'])).toBeNull();
+
+      app.unmount();
+      render(<App />);
+      await openTemplates();
+      await saveNewStarter(`example-${action}-after-restart`);
+      expect(screen.queryByText(t['githubStar.title'])).toBeNull();
+    },
+  );
+
   it.each([
     ['ru', '/Документация'],
     ['uk', '/Документация'],

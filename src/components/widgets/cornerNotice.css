@@ -1,0 +1,67 @@
+.corner-notices {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 5;
+  width: min(540px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.corner-notices:has(.corner-notice) {
+  z-index: 80;
+}
+
+.corner-notices > * {
+  max-width: 100%;
+  pointer-events: auto;
+}
+
+.corner-notice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--k-eda75f);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.corner-notice-icon {
+  display: flex;
+  color: var(--k-eda75f);
+  flex-shrink: 0;
+}
+
+.corner-notice-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.corner-notice-text b,
+.corner-notice-text span {
+  display: block;
+}
+
+.corner-notice-text span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.corner-notice a.secondary-button {
+  text-decoration: none;
+}
+
+.github-star-icon {
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  mask: url("@fortawesome/fontawesome-free/svgs/brands/github.svg") center / contain no-repeat;
+}

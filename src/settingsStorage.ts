@@ -2,6 +2,7 @@
 type Snapshot = { values: Record<string, string>; migrationNeeded: boolean };
 type SettingsError = Error & { params?: Record<string, string> };
 const EVENT = 'ospanel:settings-error';
+export const GITHUB_STAR_DISMISSED_KEY = 'ospanel.githubStarDismissed';
 const keys = new Set([
   'ospanel.lang',
   'ospanel.theme',
@@ -11,6 +12,7 @@ const keys = new Set([
   'ospanel.scale',
   'ospanel.sidebar',
   'ospanel.notify',
+  GITHUB_STAR_DISMISSED_KEY,
   'ospanel.autostartProjects',
   'ospanel.autostartPanel',
   'ospanel.path',

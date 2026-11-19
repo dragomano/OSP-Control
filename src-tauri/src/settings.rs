@@ -34,6 +34,7 @@ const FIELDS: &[(&str, &str, &str, &str)] = &[
     ("ospanel.scale", "interface", "scale", "integer"),
     ("ospanel.sidebar", "interface", "sidebar_collapsed", "bool"),
     ("ospanel.notify", "behavior", "notifications", "bool"),
+    ("ospanel.githubStarDismissed", "behavior", "github_star_dismissed", "bool"),
     ("ospanel.autostartProjects", "behavior", "autostart_projects", "bool"),
     ("ospanel.autostartPanel", "behavior", "autostart_panel", "bool"),
     ("ospanel.closeToTray", "behavior", "close_to_tray", "bool"),
@@ -810,6 +811,18 @@ mod tests {
         let snapshot = f.store.load().unwrap();
         assert_eq!(snapshot.values["ospanel.autostartPanel"], "1");
         assert!(f.text().contains("autostart_panel = true"));
+    }
+
+    #[test]
+    fn github_star_dismissal_persists_alongside_notification_preferences() {
+        let f = Fixture::new();
+        let initial = f.save("ospanel.notify", "1");
+        assert!(!initial.values.contains_key("ospanel.githubStarDismissed"));
+        f.save("ospanel.githubStarDismissed", "1");
+        let snapshot = f.store.load().unwrap();
+        assert_eq!(snapshot.values["ospanel.githubStarDismissed"], "1");
+        assert_eq!(snapshot.values["ospanel.notify"], "1");
+        assert!(f.text().contains("github_star_dismissed = true"));
     }
 
     #[test]

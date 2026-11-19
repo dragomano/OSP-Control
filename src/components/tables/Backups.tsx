@@ -55,6 +55,7 @@ export function Backups({
   menuDirty = false,
   blocked = false,
   onMenuRestored,
+  onBackupRestored,
   onMenuRestoreBusyChange,
   onRestart,
 }: {
@@ -66,6 +67,7 @@ export function Backups({
   menuDirty?: boolean;
   blocked?: boolean;
   onMenuRestored?: () => void;
+  onBackupRestored?: () => void;
   onMenuRestoreBusyChange?: (busy: boolean) => void;
   onRestart?: () => void;
 }) {
@@ -251,6 +253,7 @@ export function Backups({
       } else {
         notify(t(plan.doneKey));
       }
+      onBackupRestored?.();
       await refreshBackups();
     } catch (error) {
       notify(errorText(t, error, 'settings.backupsFailed'));

@@ -24,6 +24,7 @@ import {
 } from 'react';
 import { APP_VERSION } from './brand';
 import { formatSize, useDismiss } from './components/shared';
+import { CornerNotice } from './components/widgets/CornerNotice';
 import { PathText } from './components/widgets/PathText';
 import { errorText, useI18n } from './i18n';
 import {
@@ -45,10 +46,12 @@ export const useAppUpdates = () => useContext(Context);
 
 export function AppUpdatesProvider({
   children,
+  cornerNotices,
   blocked,
   onBusy,
 }: {
   children: ReactNode;
+  cornerNotices?: ReactNode;
   blocked: boolean;
   onBusy: (busy: boolean) => void;
 }) {
@@ -128,28 +131,22 @@ export function AppUpdatesProvider({
   return (
     <Context.Provider value={{ open }}>
       {children}
-      {notice && update && !visible && (
-        <div className="app-update-notice" role="status">
-          <Download size={20} />
-          <div>
-            <b>{t('appUpdates.available', { version: update.version })}</b>
-            <span>{t('appUpdates.notice')}</span>
-          </div>
-          <Button type="button" className="secondary-button" onClick={open}>
-            {t('appUpdates.details')}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            square
-            className="icon-button"
-            aria-label={t('common.close')}
-            onClick={() => setNotice(false)}
-          >
-            <X size={16} />
-          </Button>
-        </div>
-      )}
+      <div className="corner-notices">
+        {notice && update && !visible && (
+          <CornerNotice
+            icon={<Download size={20} />}
+            title={t('appUpdates.available', { version: update.version })}
+            description={t('appUpdates.notice')}
+            action={
+              <Button type="button" className="secondary-button" onClick={open}>
+                {t('appUpdates.details')}
+              </Button>
+            }
+            onClose={() => setNotice(false)}
+          />
+        )}
+        {cornerNotices}
+      </div>
       {visible && (
         <UpdateDialog
           update={update}

@@ -45,6 +45,7 @@ import {
 import { type BackupFilter, Backups } from './components/tables/Backups';
 import { buildActivityRows, Logs, logAliasesFromTranslator } from './components/tables/Logs';
 import { Badge, Button, ButtonLink, EmptyState, NavItem, Notice, Select } from './components/ui';
+import { CornerNotice } from './components/widgets/CornerNotice';
 import { SettingsStorageError } from './components/widgets/SettingsStorageError';
 import {
   BASE_LANG,
@@ -94,7 +95,7 @@ import {
 } from './ospanel';
 import { displayProjectDomain } from './projectDomain';
 import { patchProjectIni } from './projectWorkspace';
-import { settingsStorage } from './settingsStorage';
+import { GITHUB_STAR_DISMISSED_KEY, settingsStorage } from './settingsStorage';
 import { applyAccentTheme, applyFont, applyUiScale, type ThemeMode, useSystemPrefersLight } from './theme';
 
 export { buildActivityRows } from './components/tables/Logs';
@@ -115,7 +116,8 @@ const MenuEditor = lazy(() =>
 const initialLang = (): string =>
   settingsStorage.getItem('ospanel.lang') ?? preferredLang(EMBEDDED_LANGS) ?? BASE_LANG;
 
-const DISCUSSIONS_URL = 'https://github.com/dragomano/OSP-Control/discussions';
+const REPOSITORY_URL = 'https://github.com/dragomano/OSP-Control';
+const DISCUSSIONS_URL = `${REPOSITORY_URL}/discussions`;
 
 // Hotkeys like "/" must not fire while the user is typing into a text field.
 const isTypingTarget = (target: EventTarget | null): boolean =>
@@ -175,6 +177,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<OsPanelSnapshot | null>(null);
   const [query, setQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; action?: ToastAction } | null>(null);
+  const [githubStarVisible, setGithubStarVisible] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const stored = settingsStorage.getItem('ospanel.theme');
     return stored === 'dark' || stored === 'light' ? stored : 'system';
@@ -290,6 +293,18 @@ function App() {
       setToast(null);
     }, 2600);
   }, []);
+  const showGithubStar = () => {
+    if (
+      settingsStorage.getItem('ospanel.notify') !== '0' &&
+      settingsStorage.getItem(GITHUB_STAR_DISMISSED_KEY) !== '1'
+    ) {
+      setGithubStarVisible(true);
+    }
+  };
+  const dismissGithubStar = () => {
+    settingsStorage.setItem(GITHUB_STAR_DISMISSED_KEY, '1');
+    setGithubStarVisible(false);
+  };
 
   // Clear the toast timer on unmount, including in tests with fake timers.
   useEffect(
@@ -1084,6 +1099,63 @@ function App() {
               panelStarting || moduleUpdating || panelRestarting || autostartBusy || pendingServices.size > 0
             }
             onBusy={onAppUpdateBusy}
+            cornerNotices={
+              <>
+                {githubStarVisible && (
+                  <CornerNotice
+                    icon={<span className="github-star-icon" />}
+                    title={t('githubStar.title')}
+                    description={t('githubStar.description')}
+                    action={
+                      <ButtonLink
+                        className="secondary-button"
+                        href={REPOSITORY_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(event) => {
+                          dismissGithubStar();
+                          if (!isDesktopApp()) return;
+                          event.preventDefault();
+                          void openInBrowser(REPOSITORY_URL).catch((error) =>
+                            notify(errorText(t, error, 'projects.toastOpenFailed')),
+                          );
+                        }}
+                      >
+                        {t('githubStar.action')}
+                      </ButtonLink>
+                    }
+                    onClose={dismissGithubStar}
+                  />
+                )}
+                {toast && (
+                  <div className="toast">
+                    <ShieldCheck size={17} />
+                    <span>{toast.message}</span>
+                    {toastAction && (
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className="toast-action"
+                        onClick={() => {
+                          setToast(null);
+                          toastAction.run();
+                        }}
+                      >
+                        {toastAction.label}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      onClick={() => setToast(null)}
+                      aria-label={t('common.close')}
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                )}
+              </>
+            }
           >
             <aside className={`sidebar ${sidebarNarrow ? 'collapsed' : ''}`}>
               <div className="brand">
@@ -1345,6 +1417,7 @@ function App() {
                       onProjectRenamed={projectRenamed}
                       onToggleSsl={(domain, next) => void toggleProjectSsl(domain, next)}
                       onRestartPanel={() => void restartPanel()}
+                      onStarterCreated={showGithubStar}
                       blocked={panelRestarting || moduleUpdating || appUpdating || autostartBusy}
                       onWorkspaceStateChange={setProjectState}
                     />
@@ -1458,39 +1531,13 @@ function App() {
                       menuRestoring
                     }
                     onMenuRestored={() => setMenuReloadVersion((version) => version + 1)}
+                    onBackupRestored={showGithubStar}
                     onMenuRestoreBusyChange={setMenuRestoring}
                     onRestart={() => void restartPanel()}
                   />
                 )}
               </div>
             </main>
-            {toast && (
-              <div className="toast">
-                <ShieldCheck size={17} />
-                <span>{toast.message}</span>
-                {toastAction && (
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    className="toast-action"
-                    onClick={() => {
-                      setToast(null);
-                      toastAction.run();
-                    }}
-                  >
-                    {toastAction.label}
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() => setToast(null)}
-                  aria-label={t('common.close')}
-                >
-                  <X size={14} />
-                </Button>
-              </div>
-            )}
             <QuickSearch
               open={searchOpen}
               onClose={() => setSearchOpen(false)}
