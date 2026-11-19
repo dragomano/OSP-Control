@@ -46,7 +46,7 @@ export function ModuleUpdateSources({ notify }: { notify: Notify }) {
     return true;
   };
   return (
-    <section className="module-sources">
+    <section id="settings.sourcesTitle" className="module-sources" tabIndex={-1}>
       <h3>{t('settings.sourcesTitle')}</h3>
       <p>{t('settings.sourcesOrder')}</p>
       {MODULE_FAMILIES.map((family) => (

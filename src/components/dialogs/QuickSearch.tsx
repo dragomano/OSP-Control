@@ -2,12 +2,9 @@ import {
   Activity,
   Code2,
   Copy,
-  FileCode2,
-  FolderOpen,
   Gauge,
   Globe2,
-  LayoutDashboard,
-  ListTree,
+  Inbox,
   Moon,
   Power,
   RefreshCw,
@@ -15,142 +12,40 @@ import {
   Settings2,
   SlidersHorizontal,
   Sun,
-  Terminal,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppUpdates } from '../../appUpdates';
 import { useI18n } from '../../i18n';
-import { type Page, type SettingsTab, useDismiss } from '../shared';
+import { useModuleUpdates } from '../../moduleUpdates';
+import { navItems, type Page, type SettingsTab, useDismiss } from '../shared';
 import { Button, DialogOverlay, DialogPanel, EmptyState, Input } from '../ui';
 
-// Catalog of the global search: pages and settings options from different sections.
-// Dictionary keys are known up front — titles are taken via t() at render time, so the locale applies on the fly.
-type SearchEntry = {
+type SearchLabel = {
   id: string;
-  page: Page;
-  settingsTab?: SettingsTab;
   titleKey: string;
   sectionKey: string;
   icon: typeof Activity;
+  keywordsKey?: string;
 };
 
-const searchEntries: SearchEntry[] = [
-  {
-    id: 'page.overview',
-    page: 'overview',
-    titleKey: 'nav.overview',
+export type SearchAction = SearchLabel & { run: () => void };
+type SearchEntry = SearchLabel & { page: Page; settingsTab?: SettingsTab; focusId?: string };
+
+const pageEntries: SearchEntry[] = [
+  ...navItems.map(({ id, icon }) => ({
+    id: `page.${id}`,
+    page: id,
+    titleKey: `nav.${id}`,
     sectionKey: 'nav.workspace',
-    icon: LayoutDashboard,
-  },
-  {
-    id: 'page.services',
-    page: 'services',
-    titleKey: 'nav.services',
-    sectionKey: 'nav.workspace',
-    icon: SlidersHorizontal,
-  },
-  {
-    id: 'page.projects',
-    page: 'projects',
-    titleKey: 'nav.projects',
-    sectionKey: 'nav.workspace',
-    icon: FolderOpen,
-  },
-  {
-    id: 'page.configs',
-    page: 'configs',
-    titleKey: 'nav.configs',
-    sectionKey: 'nav.workspace',
-    icon: FileCode2,
-  },
-  { id: 'page.logs', page: 'logs', titleKey: 'nav.logs', sectionKey: 'nav.workspace', icon: Terminal },
-  { id: 'page.menu', page: 'menu', titleKey: 'nav.menu', sectionKey: 'nav.workspace', icon: ListTree },
+    icon,
+  })),
   {
     id: 'page.settings',
     page: 'settings',
     titleKey: 'nav.settings',
     sectionKey: 'nav.system',
     icon: Settings2,
-  },
-  {
-    id: 'settings.connection',
-    page: 'settings',
-    settingsTab: 'general',
-    titleKey: 'settings.connectionTitle',
-    sectionKey: 'nav.settings',
-    icon: Globe2,
-  },
-  {
-    id: 'settings.autostart',
-    page: 'settings',
-    settingsTab: 'general',
-    titleKey: 'settings.autostartTitle',
-    sectionKey: 'nav.settings',
-    icon: Power,
-  },
-  {
-    id: 'settings.notifications',
-    page: 'settings',
-    settingsTab: 'general',
-    titleKey: 'settings.notificationsTitle',
-    sectionKey: 'nav.settings',
-    icon: Activity,
-  },
-  {
-    id: 'settings.updateSources',
-    page: 'settings',
-    settingsTab: 'updates',
-    titleKey: 'settings.sourcesTitle',
-    sectionKey: 'nav.settings',
-    icon: RefreshCw,
-  },
-  {
-    id: 'settings.theme',
-    page: 'settings',
-    settingsTab: 'interface',
-    titleKey: 'settings.themeTitle',
-    sectionKey: 'nav.settings',
-    icon: Moon,
-  },
-  {
-    id: 'settings.palette',
-    page: 'settings',
-    settingsTab: 'interface',
-    titleKey: 'settings.paletteTitle',
-    sectionKey: 'nav.settings',
-    icon: Sun,
-  },
-  {
-    id: 'settings.accent',
-    page: 'settings',
-    settingsTab: 'interface',
-    titleKey: 'settings.accentTitle',
-    sectionKey: 'nav.settings',
-    icon: Sun,
-  },
-  {
-    id: 'settings.language',
-    page: 'settings',
-    settingsTab: 'interface',
-    titleKey: 'settings.languageTitle',
-    sectionKey: 'nav.settings',
-    icon: Globe2,
-  },
-  {
-    id: 'settings.font',
-    page: 'settings',
-    settingsTab: 'interface',
-    titleKey: 'settings.fontTitle',
-    sectionKey: 'nav.settings',
-    icon: Code2,
-  },
-  {
-    id: 'settings.scale',
-    page: 'settings',
-    settingsTab: 'interface',
-    titleKey: 'settings.sizeTitle',
-    sectionKey: 'nav.settings',
-    icon: Gauge,
   },
   {
     id: 'page.backups',
@@ -161,24 +56,204 @@ const searchEntries: SearchEntry[] = [
   },
 ];
 
+const settingsTabs: SearchEntry[] = [
+  {
+    id: 'settings.general',
+    page: 'settings',
+    settingsTab: 'general',
+    focusId: 'settings-tab-general',
+    titleKey: 'settings.navGeneral',
+    sectionKey: 'nav.settings',
+    icon: SlidersHorizontal,
+  },
+  {
+    id: 'settings.updates',
+    page: 'settings',
+    settingsTab: 'updates',
+    focusId: 'settings-tab-updates',
+    titleKey: 'settings.navUpdates',
+    sectionKey: 'nav.settings',
+    icon: RefreshCw,
+  },
+  {
+    id: 'settings.interface',
+    page: 'settings',
+    settingsTab: 'interface',
+    focusId: 'settings-tab-interface',
+    titleKey: 'settings.navInterface',
+    sectionKey: 'nav.settings',
+    icon: Settings2,
+  },
+];
+
+const settingOptions: (SearchLabel & { settingsTab: SettingsTab })[] = [
+  {
+    id: 'settings.connection',
+    settingsTab: 'general',
+    titleKey: 'settings.connectionTitle',
+    keywordsKey: 'nav.openSettings',
+    sectionKey: 'nav.settings',
+    icon: Globe2,
+  },
+  {
+    id: 'settings.autostart',
+    settingsTab: 'general',
+    titleKey: 'settings.autostartTitle',
+    sectionKey: 'nav.settings',
+    icon: Power,
+  },
+  {
+    id: 'settings.panelAutostart',
+    settingsTab: 'general',
+    titleKey: 'settings.panelAutostartTitle',
+    sectionKey: 'nav.settings',
+    icon: Power,
+  },
+  {
+    id: 'settings.projectAutostart',
+    settingsTab: 'general',
+    titleKey: 'settings.projectAutostartTitle',
+    sectionKey: 'nav.settings',
+    icon: Power,
+  },
+  {
+    id: 'settings.closeToTray',
+    settingsTab: 'general',
+    titleKey: 'settings.closeToTrayTitle',
+    sectionKey: 'nav.settings',
+    icon: Inbox,
+  },
+  {
+    id: 'settings.notifications',
+    settingsTab: 'general',
+    titleKey: 'settings.notificationsTitle',
+    sectionKey: 'nav.settings',
+    icon: Activity,
+  },
+  {
+    id: 'settings.appUpdatesStartup',
+    settingsTab: 'updates',
+    titleKey: 'appUpdates.startup',
+    sectionKey: 'nav.settings',
+    icon: RefreshCw,
+  },
+  {
+    id: 'settings.moduleUpdatesStartup',
+    settingsTab: 'updates',
+    titleKey: 'settings.checkModuleUpdates',
+    sectionKey: 'nav.settings',
+    icon: RefreshCw,
+  },
+  {
+    id: 'settings.updateSources',
+    settingsTab: 'updates',
+    titleKey: 'settings.sourcesTitle',
+    sectionKey: 'nav.settings',
+    icon: RefreshCw,
+  },
+  {
+    id: 'settings.theme',
+    settingsTab: 'interface',
+    titleKey: 'settings.themeTitle',
+    sectionKey: 'nav.settings',
+    icon: Moon,
+  },
+  {
+    id: 'settings.palette',
+    settingsTab: 'interface',
+    titleKey: 'settings.paletteTitle',
+    sectionKey: 'nav.settings',
+    icon: Sun,
+  },
+  {
+    id: 'settings.accent',
+    settingsTab: 'interface',
+    titleKey: 'settings.accentTitle',
+    sectionKey: 'nav.settings',
+    icon: Sun,
+  },
+  {
+    id: 'settings.language',
+    settingsTab: 'interface',
+    titleKey: 'settings.languageTitle',
+    sectionKey: 'nav.settings',
+    icon: Globe2,
+  },
+  {
+    id: 'settings.font',
+    settingsTab: 'interface',
+    titleKey: 'settings.fontTitle',
+    sectionKey: 'nav.settings',
+    icon: Code2,
+  },
+  {
+    id: 'settings.scale',
+    settingsTab: 'interface',
+    titleKey: 'settings.sizeTitle',
+    sectionKey: 'nav.settings',
+    icon: Gauge,
+  },
+];
+
+const settingsEntries: SearchEntry[] = [
+  ...settingsTabs,
+  ...settingOptions.map((option) => ({ ...option, page: 'settings' as const, focusId: option.titleKey })),
+];
+
+const noActions: SearchAction[] = [];
+const normalize = (value: string) => value.trim().toLowerCase().replace(/ё/g, 'е');
+
 export function QuickSearch({
   open,
   onClose,
   onNavigate,
+  actions = noActions,
 }: {
   open: boolean;
   onClose: () => void;
-  onNavigate: (page: Page, tab?: SettingsTab) => void;
+  onNavigate: (page: Page, tab?: SettingsTab, focusId?: string) => void;
+  actions?: SearchAction[];
 }) {
   const { t } = useI18n();
+  const { open: openAppUpdates } = useAppUpdates();
+  const { check: checkModuleUpdates } = useModuleUpdates();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const results = useMemo(() => {
-    const normalized = query.trim().toLowerCase().replace(/ё/g, 'е');
-    const all = searchEntries.map((entry) => ({
+    const updateActions: SearchAction[] = [
+      {
+        id: 'action.appUpdates',
+        titleKey: 'appUpdates.check',
+        sectionKey: 'nav.system',
+        icon: RefreshCw,
+        run: openAppUpdates,
+      },
+      {
+        id: 'action.moduleUpdates',
+        titleKey: 'updates.title',
+        keywordsKey: 'updates.check',
+        sectionKey: 'nav.services',
+        icon: RefreshCw,
+        run: () => {
+          onNavigate('services', undefined, 'updates.title');
+          void checkModuleUpdates();
+        },
+      },
+    ];
+    const normalized = normalize(query);
+    const allActions = [...actions, ...updateActions];
+    const catalog = [
+      ...pageEntries.flatMap((page) => [
+        page,
+        ...allActions.filter((action) => action.sectionKey === page.titleKey),
+      ]),
+      ...settingsEntries,
+      ...allActions.filter((action) => !pageEntries.some((page) => page.titleKey === action.sectionKey)),
+    ];
+    const all = catalog.map((entry) => ({
       entry,
       title: t(entry.titleKey),
       section: t(entry.sectionKey),
@@ -186,10 +261,28 @@ export function QuickSearch({
 
     if (!normalized) return all;
 
-    return all.filter(({ title, section }) =>
-      `${title} ${section}`.toLowerCase().replace(/ё/g, 'е').includes(normalized),
-    );
-  }, [query, t]);
+    const terms = normalized.split(/\s+/);
+    return all
+      .flatMap((result) => {
+        const title = normalize(result.title);
+        const keywords = result.entry.keywordsKey ? normalize(t(result.entry.keywordsKey)) : '';
+        const names = `${title} ${keywords}`;
+        const searchable = `${names} ${normalize(result.section)}`;
+        if (!terms.every((term) => searchable.includes(term))) return [];
+        const rank = title === normalized ? 0 : terms.every((term) => names.includes(term)) ? 1 : 2;
+        return [{ ...result, rank }];
+      })
+      .sort((a, b) => a.rank - b.rank);
+  }, [actions, checkModuleUpdates, onNavigate, openAppUpdates, query, t]);
+
+  const select = useCallback(
+    (entry: SearchAction | SearchEntry) => {
+      onClose();
+      if ('run' in entry) entry.run();
+      else onNavigate(entry.page, entry.settingsTab, entry.focusId);
+    },
+    [onClose, onNavigate],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -207,7 +300,7 @@ export function QuickSearch({
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        setActive((index) => Math.min(index + 1, results.length - 1));
+        setActive((index) => Math.min(index + 1, Math.max(results.length - 1, 0)));
       }
 
       if (event.key === 'ArrowUp') {
@@ -215,20 +308,21 @@ export function QuickSearch({
         setActive((index) => Math.max(index - 1, 0));
       }
 
-      if (event.key === 'Enter') {
+      const otherButton =
+        event.target instanceof HTMLButtonElement && !listRef.current?.contains(event.target);
+      if (event.key === 'Enter' && !otherButton && !event.isComposing) {
         event.preventDefault();
         const hit = results[active];
 
-        if (hit) onNavigate(hit.entry.page, hit.entry.settingsTab);
+        if (hit) select(hit.entry);
       }
     };
 
     document.addEventListener('keydown', handleKey);
 
     return () => document.removeEventListener('keydown', handleKey);
-  }, [open, results, active, onNavigate]);
+  }, [open, results, active, select]);
 
-  // Scroll to the active item on arrow-key navigation.
   useEffect(() => {
     listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' });
   }, [active]);
@@ -256,6 +350,7 @@ export function QuickSearch({
             onChange={(event) => {
               setQuery(event.target.value);
               setActive(0);
+              if (listRef.current) listRef.current.scrollTop = 0;
             }}
             placeholder={t('search.placeholder')}
             aria-label={t('search.open')}
@@ -283,7 +378,8 @@ export function QuickSearch({
                 key={entry.id}
                 className={`quick-search-item ${index === active ? 'active' : ''}`}
                 onMouseEnter={() => setActive(index)}
-                onClick={() => onNavigate(entry.page, entry.settingsTab)}
+                onFocus={() => setActive(index)}
+                onClick={() => select(entry)}
               >
                 <span className="quick-search-icon">
                   <Icon size={15} />

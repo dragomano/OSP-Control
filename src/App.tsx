@@ -3,13 +3,19 @@ import {
   ChevronRight,
   CircleHelp,
   Copy,
+  Database,
+  FileCode2,
   FolderOpen,
   Languages,
+  Layers,
   Leaf,
   Lightbulb,
+  ListTree,
   MessagesSquare,
   Monitor,
   Moon,
+  Network,
+  Plus,
   Search,
   Settings2,
   ShieldCheck,
@@ -22,9 +28,9 @@ import { AppUpdateButton, AppUpdatesProvider } from './appUpdates';
 import { APP_NAME } from './brand';
 import { applyColorTheme, colorThemeId, colorThemeIsLight } from './colorThemes';
 import { ConfirmDialog } from './components/dialogs/ConfirmDialog';
-import { QuickSearch } from './components/dialogs/QuickSearch';
+import { QuickSearch, type SearchAction } from './components/dialogs/QuickSearch';
 import { Overview } from './components/pages/Overview';
-import { Projects } from './components/pages/Projects';
+import { type ProjectShortcut, Projects } from './components/pages/Projects';
 import { Services } from './components/pages/Services';
 import { Settings } from './components/pages/Settings';
 import {
@@ -121,6 +127,8 @@ const isTypingTarget = (target: EventTarget | null): boolean =>
 
 function App() {
   const [page, setPage] = useState<Page>('overview');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchFocus, setSearchFocus] = useState<{ id: string }>();
   const [profileService, setProfileService] = useState<Service | null>(null);
   const [menuVisited, setMenuVisited] = useState(false);
   const [backupFilter, setBackupFilter] = useState<BackupFilter>('all');
@@ -130,19 +138,19 @@ function App() {
   useEffect(() => {
     if (page === 'projects') setProjectsVisited(true);
   }, [page]);
-  // Bumped when the tray menu asks for a new project; the Projects page watches
-  // this counter and opens its creation dialog.
-  const [createProjectSignal, setCreateProjectSignal] = useState(0);
+  const [projectShortcut, setProjectShortcut] = useState<{ kind: ProjectShortcut }>();
+  const openProjectShortcut = useCallback((kind: ProjectShortcut) => {
+    setPage('projects');
+    setProjectShortcut({ kind });
+    setSearchOpen(false);
+  }, []);
   useEffect(() => {
     if (!isDesktopApp()) return;
     let cancelled = false;
     let unlisten: (() => void) | undefined;
     const subscribe = async () => {
       const { listen } = await import('@tauri-apps/api/event');
-      const off = await listen('tray-create-project', () => {
-        setPage('projects');
-        setCreateProjectSignal((n) => n + 1);
-      });
+      const off = await listen('tray-create-project', () => openProjectShortcut('create'));
       if (cancelled) off();
       else unlisten = off;
     };
@@ -155,7 +163,7 @@ function App() {
       cancelled = true;
       unlisten?.();
     };
-  }, []);
+  }, [openProjectShortcut]);
   const [menuReloadVersion, setMenuReloadVersion] = useState(0);
   const [menuRestoring, setMenuRestoring] = useState(false);
   useEffect(() => {
@@ -197,7 +205,6 @@ function App() {
     EMBEDDED_LANGS.map((code) => ({ code, name: langDisplayName(code) })),
   );
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => settingsStorage.getItem('ospanel.sidebar') === '1',
   );
@@ -946,33 +953,42 @@ function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setSearchOpen((open) => !open);
-        return;
-      }
-      // Slash opens the palette too, but must not steal keystrokes typed into text fields.
-      if (
+      const toggle = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k';
+      const slash =
         event.key === '/' &&
         !event.ctrlKey &&
         !event.metaKey &&
         !event.altKey &&
-        !isTypingTarget(event.target)
-      ) {
-        event.preventDefault();
-        setSearchOpen(true);
-      }
+        !isTypingTarget(event.target);
+      if (!toggle && !slash) return;
+      // Let an open modal keep its keyboard focus and dismissal handling.
+      if (!searchOpen && document.querySelector('[aria-modal="true"]:not([hidden] *)')) return;
+      event.preventDefault();
+      setSearchOpen(toggle ? !searchOpen : true);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [searchOpen]);
 
-  const navigateTo = useCallback((nextPage: Page, tab?: SettingsTab) => {
+  const navigateTo = useCallback((nextPage: Page, tab?: SettingsTab, focusId?: string) => {
     if (tab) setSettingsTab(tab);
     if (nextPage === 'backups') setBackupFilter('all');
     setPage(nextPage);
     setSearchOpen(false);
+    setSearchFocus(focusId ? { id: focusId } : undefined);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!searchFocus) return;
+    const target = document.getElementById(searchFocus.id);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView?.({ block: 'center' });
+  }, [searchFocus]);
+
+  const openBackups = (filter: BackupFilter) => {
+    setBackupFilter(filter);
+    setPage('backups');
+  };
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((collapsed) => {
@@ -991,6 +1007,66 @@ function App() {
       notify(errorText(t, error, 'nav.openFolderFailed'));
     }
   };
+
+  const openDocumentation = () => {
+    if (!isDesktopApp()) {
+      window.open(documentationUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    void openInBrowser(documentationUrl).catch((error) =>
+      notify(errorText(t, error, 'common.documentationOpenFailed')),
+    );
+  };
+
+  const searchActions: SearchAction[] = [
+    {
+      id: 'project.hosts',
+      titleKey: 'hosts.title',
+      sectionKey: 'nav.projects',
+      icon: Network,
+      run: () => openProjectShortcut('hosts'),
+    },
+    {
+      id: 'project.templates',
+      titleKey: 'starter.title',
+      keywordsKey: 'search.templateKeywords',
+      sectionKey: 'nav.projects',
+      icon: Layers,
+      run: () => openProjectShortcut('templates'),
+    },
+    {
+      id: 'project.create',
+      titleKey: 'projects.new',
+      keywordsKey: 'projects.createTitle',
+      sectionKey: 'nav.projects',
+      icon: Plus,
+      run: () => openProjectShortcut('create'),
+    },
+    ...(
+      [
+        ['config', 'settings.backupsTitle', FileCode2],
+        ['menu', 'settings.backupsMenuTitle', ListTree],
+        ['db', 'settings.backupsDbTitle', Database],
+        ['project', 'settings.backupsProjectTitle', FolderOpen],
+      ] as const
+    ).map(([filter, titleKey, icon]) => ({
+      id: `backup.${filter}`,
+      titleKey,
+      sectionKey: 'nav.backups',
+      icon,
+      run: () => {
+        openBackups(filter);
+        setSearchFocus({ id: 'backups.filter' });
+      },
+    })),
+    {
+      id: 'action.documentation',
+      titleKey: 'common.documentation',
+      sectionKey: 'nav.system',
+      icon: CircleHelp,
+      run: openDocumentation,
+    },
+  ];
 
   // Hoisted out of the JSX so the narrowing survives inside the onClick closure.
   const toastAction = toast?.action;
@@ -1170,9 +1246,7 @@ function App() {
                     onClick={(event) => {
                       if (!isDesktopApp()) return;
                       event.preventDefault();
-                      void openInBrowser(documentationUrl).catch((error) =>
-                        notify(errorText(t, error, 'common.documentationOpenFailed')),
-                      );
+                      openDocumentation();
                     }}
                   >
                     <CircleHelp size={17} aria-hidden="true" />
@@ -1266,7 +1340,7 @@ function App() {
                       query={query}
                       setQuery={setQuery}
                       notify={notify}
-                      createSignal={createProjectSignal}
+                      shortcut={projectShortcut}
                       onProjectCreated={addProject}
                       onProjectDeleted={(domain) => void removeProject(domain)}
                       onProjectRenamed={projectRenamed}
@@ -1301,10 +1375,7 @@ function App() {
                           panelRestarting || moduleUpdating || appUpdating || autostartBusy || menuRestoring
                         }
                         onRestart={() => void restartPanel()}
-                        onOpenBackups={() => {
-                          setBackupFilter('menu');
-                          setPage('backups');
-                        }}
+                        onOpenBackups={() => openBackups('menu')}
                         onStateChange={setMenuState}
                         reloadVersion={menuReloadVersion}
                       />
@@ -1421,7 +1492,12 @@ function App() {
                 </Button>
               </div>
             )}
-            <QuickSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={navigateTo} />
+            <QuickSearch
+              open={searchOpen}
+              onClose={() => setSearchOpen(false)}
+              onNavigate={navigateTo}
+              actions={searchActions}
+            />
             <ConfirmDialog />
             {profileService && (
               <Suspense fallback={null}>

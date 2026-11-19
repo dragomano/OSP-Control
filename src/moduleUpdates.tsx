@@ -270,7 +270,7 @@ export function ModuleUpdateToolbar() {
   const { t } = useI18n();
   const { check, checking, busy, message } = useModuleUpdates();
   return (
-    <div className="notice module-update-toolbar">
+    <div id="updates.title" className="notice module-update-toolbar" tabIndex={-1}>
       <div>
         <b>{t('updates.title')}</b>
         <span>{t('updates.description')}</span>

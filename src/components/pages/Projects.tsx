@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Fragment, lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { errorText, localeTag, useI18n } from '../../i18n';
 import {
   type CreatedProject,
@@ -76,13 +76,15 @@ const ProjectStartersWorkspace = lazy(() =>
   import('./ProjectStartersWorkspace').then((module) => ({ default: module.ProjectStartersWorkspace })),
 );
 
+export type ProjectShortcut = 'hosts' | 'templates' | 'create';
+
 type ProjectsProps = {
   projects: OsPanelProject[];
   allProjects: OsPanelProject[];
   query: string;
   setQuery: (value: string) => void;
   notify: Notify;
-  createSignal?: number;
+  shortcut?: { kind: ProjectShortcut };
   onProjectCreated: (created: CreatedProject) => void;
   onProjectDeleted: (domain: string) => void;
   onProjectRenamed: (domain: string, renamed: OsPanelProject) => void;
@@ -102,7 +104,7 @@ function ProjectsContent({
   query,
   setQuery,
   notify,
-  createSignal = 0,
+  shortcut,
   onProjectCreated,
   onProjectDeleted,
   onProjectRenamed,
@@ -121,14 +123,21 @@ function ProjectsContent({
     if (main) main.scrollTop = 0;
     setModulesFor(project);
   };
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [hostsOpen, setHostsOpen] = useState(false);
+  const [dialog, setDialog] = useState<'create' | 'hosts' | null>(null);
   const [renameFor, setRenameFor] = useState<OsPanelProject | null>(null);
   const [sslFilter, setSslFilter] = useState<'all' | 'on' | 'off' | 'auto'>('all');
   const [phpFilter, setPhpFilter] = useState('all');
   const [httpEngineFilter, setHttpEngineFilter] = useState('all');
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [startersOpen, setStartersOpen] = useState(false);
+  const startersScroll = useRef<number | null>(null);
+  const openTemplates = useCallback(() => {
+    if (startersScroll.current !== null) return;
+    const main = document.querySelector('.main-content');
+    startersScroll.current = main?.scrollTop ?? 0;
+    if (main) main.scrollTop = 0;
+    setStartersOpen(true);
+  }, []);
   const [tagState, setTagState] = useState(() => ({
     key: tagStorageKey,
     tags: readProjectTags(tagStorageKey),
@@ -149,16 +158,12 @@ function ProjectsContent({
   const [editingTags, setEditingTags] = useState<string | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [bulkTags, setBulkTags] = useState<string[]>([]);
-  // The tray "create project" entry switches to this page and bumps the signal;
-  // open the dialog and clear whatever else might be in the way.
   useEffect(() => {
-    if (createSignal <= 0) return;
-    setModulesFor(null);
-    setHostsOpen(false);
-    setRenameFor(null);
-    setEditingTags(null);
-    setCreateDialogOpen(true);
-  }, [createSignal]);
+    const kind = shortcut?.kind;
+    if (!kind) return;
+    if (kind === 'templates') openTemplates();
+    else setDialog((current) => current ?? kind);
+  }, [openTemplates, shortcut]);
   useEffect(() => {
     const tags = readProjectTags(tagStorageKey);
     const colors = readProjectTagColors(tagStorageKey);
@@ -354,43 +359,7 @@ function ProjectsContent({
     }
   };
 
-  if (startersOpen)
-    return (
-      <Suspense fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}>
-        <ProjectStartersWorkspace
-          notify={notify}
-          onClose={() => {
-            setStartersOpen(false);
-            requestAnimationFrame(() => {
-              const main = document.querySelector('.main-content');
-              if (main) main.scrollTop = listScroll.current;
-            });
-          }}
-        />
-      </Suspense>
-    );
-
-  if (modulesFor)
-    return (
-      <Suspense fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}>
-        <ProjectWorkspace
-          project={modulesFor}
-          notify={notify}
-          onRestartPanel={onRestartPanel}
-          blocked={blocked}
-          onStateChange={onWorkspaceStateChange}
-          onClose={() => {
-            setModulesFor(null);
-            requestAnimationFrame(() => {
-              const main = document.querySelector('.main-content');
-              if (main) main.scrollTop = listScroll.current;
-            });
-          }}
-        />
-      </Suspense>
-    );
-
-  return (
+  const renderList = () => (
     <>
       <PageHeader
         eyebrow={t('nav.workspace')}
@@ -398,11 +367,11 @@ function ProjectsContent({
         description={t('projects.subtitle')}
         action={
           <Actions className="projects-header-actions">
-            <Button type="button" className="secondary-button" onClick={() => setHostsOpen(true)}>
+            <Button type="button" className="secondary-button" onClick={() => setDialog('hosts')}>
               <Network size={15} />
               {t('hosts.open')}
             </Button>
-            <Button type="button" className="secondary-button" onClick={() => setStartersOpen(true)}>
+            <Button type="button" className="secondary-button" onClick={openTemplates}>
               <Layers size={15} />
               {t('starter.title')}
             </Button>
@@ -410,7 +379,7 @@ function ProjectsContent({
               variant="primary"
               type="button"
               className="primary-button"
-              onClick={() => setCreateDialogOpen(true)}
+              onClick={() => setDialog('create')}
             >
               <span className="plus">+</span>
               {t('projects.new')}
@@ -824,20 +793,66 @@ function ProjectsContent({
           }}
         />
       )}
-      {createDialogOpen && (
+    </>
+  );
+
+  return (
+    <>
+      {startersOpen && (
+        <Suspense fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}>
+          <ProjectStartersWorkspace
+            notify={notify}
+            onClose={() => {
+              const scroll = startersScroll.current ?? 0;
+              startersScroll.current = null;
+              setStartersOpen(false);
+              requestAnimationFrame(() => {
+                const main = document.querySelector('.main-content');
+                if (main) main.scrollTop = scroll;
+              });
+            }}
+          />
+        </Suspense>
+      )}
+      {modulesFor && (
+        <div hidden={startersOpen}>
+          <Suspense fallback={<EmptyState className="empty-note">{t('common.loading')}</EmptyState>}>
+            <ProjectWorkspace
+              project={modulesFor}
+              notify={notify}
+              onRestartPanel={onRestartPanel}
+              blocked={blocked}
+              onStateChange={onWorkspaceStateChange}
+              onClose={() => {
+                setModulesFor(null);
+                requestAnimationFrame(() => {
+                  const main = document.querySelector('.main-content');
+                  if (main) main.scrollTop = listScroll.current;
+                });
+              }}
+            />
+          </Suspense>
+        </div>
+      )}
+      {!modulesFor && !startersOpen && renderList()}
+      {dialog === 'create' && (
         <CreateProjectDialog
           notify={notify}
           onCreated={onProjectCreated}
-          onConfigure={(created) => openSettings({ ...created, type: created.http })}
+          onConfigure={
+            modulesFor || startersOpen
+              ? undefined
+              : (created) => openSettings({ ...created, type: created.http })
+          }
           onRestartPanel={onRestartPanel}
           onManageTemplates={() => {
-            setCreateDialogOpen(false);
-            setStartersOpen(true);
+            setDialog(null);
+            openTemplates();
           }}
-          onClose={() => setCreateDialogOpen(false)}
+          onClose={() => setDialog(null)}
         />
       )}
-      {hostsOpen && <HostsEditor notify={notify} onClose={() => setHostsOpen(false)} />}
+      {dialog === 'hosts' && <HostsEditor notify={notify} onClose={() => setDialog(null)} />}
     </>
   );
 }

@@ -255,7 +255,7 @@ export function Settings({
           {tab === 'general' && (
             <>
               <Panel className="settings-card">
-                <FormRow className="setting-block">
+                <FormRow id="settings.autostartTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.autostartTitle')}</h3>
                     <p>{t('settings.autostartText')}</p>
@@ -270,7 +270,7 @@ export function Settings({
                     <span />
                   </Toggle>
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow id="settings.closeToTrayTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.closeToTrayTitle')}</h3>
                     <p>{t('settings.closeToTrayText')}</p>
@@ -285,7 +285,7 @@ export function Settings({
                     <span />
                   </Toggle>
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow id="settings.notificationsTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.notificationsTitle')}</h3>
                     <p>{t('settings.notificationsText')}</p>
@@ -302,7 +302,7 @@ export function Settings({
                 </FormRow>
               </Panel>
               <Panel className="settings-card">
-                <FormRow className="setting-block settings-path">
+                <FormRow id="settings.connectionTitle" className="setting-block settings-path" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.connectionTitle')}</h3>
                     <p>{t('settings.connectionText')}</p>
@@ -338,7 +338,7 @@ export function Settings({
                     </Button>
                   </div>
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow id="settings.panelAutostartTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.panelAutostartTitle')}</h3>
                     <p>{t('settings.panelAutostartText')}</p>
@@ -353,7 +353,7 @@ export function Settings({
                     <span />
                   </Toggle>
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow id="settings.projectAutostartTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.projectAutostartTitle')}</h3>
                     <p>
@@ -375,11 +375,11 @@ export function Settings({
           )}
           {tab === 'updates' && (
             <>
-              <Panel className="settings-card">
+              <Panel id="appUpdates.startup" className="settings-card" tabIndex={-1}>
                 <AppUpdateSettings />
               </Panel>
               <Panel className="settings-card">
-                <FormRow className="setting-block">
+                <FormRow id="settings.checkModuleUpdates" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.checkModuleUpdates')}</h3>
                     <p>{t('settings.moduleUpdatesText')}</p>
@@ -405,7 +405,7 @@ export function Settings({
           {tab === 'interface' && (
             <>
               <Panel className="settings-card">
-                <FormRow className="setting-block">
+                <FormRow id="settings.themeTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.themeTitle')}</h3>
                     <p>{t('settings.themeText')}</p>
@@ -449,7 +449,7 @@ export function Settings({
                     </Button>
                   </div>
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow id="settings.paletteTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <label htmlFor="color-theme">{t('settings.paletteTitle')}</label>
                     <p>{t('settings.paletteText')}</p>
@@ -467,7 +467,7 @@ export function Settings({
                     ))}
                   </Select>
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow id="settings.accentTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.accentTitle')}</h3>
                     <p>{t('settings.accentText')}</p>
@@ -521,7 +521,7 @@ export function Settings({
                 </FormRow>
               </Panel>
               <Panel className="settings-card">
-                <FormRow className="setting-block">
+                <FormRow id="settings.languageTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.languageTitle')}</h3>
                     <p>{t('settings.languageText')}</p>
@@ -540,7 +540,7 @@ export function Settings({
                     </Button>
                   </Actions>
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow id="settings.fontTitle" className="setting-block" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.fontTitle')}</h3>
                     <p>{t('settings.fontText')}</p>
@@ -557,7 +557,7 @@ export function Settings({
                     onChange={onFontChange}
                   />
                 </FormRow>
-                <FormRow className="setting-block settings-scale">
+                <FormRow id="settings.sizeTitle" className="setting-block settings-scale" tabIndex={-1}>
                   <div>
                     <h3>{t('settings.sizeTitle')}</h3>
                     <p>{t('settings.sizeText')}</p>

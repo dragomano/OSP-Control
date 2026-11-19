@@ -422,6 +422,7 @@ export function Backups({
           <span>{t('backups.filter')}</span>
           <Field className="backup-select">
             <Select
+              id="backups.filter"
               aria-label={t('backups.filter')}
               value={filter}
               onChange={(event) => onFilterChange(event.target.value as BackupFilter)}

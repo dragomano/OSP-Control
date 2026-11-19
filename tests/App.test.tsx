@@ -412,6 +412,94 @@ describe('App (browser mode: adapter serves mocks)', () => {
       expect(screen.queryByRole('dialog', { name: 'Быстрый поиск' })).not.toBeInTheDocument();
     });
 
+    it('focuses the matched setting when its tab is already open', async () => {
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Интерфейс' }));
+
+      fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+      const input = screen.getByRole('textbox', { name: 'Быстрый поиск' });
+      fireEvent.change(input, { target: { value: 'размер шрифта' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      expect(document.activeElement).toContainElement(screen.getByRole('group', { name: 'Размер шрифта' }));
+    });
+
+    it('omits commands that only perform background maintenance or open Explorer', async () => {
+      render(<App />);
+      expect(await screen.findByRole('button', { name: 'Открыть папку OSPanel' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Синхронизировать' })).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+      const palette = within(screen.getByRole('dialog', { name: 'Быстрый поиск' }));
+      for (const query of ['Открыть папку OSPanel', 'Синхронизировать', 'Перечитать переводы']) {
+        fireEvent.change(palette.getByRole('textbox'), { target: { value: query } });
+        expect(palette.getByText('Ничего не найдено')).toBeInTheDocument();
+      }
+    });
+
+    it('opens the hosts editor from search with Enter and can reopen it after closing', async () => {
+      render(<App />);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+        const input = screen.getByRole('textbox', { name: 'Быстрый поиск' });
+        fireEvent.change(input, { target: { value: 'hosts' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        const editor = await screen.findByRole('dialog', { name: 'Редактор hosts' });
+        expect(screen.queryByRole('dialog', { name: 'Быстрый поиск' })).not.toBeInTheDocument();
+        await waitFor(() =>
+          expect(within(editor).getByRole('button', { name: 'Добавить запись' })).toBeEnabled(),
+        );
+        fireEvent.click(within(editor).getByText('Закрыть', { selector: 'button' }));
+        expect(editor).not.toBeInTheDocument();
+      }
+    });
+
+    it('finds the project template editor by its alternate wording and opens it on click', async () => {
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: 'Проекты' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'my-shop.test' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Веб-сервер' }));
+      const draft = await screen.findByRole('textbox', { name: 'Публичный каталог' });
+      fireEvent.change(draft, { target: { value: '{base_dir}\\new-public' } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Быстрый поиск' }));
+      const palette = screen.getByRole('dialog', { name: 'Быстрый поиск' });
+      fireEvent.change(within(palette).getByRole('textbox'), { target: { value: 'редактор заготовок' } });
+      fireEvent.click(within(palette).getByRole('button', { name: /Шаблоны проектов/ }));
+
+      expect(await screen.findByRole('heading', { name: 'Шаблоны проектов' })).toBeVisible();
+      expect(palette).not.toBeInTheDocument();
+      expect(draft).not.toBeVisible();
+      fireEvent.click(screen.getByRole('button', { name: 'Все проекты' }));
+      await waitFor(() => expect(draft).toBeVisible());
+      expect(draft).toHaveValue('{base_dir}\\new-public');
+    });
+
+    it('opens project creation, prefiltered backups, and the application update dialog from search', async () => {
+      render(<App />);
+      const search = (query: string) => {
+        fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+        const input = screen.getByRole('textbox', { name: 'Быстрый поиск' });
+        fireEvent.change(input, { target: { value: query } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+      };
+
+      search('новый проект');
+      const dialog = await screen.findByRole('dialog', { name: 'Новый проект' });
+      fireEvent.click(within(dialog).getByText('Закрыть', { selector: 'button' }));
+
+      search('резервные копии меню');
+      const backupFilter = await screen.findByRole('combobox', { name: 'Тип копий' });
+      expect(backupFilter).toHaveValue('menu');
+      expect(backupFilter).toHaveFocus();
+
+      search('проверить обновления приложения');
+      expect(await screen.findByRole('dialog', { name: 'Обновление приложения' })).toBeVisible();
+    });
+
     describe('theme selection', () => {
       const labels = { system: 'Системная', dark: 'Тёмная', light: 'Светлая' } as const;
       let systemChange: ((event: MediaQueryListEvent) => void) | undefined;
