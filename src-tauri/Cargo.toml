@@ -1,7 +1,6 @@
 [package]
 name = "osp-control"
-# Crate version, not the app version: tauri.conf.json takes the app version
-# from ../package.json, and tests/version.test.ts keeps the two in lockstep.
+# Tauri and the frontend build use this as the application version.
 version = "0.7.0"
 description = "OSP Control — local control center for OSPanel"
 authors = ["Bugo"]

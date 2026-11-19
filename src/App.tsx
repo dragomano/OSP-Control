@@ -23,9 +23,8 @@ import {
   X,
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { version as appVersion } from '../package.json';
 import { AppUpdateButton, AppUpdatesProvider } from './appUpdates';
-import { APP_NAME } from './brand';
+import { APP_NAME, APP_VERSION } from './brand';
 import { applyColorTheme, colorThemeId, colorThemeIsLight } from './colorThemes';
 import { ConfirmDialog } from './components/dialogs/ConfirmDialog';
 import { QuickSearch, type SearchAction } from './components/dialogs/QuickSearch';
@@ -1100,7 +1099,7 @@ function App() {
                 </Button>
                 <div>
                   <strong>{APP_NAME}</strong>
-                  <span className="brand-version">v{appVersion}</span>
+                  <span className="brand-version">v{APP_VERSION}</span>
                 </div>
                 <AppUpdateButton />
               </div>

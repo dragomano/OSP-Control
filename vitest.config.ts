@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
+import { readCargoPackage } from './scripts/cargo-package.mjs';
 
 // Tests run against React, not the Preact production runtime: the Vitest
 // environment externalizes node_modules, so a react -> preact/compat alias
@@ -8,6 +9,7 @@ import { defineConfig } from 'vitest/config';
 // is validated by the production build and a manual smoke test.
 export default defineConfig({
   plugins: [react()],
+  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(readCargoPackage().version) },
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
@@ -17,8 +19,8 @@ export default defineConfig({
       // Measure the application code only; test files and tooling stay out of the report.
       include: ['src/**/*.{ts,tsx}'],
       // main.tsx is bootstrap glue (createRoot + mount) exercised only by the real shell.
-      // brand.ts is a single exported constant whose value tests/brand.test.ts asserts against
-      // tauri.conf.json — the v8 remapper reports 0% for it regardless of execution.
+      // brand.ts exports constants checked by brand.test.ts and version.test.ts.
+      // The v8 remapper reports 0% for it regardless of execution.
       // The isolated UI workshop is not part of the desktop application bundle.
       exclude: ['src/**/*.d.ts', 'src/main.tsx', 'src/brand.ts', 'src/demo/**'],
       reporter: ['text-summary', 'html'],

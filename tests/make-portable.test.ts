@@ -1,10 +1,11 @@
 import { execFile, spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
+import { readCargoPackage } from '../scripts/cargo-package.mjs';
+import conf from '../src-tauri/tauri.conf.json';
 
 // The script runs as a real CLI in a child process, with the release directory and the
 // output root passed as arguments: importing it would assemble the distribution into
@@ -12,19 +13,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 const runScript = promisify(execFile);
 
 const script = path.resolve(process.cwd(), 'scripts/make-portable.mjs');
-const { version } = JSON.parse(readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf8')) as {
-  version: string;
-};
-const conf = JSON.parse(readFileSync(path.resolve(process.cwd(), 'src-tauri/tauri.conf.json'), 'utf8')) as {
-  productName: string;
-};
 
 // The executable carries the Cargo package name, not productName.
-const manifest = readFileSync(path.resolve(process.cwd(), 'src-tauri/Cargo.toml'), 'utf8');
-const crateName = manifest
-  .slice(manifest.indexOf('[package]'), manifest.indexOf('\n['))
-  .match(/^name\s*=\s*"([^"]+)"/m)?.[1];
-if (!crateName) throw new Error('cannot read [package] name from src-tauri/Cargo.toml');
+const { name: crateName, version } = readCargoPackage();
 const exeName = `${crateName}.exe`;
 
 const archTokens: Record<string, string> = { x64: 'x64', arm64: 'arm64', ia32: 'x86' };

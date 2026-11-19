@@ -8,3 +8,4 @@
 import config from '../src-tauri/tauri.conf.json';
 
 export const APP_NAME: string = config.productName;
+export const APP_VERSION = import.meta.env.VITE_APP_VERSION;

@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OSP Control",
-  "version": "../package.json",
   "identifier": "dev.osp.control",
   "build": {
     "beforeDevCommand": "pnpm run dev",

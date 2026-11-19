@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { preact } from '@preact/preset-vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
+import { readCargoPackage } from './scripts/cargo-package.mjs';
 import { daisyUIStyles } from './scripts/daisyui.ts';
 
 const path = (name: string) => fileURLToPath(new URL(name, import.meta.url));
@@ -48,6 +49,7 @@ export default defineConfig({
   plugins: [workshop(), daisyUIStyles(), preact(), tailwindcss()],
   define: {
     'import.meta.env.VITE_APP_NAME': JSON.stringify(productName),
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(readCargoPackage().version),
     'import.meta.env.VITE_UI_WORKSHOP': JSON.stringify('1'),
   },
   server: { host: '127.0.0.1', port: 1421, strictPort: true },

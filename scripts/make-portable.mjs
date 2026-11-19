@@ -16,6 +16,7 @@
 import { cp, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { readCargoPackage } from './cargo-package.mjs';
 
 // Paths of the project files are derived from this script, not from the working
 // directory: the script is run both by `pnpm tauri:build` and by its test.
@@ -42,25 +43,19 @@ const outRoot = path.resolve(arg(1) ?? path.join(repoRoot, 'dist-portable'));
 const arch = arg(2) ?? archTokens[process.arch] ?? process.arch;
 
 const tauriConfig = JSON.parse(await readFile(path.join(repoRoot, 'src-tauri', 'tauri.conf.json'), 'utf8'));
-const version = JSON.parse(await readFile(path.join(repoRoot, 'package.json'), 'utf8')).version;
 
 // The executable is named after the Cargo package; productName only names the
 // distribution (and the window), so it is normalized: spaces become underscores.
-const manifest = await readFile(path.join(repoRoot, 'src-tauri', 'Cargo.toml'), 'utf8');
-const manifestStart = manifest.indexOf('[package]');
-const manifestEnd = manifest.indexOf('\n[', manifestStart);
-const packageSection = manifest.slice(manifestStart, manifestEnd === -1 ? undefined : manifestEnd);
-const crateName = packageSection.match(/^name\s*=\s*"([^"]+)"/m)?.[1];
+const { name: crateName, version } = readCargoPackage();
 
 const productName = String(tauriConfig.productName ?? '').replaceAll(' ', '_');
-if (!crateName) fail('cannot read [package] name from src-tauri/Cargo.toml');
 if (!productName || !safeName.test(productName)) {
   fail(
     `productName from tauri.conf.json is not usable as a folder name: ${JSON.stringify(tauriConfig.productName)}`,
   );
 }
 if (!safeName.test(version))
-  fail(`package.json version is not usable in a folder name: ${JSON.stringify(version)}`);
+  fail(`Cargo.toml version is not usable in a folder name: ${JSON.stringify(version)}`);
 if (!safeName.test(arch)) fail(`unsupported arch: ${JSON.stringify(arch)}`);
 
 const folderName = `${productName}_${version}_${arch}`;

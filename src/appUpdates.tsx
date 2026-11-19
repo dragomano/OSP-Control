@@ -22,7 +22,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { version } from '../package.json';
+import { APP_VERSION } from './brand';
 import { formatSize, useDismiss } from './components/shared';
 import { PathText } from './components/widgets/PathText';
 import { errorText, useI18n } from './i18n';
@@ -258,7 +258,7 @@ function UpdateDialog({
         <div className="app-update-versions">
           <span>
             {t('appUpdates.installed')}
-            <b>v{version}</b>
+            <b>v{APP_VERSION}</b>
           </span>
           <span>
             {t('appUpdates.newVersion')}
