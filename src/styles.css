@@ -327,11 +327,19 @@ button {
   flex: 1;
 }
 .nav-badge {
-  font-size: 9px;
-  color: #bdc4cd;
-  background: #282d35;
-  border-radius: 5px;
-  padding: 2px 6px;
+  /* Counters use the DaisyUI Badge, enlarged for the narrow sidebar. A muted
+     fill disappears against the sidebar, so the pill is mixed from --text. */
+  min-width: 22px;
+  height: 19px;
+  padding-inline: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 12%, var(--panel2));
+  border-color: color-mix(in srgb, var(--text) 20%, transparent);
+  border-radius: 999px;
 }
 .sidebar-ideas {
   flex-shrink: 0;
@@ -2554,8 +2562,14 @@ button {
   background: var(--lt-panel);
 }
 .light .nav-badge {
-  background: var(--lt-panel-2);
-  color: var(--lt-muted);
+  background: var(--lt-panel);
+  border-color: color-mix(in srgb, var(--lt-text) 14%, var(--lt-panel));
+  color: var(--lt-text-soft);
+}
+.light .nav-item.active .nav-badge {
+  background: color-mix(in srgb, var(--lt-accent) 14%, var(--lt-panel));
+  border-color: color-mix(in srgb, var(--lt-accent) 32%, var(--lt-panel));
+  color: var(--lt-accent-strong);
 }
 .light .nav-item:hover,
 .light .icon-button:hover,
@@ -3339,8 +3353,13 @@ button {
   .nav-item.active svg {
     color: var(--dark-accent);
   }
+  .nav-item.active .nav-badge {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, var(--panel2));
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  }
 
-  :is(.nav-badge, .log-tabs em) {
+  .log-tabs em {
     background: var(--panel2);
     color: var(--muted);
   }
