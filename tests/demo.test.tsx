@@ -74,8 +74,8 @@ describe('workshop isolation and navigation', () => {
     const frames = Array.from(container.querySelectorAll('iframe'));
     expect(frames).toHaveLength(2);
     expect(frames.map((frame) => frame.getAttribute('src'))).toEqual([
-      './demo-app.html?theme=light&page=projects&lang=en&palette=custom',
-      './demo-app.html?theme=dark&page=projects&lang=en&palette=custom',
+      './demo-app.html?theme=light&page=projects&lang=en&palette=default',
+      './demo-app.html?theme=dark&page=projects&lang=en&palette=default',
     ]);
     fireEvent(
       window,
@@ -139,7 +139,7 @@ describe('workshop isolation and navigation', () => {
           type: 'osp-demo-control',
           page: 'projects',
           lang: 'ru',
-          palette: 'custom',
+          palette: 'default',
           theme: expect.any(String),
         },
         window.location.origin,
@@ -147,7 +147,7 @@ describe('workshop isolation and navigation', () => {
     expect(Array.from(container.querySelectorAll('iframe'))).toEqual(frames);
     expect(screen.getByRole('link', { name: ru['demo.fullscreen'] })).toHaveAttribute(
       'href',
-      './demo-app.html?page=projects&theme=light&lang=ru&palette=custom',
+      './demo-app.html?page=projects&theme=light&lang=ru&palette=default',
     );
 
     fireEvent.change(screen.getByRole('combobox', { name: ru['demo.language'] }), {

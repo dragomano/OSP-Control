@@ -29,11 +29,12 @@ export const demoDicts: Record<string, typeof en> = { en, ru, uk, be, es };
 export const demoLang = (id: string | null) => (id && Object.keys(demoLanguages).includes(id) ? id : 'ru');
 const t = (key: keyof typeof en) => demoDicts[demoLang(params.get('lang'))][key];
 export const demoText = t;
+const themeParam = params.get('theme');
 const values = new Map<string, string>([
   ['ospanel.lang', demoLang(params.get('lang'))],
-  ['ospanel.colorTheme', colorThemeId(params.get('palette') ?? 'custom')],
-  ['ospanel.theme', params.get('theme') === 'dark' ? 'dark' : 'light'],
-  ['ospanel.accent', 'orange'],
+  ['ospanel.colorTheme', colorThemeId(params.get('palette') ?? 'default')],
+  ['ospanel.theme', themeParam === 'dark' || themeParam === 'light' ? themeParam : 'system'],
+  ['ospanel.accent', 'blue'],
   ['ospanel.font', 'segoe'],
   ['ospanel.scale', '100'],
   [
@@ -116,7 +117,7 @@ export function useDemoBridge(state: DemoBridge) {
       window.history.replaceState(
         null,
         '',
-        `?${new URLSearchParams({ page: state.page, theme, lang: state.lang, palette: state.palette })}`,
+        `?${new URLSearchParams({ page: state.page, theme: state.theme, lang: state.lang, palette: state.palette })}`,
       );
     if (window.parent !== window)
       window.parent.postMessage(

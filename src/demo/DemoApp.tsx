@@ -5,7 +5,7 @@ import { applyColorTheme, COLOR_THEMES, colorThemeId, colorThemeIsLight } from '
 import type { Page } from '../components/shared';
 import { Button, ButtonLink, Field, Select } from '../components/ui';
 import { embeddedDict, langDisplayName, makeTranslator } from '../i18n';
-import { applyAccentTheme } from '../theme';
+import { applyAccentTheme, useSystemPrefersLight } from '../theme';
 import en from './locales/en.json';
 import { demoDicts, demoLang, demoLanguages, demoPages } from './runtime';
 
@@ -73,16 +73,19 @@ export default function DemoApp() {
   const [page, setPage] = useState<Page>(
     demoPages.find((item) => item === initial.get('page')) ?? 'overview',
   );
-  const [mode, setMode] = useState(
-    initial.get('mode') === 'compare' ? 'compare' : initial.get('theme') === 'dark' ? 'dark' : 'light',
-  );
+  const systemLight = useSystemPrefersLight();
+  const [mode, setMode] = useState<'light' | 'dark' | 'compare'>(() => {
+    const stored = initial.get('mode');
+    if (stored === 'compare' || stored === 'light' || stored === 'dark') return stored;
+    return systemLight ? 'light' : 'dark';
+  });
   const [lang, setLang] = useState(demoLang(initial.get('lang')));
-  const [palette, setPalette] = useState(colorThemeId(initial.get('palette') ?? 'custom'));
+  const [palette, setPalette] = useState(colorThemeId(initial.get('palette') ?? 'default'));
   const nativeMode = colorThemeIsLight(palette, mode === 'dark' ? 'dark' : 'light', false) ? 'light' : 'dark';
   const [generation, setGeneration] = useState(0);
   const t = makeTranslator({ ...embeddedDict(lang), ...demoDicts[lang] }, { ...embeddedDict('en'), ...en });
   useEffect(() => {
-    applyAccentTheme('orange');
+    applyAccentTheme('blue');
     applyColorTheme(palette, nativeMode === 'light');
     document.documentElement.lang = lang;
     window.history.replaceState(
@@ -123,11 +126,13 @@ export default function DemoApp() {
             </Select>
           </Field>
           <div className="join">
-            {[
-              { id: 'light', icon: Sun, key: 'demo.light' },
-              { id: 'dark', icon: Moon, key: 'demo.dark' },
-              { id: 'compare', icon: Columns2, key: 'demo.compare' },
-            ].map(({ id, icon: Icon, key }) => (
+            {(
+              [
+                { id: 'light', icon: Sun, key: 'demo.light' },
+                { id: 'dark', icon: Moon, key: 'demo.dark' },
+                { id: 'compare', icon: Columns2, key: 'demo.compare' },
+              ] as const
+            ).map(({ id, icon: Icon, key }) => (
               <Button
                 variant={mode === id ? 'primary' : 'secondary'}
                 type="button"
