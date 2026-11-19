@@ -529,6 +529,7 @@ export function Settings({
                   <Actions className="row-actions">
                     <MenuSelect
                       ariaLabel={t('settings.languageTitle')}
+                      name="interface-language"
                       value={lang}
                       options={locales.map((item) => ({ value: item.code, label: item.name }))}
                       onChange={onLangChange}
@@ -546,8 +547,13 @@ export function Settings({
                   </div>
                   <MenuSelect
                     ariaLabel={t('settings.fontTitle')}
+                    name="interface-font"
                     value={font}
-                    options={FONT_OPTIONS.map((item) => ({ value: item.id, label: t(`font.${item.id}`) }))}
+                    options={FONT_OPTIONS.map((item) => ({
+                      value: item.id,
+                      label: t(`font.${item.id}`),
+                      style: { fontFamily: item.stack },
+                    }))}
                     onChange={onFontChange}
                   />
                 </FormRow>

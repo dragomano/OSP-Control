@@ -1,10 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Settings } from '../src/components/pages/Settings';
 import type { Notify, SettingsTab } from '../src/components/shared';
 import { embeddedDict, I18nContext, makePlural, makeTranslator } from '../src/i18n';
-import type { ThemeMode } from '../src/theme';
+import { FONT_OPTIONS, type ThemeMode } from '../src/theme';
 import { selectOption } from './selectOption';
 
 const mocks = vi.hoisted(() => ({
@@ -319,6 +319,20 @@ describe('Settings appearance tab', () => {
     selectOption(screen.getByRole('combobox', { name: 'Interface font' }), 'Consolas (monospace)');
 
     expect(props.onFontChange).toHaveBeenCalledWith('consolas');
+  });
+
+  it('previews every interface font in its own typeface', () => {
+    openTab();
+    const control = screen.getByRole('combobox', { name: 'Interface font' });
+    const consolas = FONT_OPTIONS.find((item) => item.id === 'consolas');
+
+    expect(control).toHaveAttribute('name', 'interface-font');
+    expect(within(control).getByRole('option', { name: 'Consolas (monospace)' })).toHaveStyle({
+      fontFamily: consolas?.stack,
+    });
+    expect(control.parentElement?.querySelector('.ui-select-label')).toHaveStyle({
+      fontFamily: FONT_OPTIONS[0].stack,
+    });
   });
 
   it('offers every UI scale from 80 to 130 in steps of ten', () => {

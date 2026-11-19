@@ -1,4 +1,4 @@
-import { type ComponentPropsWithoutRef, forwardRef, type ReactNode } from 'react';
+import { type ComponentPropsWithoutRef, type CSSProperties, forwardRef, type ReactNode } from 'react';
 
 export const cx = (...values: (string | false | null | undefined)[]) => values.filter(Boolean).join(' ');
 type Tone = 'default' | 'primary' | 'success' | 'warning' | 'error' | 'info';
@@ -93,11 +93,12 @@ export const Textarea = forwardRef<
 });
 type SelectProps = ComponentPropsWithoutRef<'select'> & {
   displayLabel?: string;
+  displayLabelStyle?: CSSProperties;
   leadingIcon?: ReactNode;
   iconOnly?: boolean;
 };
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { className, displayLabel, leadingIcon, iconOnly, style, onKeyDownCapture, ...props },
+  { className, displayLabel, displayLabelStyle, leadingIcon, iconOnly, style, onKeyDownCapture, ...props },
   ref,
 ) {
   const control = (
@@ -130,7 +131,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         </span>
       )}
       {displayLabel !== undefined && (
-        <span className="ui-select-label" aria-hidden="true">
+        <span className="ui-select-label" aria-hidden="true" style={displayLabelStyle}>
           {displayLabel}
         </span>
       )}
