@@ -528,8 +528,10 @@ describe('App (browser mode: adapter serves mocks)', () => {
       selectOption(screen.getByRole('combobox', { name: 'Шрифт интерфейса' }), 'Consolas (моноширинный)');
       await waitFor(() => expect(localStorage.getItem('ospanel.font')).toBe('consolas'));
 
-      fireEvent.change(screen.getByRole('slider', { name: 'Размер шрифта' }), { target: { value: '120' } });
+      fireEvent.click(screen.getByRole('button', { name: '120%' }));
       await waitFor(() => expect(localStorage.getItem('ospanel.scale')).toBe('120'));
+      expect(screen.getByRole('button', { name: '120%' })).toHaveAttribute('aria-pressed', 'true');
+      expect(document.body.style.zoom).toBe('1.2');
     });
 
     it('re-resolves the installation after the connection path is saved', async () => {

@@ -551,23 +551,45 @@ export function Settings({
                     onChange={onFontChange}
                   />
                 </FormRow>
-                <FormRow className="setting-block">
+                <FormRow className="setting-block settings-scale">
                   <div>
                     <h3>{t('settings.sizeTitle')}</h3>
                     <p>{t('settings.sizeText')}</p>
                   </div>
-                  <div className="range-field">
-                    <Input
-                      type="range"
-                      min={80}
-                      max={130}
-                      step={5}
-                      value={scale}
-                      onChange={(event) => onScaleChange(Number(event.target.value))}
-                      aria-label={t('settings.sizeTitle')}
-                    />
-                    <b>{scale}%</b>
-                  </div>
+                  <fieldset className="join settings-scale-options" aria-label={t('settings.sizeTitle')}>
+                    {[80, 90, 100, 110, 120, 130].map((value) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        className="join-item"
+                        variant={scale === value ? 'primary' : 'secondary'}
+                        selected={scale === value}
+                        aria-pressed={scale === value}
+                        onClick={(event) => {
+                          event.currentTarget.focus({ preventScroll: true });
+                          onScaleChange(value);
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') ||
+                            event.altKey ||
+                            event.ctrlKey ||
+                            event.metaKey
+                          )
+                            return;
+
+                          event.preventDefault();
+                          const next =
+                            event.key === 'ArrowLeft'
+                              ? event.currentTarget.previousElementSibling
+                              : event.currentTarget.nextElementSibling;
+                          if (next instanceof HTMLButtonElement) next.click();
+                        }}
+                      >
+                        {value}%
+                      </Button>
+                    ))}
+                  </fieldset>
                 </FormRow>
               </Panel>
             </>

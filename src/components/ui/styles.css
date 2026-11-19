@@ -2,6 +2,7 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @source "./index.tsx";
+@source "../pages/Settings.tsx";
 @plugin "daisyui" {
   themes: false;
   exclude: rootscrollgutter, themecontroller;

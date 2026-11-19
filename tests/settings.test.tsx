@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Settings } from '../src/components/pages/Settings';
 import type { Notify, SettingsTab } from '../src/components/shared';
@@ -47,6 +48,21 @@ const baseProps = () => ({
 });
 
 type Props = ReturnType<typeof baseProps>;
+
+function ScaleSettings({ props }: { props: Props }) {
+  const [scale, setScale] = useState(100);
+  return (
+    <Settings
+      {...props}
+      tab="interface"
+      scale={scale}
+      onScaleChange={(value) => {
+        props.onScaleChange(value);
+        setScale(value);
+      }}
+    />
+  );
+}
 
 const renderSettings = (overrides: Partial<Props> = {}) => {
   const props = { ...baseProps(), ...overrides };
@@ -305,12 +321,101 @@ describe('Settings appearance tab', () => {
     expect(props.onFontChange).toHaveBeenCalledWith('consolas');
   });
 
-  it('reports the changed UI scale', () => {
+  it('offers every UI scale from 80 to 130 in steps of ten', () => {
+    openTab();
+    const group = screen.getByRole('group', { name: 'Font size' });
+    const buttons = Array.from(group.querySelectorAll('button'));
+
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      '80%',
+      '90%',
+      '100%',
+      '110%',
+      '120%',
+      '130%',
+    ]);
+    expect(screen.getByRole('button', { name: '100%' })).toHaveAttribute('aria-pressed', 'true');
+    expect(buttons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(1);
+    expect(screen.queryByRole('slider', { name: 'Font size' })).toBeNull();
+  });
+
+  it.each([80, 90, 100, 110, 120, 130])('reports a selected UI scale of %i', (value) => {
     const { props } = openTab();
 
-    fireEvent.change(screen.getByRole('slider', { name: 'Font size' }), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: `${value}%` }));
 
-    expect(props.onScaleChange).toHaveBeenCalledWith(120);
+    expect(props.onScaleChange).toHaveBeenCalledExactlyOnceWith(value);
+  });
+
+  it('applies adjacent scales and moves focus after a mouse selection', () => {
+    const props = baseProps();
+    render(
+      <I18nContext.Provider value={{ lang: 'en', t, plural }}>
+        <ScaleSettings props={props} />
+      </I18nContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '110%' }));
+    expect(screen.getByRole('button', { name: '110%' })).toHaveFocus();
+    for (const [key, value] of [
+      ['ArrowRight', 120],
+      ['ArrowRight', 130],
+      ['ArrowLeft', 120],
+    ] as const) {
+      const focused = document.activeElement;
+      if (!(focused instanceof HTMLButtonElement)) throw new Error('Expected a focused scale button');
+      fireEvent.keyDown(focused, { key });
+      const selected = screen.getByRole('button', { name: `${value}%` });
+      expect(selected).toHaveFocus();
+      expect(selected).toHaveAttribute('aria-pressed', 'true');
+      expect(props.onScaleChange).toHaveBeenLastCalledWith(value);
+    }
+    expect(props.onScaleChange.mock.calls).toEqual([[110], [120], [130], [120]]);
+  });
+
+  it.each([
+    [80, 'ArrowLeft'],
+    [130, 'ArrowRight'],
+  ] as const)('stops at %i without wrapping or reapplying the scale', (value, key) => {
+    const { props } = renderSettings({ tab: 'interface', scale: value });
+    const button = screen.getByRole('button', { name: `${value}%` });
+    button.focus();
+
+    expect(fireEvent.keyDown(button, { key })).toBe(false);
+
+    expect(button).toHaveFocus();
+    expect(props.onScaleChange).not.toHaveBeenCalled();
+  });
+
+  it('leaves other keys, modified arrows and controls unaffected', () => {
+    const { props } = openTab();
+    const button = screen.getByRole('button', { name: '100%' });
+    button.focus();
+    for (const key of ['ArrowUp', 'ArrowDown', 'Tab']) {
+      expect(fireEvent.keyDown(button, { key })).toBe(true);
+    }
+    expect(fireEvent.keyDown(button, { key: 'ArrowRight', ctrlKey: true })).toBe(true);
+    const otherControl = screen.getByRole('button', { name: 'Dark' });
+    otherControl.focus();
+    expect(fireEvent.keyDown(otherControl, { key: 'ArrowRight' })).toBe(true);
+
+    expect(otherControl).toHaveFocus();
+    expect(props.onScaleChange).not.toHaveBeenCalled();
+  });
+
+  it('reflects the applied UI scale when it changes', () => {
+    const { props, view } = openTab();
+
+    view.rerender(
+      <I18nContext.Provider value={{ lang: 'en', t, plural }}>
+        <Settings {...props} scale={130} />
+      </I18nContext.Provider>,
+    );
+
+    expect(screen.getByRole('button', { name: '130%' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '130%' })).toHaveClass('btn-primary');
+    expect(screen.getByRole('button', { name: '100%' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '100%' })).not.toHaveClass('btn-primary');
   });
 });
 
