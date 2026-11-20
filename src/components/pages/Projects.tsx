@@ -62,6 +62,7 @@ import { Actions, BadgeButton, Button, DataTable, EmptyState, Toolbar } from '..
 import { FilterFacet, facetValues } from '../widgets/FilterFacet';
 import { MenuSelect } from '../widgets/MenuSelect';
 import { PageHeader } from '../widgets/PageHeader';
+import { ProjectFavicon } from '../widgets/ProjectFavicon';
 import { ProjectTagSelect } from '../widgets/ProjectTagSelect';
 import { ProjectSelection, ProjectTagEditor, ProjectTagFilter, ProjectTagList } from '../widgets/ProjectTags';
 import { RowMenu } from '../widgets/RowMenu';
@@ -559,15 +560,18 @@ function ProjectsContent({
                     <div className="project-activity-identity">
                       <div className="project-activity-title">
                         <b title={project.domain}>
-                          <Button
-                            variant="ghost"
-                            type="button"
-                            className="project-settings-link"
-                            title={t('workspace.settingsFor', { domain: displayDomain })}
-                            onClick={() => openSettings(project)}
-                          >
-                            {displayDomain}
-                          </Button>
+                          <span className="project-title-line">
+                            <ProjectFavicon domain={project.domain} />
+                            <Button
+                              variant="ghost"
+                              type="button"
+                              className="project-settings-link"
+                              title={t('workspace.settingsFor', { domain: displayDomain })}
+                              onClick={() => openSettings(project)}
+                            >
+                              {displayDomain}
+                            </Button>
+                          </span>
                         </b>
                         {modified && entry.lastFile ? (
                           <Button

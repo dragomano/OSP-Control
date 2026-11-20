@@ -1304,6 +1304,25 @@ button {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.project-title-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.project-favicon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+.project-favicon-fallback {
+  display: block;
+  background: currentColor;
+  color: var(--muted);
+  mask: url("@fortawesome/fontawesome-free/svgs/solid/globe.svg") center / contain no-repeat;
+}
 .project-activity-path {
   grid-column: 1;
   grid-row: 2;
