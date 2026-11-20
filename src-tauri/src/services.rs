@@ -259,11 +259,14 @@ pub fn discover_ospanel(custom_path: Option<String>) -> Snapshot {
             projects = projects_from_api(path);
             // Trust the per-project disk config over the panel's effective TLS flag:
             // the API resolves `auto` against the global default and reports it as
-            // enabled for every project, hiding which projects configure TLS.
+            // enabled for every project, hiding which projects configure TLS. The raw
+            // tri-state stays as the label; `auto` resolves against the same global
+            // default for the icon and the opening URL.
+            let default_tls = crate::offline::panel_tls_default(path);
             for project in &mut projects {
                 let tls = crate::offline::project_tls_state(path, &project.domain);
                 project.tls = tls.to_string();
-                project.ssl = tls == "on";
+                project.ssl = crate::offline::effective_tls(tls, default_tls);
             }
         } else {
             // The panel is stopped: rebuild services and projects from the installation

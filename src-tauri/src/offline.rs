@@ -196,6 +196,34 @@ pub(crate) fn project_tls_state(root: &Path, domain: &str) -> &'static str {
     }
 }
 
+/// Effective TLS for a project: `on`/`off` are forced for the domain,
+/// `auto` follows the panel-wide default.
+pub(crate) fn effective_tls(tls_state: &str, default: bool) -> bool {
+    match tls_state {
+        "on" => true,
+        "off" => false,
+        _ => default,
+    }
+}
+
+/// The panel-wide TLS default from system/program.dat (`projects.tls_enabled`),
+/// which `tls_enabled = auto` inherits. The panel's documented default is on.
+pub(crate) fn panel_tls_default(root: &Path) -> bool {
+    let Some(text) = fs::read_to_string(root.join("system").join("program.dat")).ok() else {
+        return true;
+    };
+    let Some(json) = crate::panel_api::parse_osp_json(&text) else {
+        return true;
+    };
+    match crate::panel_api::dat_field(&json, "projects")
+        .and_then(|projects| crate::panel_api::dat_field(projects, "tls_enabled"))
+        .map(crate::panel_api::dat_string_value)
+    {
+        Some(value) => value != "off",
+        None => true,
+    }
+}
+
 /// Projects from `home/<domain>` directories, mirroring the `/getprojects` shape.
 pub(crate) fn scan_projects(root: &Path) -> Vec<Project> {
     let home = root.join("home");
@@ -203,6 +231,7 @@ pub(crate) fn scan_projects(root: &Path) -> Vec<Project> {
         return Vec::new();
     };
 
+    let default_tls = panel_tls_default(root);
     let mut out = Vec::new();
     for entry in entries.flatten() {
         if !entry.path().is_dir() {
@@ -243,7 +272,7 @@ pub(crate) fn scan_projects(root: &Path) -> Vec<Project> {
             path,
             php,
             r#type,
-            ssl: tls_state == "on",
+            ssl: effective_tls(tls_state, default_tls),
             tls: tls_state.to_string(),
         });
     }
@@ -310,9 +339,24 @@ mod tests {
         let static_site = projects.iter().find(|p| p.domain == "static.test").unwrap();
         assert_eq!(static_site.php, "-");
         assert_eq!(static_site.r#type, "-");
-        assert!(!static_site.ssl);
-        // A missing project.ini means "auto" — following the panel's global default.
+        // A missing project.ini means "auto" — the panel's documented default is on.
+        assert!(static_site.ssl);
         assert_eq!(static_site.tls, "auto");
+    }
+
+    #[test]
+    fn auto_tls_follows_the_panel_default() {
+        let f = Fixture::new();
+        f.file("home/auto.test/index.html", "<html></html>");
+        f.file(
+            "system/program.dat",
+            "{\"_type\":\"Empty\",\"_children\":[{\"key\":\"projects\",\"value\":{\"_type\":\"Empty\",\"_children\":[{\"key\":\"tls_enabled\",\"value\":{\"_type\":\"Boolean\",\"_value\":false}}]}}]}",
+        );
+
+        let projects = scan_projects(&f.0);
+        let auto = projects.iter().find(|p| p.domain == "auto.test").unwrap();
+        assert_eq!(auto.tls, "auto");
+        assert!(!auto.ssl);
     }
 
     #[test]

@@ -1223,7 +1223,7 @@ mod tests {
             f.project.to_str().unwrap(),
             |root, domain, base_dir| prepared(root, domain, base_dir, &doc),
             |stage| payload(stage, &doc),
-            |stage, php| run_archive(stage, &doc, &channel),
+            |stage, _| run_archive(stage, &doc, &channel),
             || {},
             |application, php, dir| setup(&f.root, dir, "site.test", application, php, &doc, &channel),
         )
