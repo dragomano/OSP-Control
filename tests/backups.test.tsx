@@ -439,6 +439,35 @@ describe('Backups delete and folder', () => {
     await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Failed to delete backup'));
   });
 
+  it('deletes every listed backup after one confirmation', async () => {
+    mocks.listBackups.mockResolvedValue([configBackup, dbBackup]);
+    mocks.askConfirm.mockResolvedValue(true);
+    const notify = vi.fn();
+    renderBackups(notify);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete all' }));
+
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Backups deleted: 2'));
+    expect(mocks.deleteBackup).toHaveBeenCalledWith('config-123');
+    expect(mocks.deleteBackup).toHaveBeenCalledWith('db-mysql');
+    expect(mocks.askConfirm).toHaveBeenCalledOnce();
+    expect(mocks.askConfirm).toHaveBeenCalledWith(expect.stringContaining('(2)'), 'Confirmation');
+    expect(mocks.listBackups).toHaveBeenCalledTimes(2);
+  });
+
+  it('deletes only the copies of the active filter', async () => {
+    mocks.listBackups.mockResolvedValue([configBackup, dbBackup]);
+    mocks.askConfirm.mockResolvedValue(true);
+    const notify = vi.fn();
+    renderBackups(notify, { filter: 'db' });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete all' }));
+
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Backups deleted: 1'));
+    expect(mocks.deleteBackup).toHaveBeenCalledWith('db-mysql');
+    expect(mocks.deleteBackup).not.toHaveBeenCalledWith('config-123');
+  });
+
   it('opens the backups folder silently on success', async () => {
     mocks.listBackups.mockResolvedValue([configBackup]);
     const notify = vi.fn();

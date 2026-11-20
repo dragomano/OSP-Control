@@ -1593,12 +1593,14 @@ button {
   background: transparent;
   border-color: transparent;
 }
+/* Shared ink of destructive actions: "Clear all logs" and the bulk backup delete. */
 .log-clear-all,
-.log-clear-dialog {
-  --log-danger: light-dark(var(--lt-err-text), #e08c7a);
+.log-clear-dialog,
+.backup-delete-all {
+  --danger-ink: light-dark(var(--lt-err-text), #e08c7a);
 }
 .app-shell .logs-header-actions .secondary-button.log-clear-all {
-  color: var(--log-danger);
+  color: var(--danger-ink);
 }
 .log-clear-heading {
   display: flex;
@@ -1606,7 +1608,7 @@ button {
   gap: 10px;
 }
 .log-clear-heading > svg {
-  color: var(--log-danger);
+  color: var(--danger-ink);
   flex-shrink: 0;
 }
 .log-clear-target {
@@ -1642,17 +1644,17 @@ button {
 }
 .log-clear-error {
   font-size: 12px;
-  color: var(--log-danger);
+  color: var(--danger-ink);
   overflow-wrap: anywhere;
 }
 .app-shell .log-clear-dialog .primary-button.log-clear-confirm {
-  background: var(--log-danger);
-  border-color: var(--log-danger);
+  background: var(--danger-ink);
+  border-color: var(--danger-ink);
   color: var(--bg);
   box-shadow: none;
 }
 .app-shell .log-clear-dialog .primary-button.log-clear-confirm:hover {
-  background: color-mix(in srgb, var(--log-danger) 90%, var(--text));
+  background: color-mix(in srgb, var(--danger-ink) 90%, var(--text));
 }
 .log-tabs > b {
   height: 100%;
@@ -2173,6 +2175,14 @@ button {
 }
 .backup-history-card > .backup-filter {
   margin-top: 0;
+}
+/* Bulk delete stays at the far right of the type filter row; it uses the same
+   destructive ink as "Clear all logs". */
+.backup-filter .backup-delete-all {
+  margin-left: auto;
+}
+.app-shell .backup-filter .secondary-button.backup-delete-all {
+  color: var(--danger-ink);
 }
 .backup-load-error {
   display: flex;

@@ -1,4 +1,4 @@
-import { Box, Copy, Database, ListTree, RefreshCw } from 'lucide-react';
+import { Box, Copy, Database, ListTree, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorText, localeTag, useI18n } from '../../i18n';
 import {
@@ -20,7 +20,7 @@ import {
 } from '../../ospanel';
 import { displayProjectDomain } from '../../projectDomain';
 import { formatSize, type Notify, type Service } from '../shared';
-import { Actions, Button, EmptyState, Field, FormRow, Panel, Select } from '../ui';
+import { Actions, Aura, Button, EmptyState, Field, FormRow, Panel, Select } from '../ui';
 import { PageHeader } from '../widgets/PageHeader';
 import { PathText } from '../widgets/PathText';
 import '../widgets/formControls.css';
@@ -284,6 +284,36 @@ export function Backups({
       setBusy(false);
     }
   };
+  // Bulk delete over the listed copies: the filter above narrows the set, so the
+  // button never removes rows the user cannot see. Each id goes through the same
+  // per-kind command as a single delete (menu copies included).
+  const deleteAllFromBackups = async () => {
+    const targets = visibleBackups;
+    if (disabled || targets.length === 0) return;
+
+    const confirmed = await askConfirm(
+      t('settings.backupsDeleteAllConfirm', { count: targets.length }),
+      t('common.confirmTitle'),
+    ).catch(() => false);
+    if (!confirmed) return;
+
+    setBusy(true);
+    let deleted = 0;
+    let failure: unknown = null;
+    try {
+      for (const item of targets) {
+        await deleteBackup(item.id);
+        deleted += 1;
+      }
+    } catch (error) {
+      failure = error;
+    } finally {
+      await refreshBackups();
+      setBusy(false);
+    }
+    if (deleted > 0) notify(t('settings.backupsDeleteAllDone', { count: deleted }));
+    if (failure !== null) notify(errorText(t, failure, 'settings.backupsDeleteFailed'));
+  };
   // All dumps live in the same backups/ folder — open it; the command validates the path itself.
   const openBackupFolder = async () => {
     try {
@@ -437,6 +467,15 @@ export function Backups({
               ))}
             </Select>
           </Field>
+          <Button
+            type="button"
+            className="secondary-button backup-delete-all"
+            disabled={disabled || visibleBackups.length === 0}
+            onClick={() => void deleteAllFromBackups()}
+          >
+            <Trash2 size={14} />
+            {t('settings.backupsDeleteAll')}
+          </Button>
         </div>
         {loadError && (
           <div className="backup-load-error" role="alert">
@@ -472,14 +511,16 @@ export function Backups({
                   </span>
                 </div>
                 <Actions className="row-actions">
-                  <Button
-                    type="button"
-                    className="secondary-button"
-                    disabled={disabled}
-                    onClick={() => void restoreFromBackup(item)}
-                  >
-                    {t('settings.backupsRestore')}
-                  </Button>
+                  <Aura variant="rainbow">
+                    <Button
+                      type="button"
+                      className="secondary-button"
+                      disabled={disabled}
+                      onClick={() => void restoreFromBackup(item)}
+                    >
+                      {t('settings.backupsRestore')}
+                    </Button>
+                  </Aura>
                   <Button
                     type="button"
                     className="secondary-button"
@@ -488,14 +529,16 @@ export function Backups({
                   >
                     {t('settings.backupsOpenFolder')}
                   </Button>
-                  <Button
-                    type="button"
-                    className="secondary-button"
-                    disabled={disabled}
-                    onClick={() => void deleteFromBackup(item)}
-                  >
-                    {t('settings.backupsDelete')}
-                  </Button>
+                  <Aura variant="dual" tone="error">
+                    <Button
+                      type="button"
+                      className="secondary-button"
+                      disabled={disabled}
+                      onClick={() => void deleteFromBackup(item)}
+                    >
+                      {t('settings.backupsDelete')}
+                    </Button>
+                  </Aura>
                 </Actions>
               </div>
             ))}

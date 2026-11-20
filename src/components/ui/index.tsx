@@ -57,6 +57,29 @@ export const ButtonLink = forwardRef<
 >(function ButtonLink({ className, variant = 'secondary', ...props }, ref) {
   return <a {...props} ref={ref} className={cx('btn btn-sm ui-button', variants[variant], className)} />;
 });
+const auraVariants = {
+  rainbow: 'aura-rainbow',
+  dual: 'aura-dual',
+};
+// DaisyUI Aura wrapper: a rotating conic gradient behind one control. The ring
+// paints with currentColor, so the tone class colors the glow of destructive actions.
+export function Aura({
+  variant = 'rainbow',
+  tone,
+  className,
+  children,
+}: {
+  variant?: keyof typeof auraVariants;
+  tone?: 'error';
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span className={cx('aura', auraVariants[variant], tone === 'error' && 'aura-error', className)}>
+      {children}
+    </span>
+  );
+}
 export const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<'input'> & { embedded?: boolean }>(
   function Input({ className, type = 'text', embedded, ...props }, ref) {
     const style =

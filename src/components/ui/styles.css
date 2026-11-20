@@ -104,6 +104,16 @@
   justify-content: center;
   justify-items: center;
 }
+/* The Aura ring paints with currentColor; destructive actions tint it with the error role.
+   Two classes: row captions style bare spans, which would otherwise win the color. */
+.aura.aura-error {
+  color: var(--color-error);
+}
+/* A disabled control keeps its aura but stops advertising an available action. */
+.aura:has(> .ui-button:disabled) {
+  animation: none;
+  opacity: 0.45;
+}
 .ui-button.filter-button {
   justify-content: space-between;
 }
@@ -182,8 +192,8 @@
   color: var(--color-error-content);
   padding: 10px 13px;
 }
-.app-shell :is(.log-clear-dialog, .log-clear-all) {
-  --log-danger: var(--ui-error-ink, var(--color-error));
+.app-shell :is(.log-clear-dialog, .log-clear-all, .backup-delete-all) {
+  --danger-ink: var(--ui-error-ink, var(--color-error));
 }
 .sidebar.collapsed .nav-badge {
   display: none;
