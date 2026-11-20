@@ -1,15 +1,17 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { isDesktopApp } from './ospanel';
 import { initializeSettings } from './settingsStorage';
 import './styles.css';
 import './components/widgets/formControls.css';
 import './projectTags.css';
 import './components/ui/styles.css';
 
-// Disable the WebView2 default context menu (Back/Refresh/Save as/Print) —
-// a desktop panel does not need it; hotkeys (Ctrl+C/V and devtools) keep working.
-document.addEventListener('contextmenu', (e) => e.preventDefault());
+// Disable the WebView2 default context menu (Back/Refresh/Save as/Print) in the desktop
+// shell only. Browser runs (the demo stand, `pnpm dev`) keep the native menu so the page
+// can be inspected; hotkeys (Ctrl+C/V and devtools) keep working either way.
+if (isDesktopApp()) document.addEventListener('contextmenu', (e) => e.preventDefault());
 
 const root = document.getElementById('root');
 
