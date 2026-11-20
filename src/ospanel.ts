@@ -726,15 +726,16 @@ function browserProfiles(name: string) {
 }
 export async function listModuleProfiles(name: string): Promise<ModuleProfiles> {
   if (isTauri()) return invoke('list_module_profiles', { name, ...customPathArgs() });
+  // Preview profiles represent modules with factory and existing data so both creation paths are available.
   return {
     active: demoActiveProfiles.get(name) ?? 'default',
     online: true,
     factoryAvailable: true,
-    factoryData: false,
+    factoryData: true,
     profiles: [...browserProfiles(name).keys()].map((name) => ({
       name,
       builtin: name === 'default',
-      hasData: false,
+      hasData: true,
     })),
   };
 }

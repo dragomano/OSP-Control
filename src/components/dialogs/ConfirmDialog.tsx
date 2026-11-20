@@ -49,7 +49,7 @@ export function ConfirmDialog() {
   if (!request) return null;
 
   return (
-    <DialogOverlay className="modal-overlay">
+    <DialogOverlay className="modal-overlay confirm-overlay">
       <DialogPanel
         size="sm"
         className="modal-window confirm-window"

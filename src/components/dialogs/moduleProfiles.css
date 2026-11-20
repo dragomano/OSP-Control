@@ -32,6 +32,8 @@
 }
 .profiles-item {
   display: grid;
+  justify-content: start;
+  justify-items: start;
   gap: 5px;
   width: 100%;
   padding: 11px 10px;
@@ -41,6 +43,7 @@
   border-radius: 7px;
   background: transparent;
   color: var(--text);
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 .profiles-item b {
@@ -63,11 +66,12 @@
 }
 .profiles-create {
   width: 100%;
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: 12px;
 }
 .profiles-reload {
-  margin: 12px auto 0;
+  margin: 12px 0 0;
+  padding-inline: 10px;
 }
 .profiles-content {
   padding: 18px 22px;
@@ -212,11 +216,19 @@
 }
 .profiles-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
-.profiles-form .module-select input {
+.profiles-form > .row-actions {
+  grid-area: auto;
+  flex-wrap: wrap;
+}
+.profiles-form .module-select > :is(input, select) {
   width: 100%;
+  min-width: 0;
   height: 38px;
+}
+.profiles-form .module-select input {
   background: var(--panel2);
   color: var(--text);
   border: 1px solid var(--line);

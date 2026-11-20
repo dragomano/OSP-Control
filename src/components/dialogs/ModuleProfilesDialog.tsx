@@ -80,6 +80,7 @@ export function ModuleProfilesDialog({
   const [message, setMessage] = useState('');
   const [backup, setBackup] = useState('');
   const pending = useRef(false);
+  const confirming = useRef(false);
   const request = useRef(0);
   const windowRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -92,9 +93,23 @@ export function ModuleProfilesDialog({
   const nameValid = validProfileName(name.trim()) && !exists;
   const highlighted = useMemo(() => highlightConfig(file, draft, service.name), [file, draft, service.name]);
 
-  const discard = async () => !dirty || askConfirm(t('profiles.discard'), t('common.confirmTitle'));
+  const confirm = async (question: string) => {
+    if (confirming.current) return false;
+    confirming.current = true;
+    const focused = window.document.activeElement;
+    try {
+      const accepted = await askConfirm(question, t('common.confirmTitle'));
+      if (!accepted && focused instanceof HTMLElement && windowRef.current?.contains(focused)) {
+        focused.focus();
+      }
+      return accepted;
+    } finally {
+      confirming.current = false;
+    }
+  };
+  const discard = async () => !dirty || confirm(t('profiles.discard'));
   const dismiss = async () => {
-    if (!pending.current && !blocked && (await discard())) onClose();
+    if (!pending.current && !confirming.current && !blocked && (await discard())) onClose();
   };
   useDismiss(windowRef, () => void dismiss());
 
@@ -203,7 +218,7 @@ export function ModuleProfilesDialog({
         mode === 'create' &&
         copyData &&
         selectedBase?.hasData &&
-        !(await askConfirm(t('profiles.copyDataConfirm', { name: service.name }), t('common.confirmTitle')))
+        !(await confirm(t('profiles.copyDataConfirm', { name: service.name })))
       )
         return;
       await run(async () => {
@@ -218,9 +233,8 @@ export function ModuleProfilesDialog({
     if (locked || !profile || profile.builtin || selected === list?.active) return;
     // One question even with a dirty draft: deleting the profile discards the edits,
     // so the warning is part of the delete confirmation instead of a second dialog.
-    const confirmed = await askConfirm(
+    const confirmed = await confirm(
       t(dirty ? 'profiles.deleteDirtyConfirm' : 'profiles.deleteConfirm', { profile: selected }),
-      t('common.confirmTitle'),
     );
     if (!confirmed) return;
     await run(async () => {
@@ -232,13 +246,7 @@ export function ModuleProfilesDialog({
   };
   const activate = async () => {
     if (locked || dirty || !list?.online) return;
-    if (
-      !(await askConfirm(
-        t('profiles.activateConfirm', { profile: selected, name: service.name }),
-        t('common.confirmTitle'),
-      ))
-    )
-      return;
+    if (!(await confirm(t('profiles.activateConfirm', { profile: selected, name: service.name })))) return;
     await run(async () => {
       await onActivate(selected);
       await reload(selected);
@@ -366,6 +374,7 @@ export function ModuleProfilesDialog({
                     )}
                     {dirty && <Badge className="profiles-badge changed">{t('profiles.changed')}</Badge>}
                     <RowMenu
+                      topLayer
                       entries={[
                         {
                           label: t('profiles.copy'),

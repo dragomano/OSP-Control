@@ -1999,6 +1999,10 @@ button {
   box-shadow: 0 14px 38px #0007;
   z-index: 60;
 }
+.menu-popover[popover] {
+  inset: auto;
+  margin: 0;
+}
 .row-menu-separator {
   align-self: stretch;
   border: 0;
@@ -3057,8 +3061,10 @@ button {
 .modal-path .path-link:hover {
   text-decoration: none;
 }
-/* In-app confirmation dialog replacing the native message box (no system sound).
-   Must follow .modal-foot so the flex-end override wins. */
+.confirm-overlay {
+  z-index: 61;
+}
+/* Must follow .modal-foot so the flex-end override wins. */
 .confirm-window {
   width: min(400px, 100%);
 }

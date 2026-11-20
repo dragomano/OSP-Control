@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { listModuleProfiles } from '../src/demo/adapter';
 import DemoApp from '../src/demo/DemoApp';
 import en from '../src/demo/locales/en.json';
 import ru from '../src/demo/locales/ru.json';
@@ -21,6 +22,12 @@ function Bridge({ state }: { state: DemoBridge }) {
 }
 
 describe('workshop isolation and navigation', () => {
+  it('provides both factory and source profile data in the workshop', async () => {
+    const { active, factoryData, profiles } = await listModuleProfiles('PHP');
+    expect(factoryData).toBe(true);
+    expect(profiles.find(({ name }) => name === active)?.hasData).toBe(true);
+  });
+
   it('keeps preview preferences separate from persistent browser settings', () => {
     localStorage.setItem('workshop-test', 'persistent');
     demoStorage.setItem('workshop-test', 'preview');

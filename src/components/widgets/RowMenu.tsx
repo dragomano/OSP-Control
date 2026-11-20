@@ -1,5 +1,5 @@
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
-import { Fragment, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, type KeyboardEvent, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { type MenuEntry, type MenuTrigger, useDismiss } from '../shared';
 import { Button, MenuItem, MenuSurface } from '../ui';
@@ -9,6 +9,7 @@ export function RowMenu({
   trigger,
   onOpen,
   align = 'end',
+  topLayer = false,
 }: {
   entries: MenuEntry[];
   trigger?: MenuTrigger;
@@ -16,6 +17,7 @@ export function RowMenu({
   // Horizontal anchor of the popover: "end" right-aligns it to the button (toolbar
   // menus), "start" opens it from the left edge (full-width form field triggers).
   align?: 'start' | 'end';
+  topLayer?: boolean;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -46,6 +48,8 @@ export function RowMenu({
   // biome-ignore lint/correctness/useExhaustiveDependencies: Entries and expansion change the measured popup size.
   useLayoutEffect(() => {
     if (!open) return;
+    // Menus inside scrolling dialogs must escape their ancestors' clipping and positioning.
+    if (topLayer) popRef.current?.showPopover?.();
     const place = () => {
       const anchor = ref.current;
       const pop = popRef.current;
@@ -82,9 +86,15 @@ export function RowMenu({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', onScroll, true);
     };
-  }, [open, expanded, entries, align]);
+  }, [open, expanded, entries, align, topLayer]);
 
   useDismiss(ref, closeMenu, open);
+  const closeOnEscape = (event: KeyboardEvent<HTMLElement>) => {
+    if (!open || event.key !== 'Escape') return;
+    event.stopPropagation();
+    ref.current?.querySelector('button')?.focus();
+    closeMenu();
+  };
 
   return (
     <div className="row-menu" ref={ref}>
@@ -98,6 +108,7 @@ export function RowMenu({
           type="button"
           className={`icon-button ${open ? 'active' : ''}`}
           onClick={toggle}
+          onKeyDown={topLayer ? closeOnEscape : undefined}
           aria-label={t('common.actions')}
           aria-haspopup="menu"
           aria-expanded={open}
@@ -109,7 +120,9 @@ export function RowMenu({
         <MenuSurface
           className="menu-popover"
           role="menu"
+          popover={topLayer ? 'manual' : undefined}
           ref={popRef}
+          onKeyDown={topLayer ? closeOnEscape : undefined}
           style={{ ...pos, visibility: pos ? 'visible' : 'hidden' }}
         >
           {entries.map((entry) => {
