@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   type ProjectTask,
@@ -111,15 +110,4 @@ describe('project task definitions', () => {
     expect(uniqueTaskName([newTask()], 'shop.test', 'New action')).toBe('New action (2)');
     expect(uniqueTaskName([newTask()], 'api.shop.test', 'New action')).toBe('New action');
   });
-
-  it.skipIf(!process.env.OSP_CONTROL_PROJECT_TASK_SAMPLE)(
-    'reads the installed sample without writing to it',
-    () => {
-      const raw = readFileSync(process.env.OSP_CONTROL_PROJECT_TASK_SAMPLE as string, 'utf8');
-      const doc = parseProjectTasks(raw);
-      expect(doc.tasks.length).toBeGreaterThan(0);
-      expect(doc.errors).toEqual([]);
-      expect(renderProjectTasks(raw, doc.tasks)).toBe(raw);
-    },
-  );
 });

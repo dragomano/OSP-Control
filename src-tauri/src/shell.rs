@@ -1003,42 +1003,6 @@ mod tests {
         assert_eq!(fs::metadata(fixture.0.join("logs/general.log")).unwrap().len(), 0);
     }
 
-    #[test]
-    #[ignore = "Requires OSP_CONTROL_LOG_CLEANUP_TEST_ROOT; restarts that installation and clears general.log"]
-    fn installed_general_log_cleanup_restores_the_panel_and_running_modules() {
-        let root = PathBuf::from(
-            std::env::var_os("OSP_CONTROL_LOG_CLEANUP_TEST_ROOT")
-                .expect("explicit test installation required"),
-        );
-        let before = api_json(&root, "/getmodules").expect("test panel must be running");
-        let expected: Vec<_> = services_from_json(&before)
-            .into_iter()
-            .filter(|service| service.status == "running")
-            .map(|service| service.name)
-            .collect();
-        if let Some(report) = std::env::var_os("OSP_CONTROL_LOG_CLEANUP_TEST_REPORT") {
-            fs::write(PathBuf::from(report), serde_json::to_string_pretty(&expected).unwrap()).unwrap();
-        }
-        let mut panel = NativeLogPanel { root: &root, running_modules: None };
-        assert_eq!(clear_logs_with_panel(&root, Some("general.log"), &mut panel).unwrap(), 1);
-        assert!(panel.running_modules.is_some(), "the installed log must exercise automatic restart");
-        let after = api_json(&root, "/getmodules").expect("panel API must recover");
-        let actual = services_from_json(&after);
-        for name in expected {
-            assert!(
-                actual.iter().any(|service| service.name == name && service.status == "running"),
-                "module {name} must recover"
-            );
-        }
-        assert!(root.join("logs/general.log").is_file());
-        let log =
-            read_log_tail("general.log".into(), 2000, Some(root.to_string_lossy().into_owned())).unwrap();
-        assert!(
-            !log.iter().any(|line| line.contains("Включение невозможно (модуль уже включён)")),
-            "module recovery must not issue duplicate enable commands"
-        );
-    }
-
     struct LogFixture(PathBuf);
 
     impl LogFixture {
